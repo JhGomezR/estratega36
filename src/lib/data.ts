@@ -95,7 +95,7 @@ export const cities: City[] = [
 ];
 
 export const roles: Role[] = [
-    { id: 'admin', name: 'Administrador', permissions: ['manage_users', 'manage_campaigns', 'view_all_data', 'manage_settings'] },
+    { id: 'admin', name: 'Administrador', permissions: ['manage_users', 'manage_campaigns', 'view_all_data', 'manage_settings', 'manage_roles'] },
     { id: 'manager', name: 'Gerente de Campaña', permissions: ['manage_campaigns', 'view_all_data', 'manage_promoters'] },
     { id: 'promoter', name: 'Promotor', permissions: ['register_voters', 'view_own_data'] },
 ];

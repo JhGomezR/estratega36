@@ -67,7 +67,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'promoter';
+  role: string;
   avatar: string;
 };
 
@@ -79,7 +79,20 @@ export type City = {
 };
 
 export type Role = {
-  id: 'admin' | 'manager' | 'promoter';
+  id: string;
   name: string;
   permissions: string[];
 };
+
+export const availablePermissions = [
+  'manage_users',
+  'manage_campaigns',
+  'view_all_data',
+  'manage_settings',
+  'manage_promoters',
+  'register_voters',
+  'view_own_data',
+  'manage_roles',
+] as const;
+
+export type Permission = (typeof availablePermissions)[number];
