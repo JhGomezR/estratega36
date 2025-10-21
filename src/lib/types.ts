@@ -11,9 +11,32 @@ export type Voter = {
   status: 'active' | 'inactive' | 'pending';
 };
 
+export type Investor = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  description: string;
+  investmentAmount: number;
+}
+
+export const CampaignType = [
+  'localidad', 
+  'municipal', 
+  'edil', 
+  'gobernacion', 
+  'alcaldia', 
+  'presidencia', 
+  'senado', 
+  'camara'
+] as const;
+
 export type Campaign = {
   id: string;
   name: string;
+  description: string;
+  campaignType: (typeof CampaignType)[number];
+  hasInvestors: boolean;
+  investors?: Investor[];
   goal: string;
   startDate: string;
   endDate: string;

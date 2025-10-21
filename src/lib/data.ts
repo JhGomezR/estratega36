@@ -1,4 +1,4 @@
-import type { Voter, Campaign, Task, Call, User, City, Role } from '@/lib/types';
+import type { Voter, Campaign, Task, Call, User, City, Role, Investor } from '@/lib/types';
 import { subDays, format } from 'date-fns';
 
 export const users: User[] = [
@@ -26,10 +26,53 @@ export const voters: Voter[] = Array.from({ length: 50 }, (_, i) => {
   };
 });
 
+const investors: Investor[] = [
+    { id: 'inv-1', firstName: 'Juan', lastName: 'Perez', description: 'Inversionista ángel', investmentAmount: 50000 },
+    { id: 'inv-2', firstName: 'Maria', lastName: 'Gomez', description: 'Fondo de inversión', investmentAmount: 120000 },
+];
+
 export const campaigns: Campaign[] = [
-  { id: 'cam-1', name: 'Elecciones 2024', goal: 'Ganar elección presidencial', startDate: '2024-01-01', endDate: '2024-12-31', status: 'active', voterCount: 35, progress: 65 },
-  { id: 'cam-2', name: 'Campaña Local', goal: 'Aumentar base de votantes', startDate: '2024-03-01', endDate: '2024-09-30', status: 'active', voterCount: 15, progress: 40 },
-  { id: 'cam-3', name: 'Iniciativa Juvenil', goal: 'Conectar con votantes jóvenes', startDate: '2023-10-01', endDate: '2023-12-15', status: 'completed', voterCount: 500, progress: 100 },
+  { 
+    id: 'cam-1', 
+    name: 'Elecciones 2024',
+    description: 'Campaña para la elección presidencial con enfoque en desarrollo económico y social.',
+    campaignType: 'presidencia',
+    hasInvestors: true,
+    investors: investors,
+    goal: 'Ganar elección presidencial', 
+    startDate: '2024-01-01', 
+    endDate: '2024-12-31', 
+    status: 'active', 
+    voterCount: 35, 
+    progress: 65 
+  },
+  { 
+    id: 'cam-2', 
+    name: 'Campaña Local',
+    description: 'Campaña para la alcaldía municipal, centrada en mejorar la infraestructura y servicios locales.',
+    campaignType: 'alcaldia',
+    hasInvestors: false,
+    goal: 'Aumentar base de votantes', 
+    startDate: '2024-03-01', 
+    endDate: '2024-09-30', 
+    status: 'active', 
+    voterCount: 15, 
+    progress: 40 
+  },
+  { 
+    id: 'cam-3', 
+    name: 'Iniciativa Juvenil',
+    description: 'Campaña para el senado enfocada en atraer el voto joven a través de iniciativas de educación y empleo.',
+    campaignType: 'senado',
+    hasInvestors: true,
+    investors: [investors[0]],
+    goal: 'Conectar con votantes jóvenes', 
+    startDate: '2023-10-01', 
+    endDate: '2023-12-15', 
+    status: 'completed', 
+    voterCount: 500, 
+    progress: 100 
+  },
 ];
 
 export const tasks: Task[] = [
