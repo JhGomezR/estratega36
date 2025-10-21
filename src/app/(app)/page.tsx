@@ -125,7 +125,6 @@ export default function Dashboard() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Descripción</TableHead>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,13 +133,6 @@ export default function Dashboard() {
                     <TableCell className="font-medium">{activity.type}</TableCell>
                     <TableCell>{activity.description}</TableCell>
                     <TableCell>{activity.date}</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        activity.status === 'completed' ? 'default' :
-                        activity.status === 'in-progress' || activity.status === 'scheduled' ? 'secondary' :
-                        'outline'
-                      }>{activity.status}</Badge>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

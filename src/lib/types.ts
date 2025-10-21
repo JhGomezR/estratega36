@@ -1,14 +1,16 @@
 export type Voter = {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  idType: (typeof IdentificationType)[number];
+  idNumber: string;
   email: string;
   phone: string;
-  city: string;
+  cityId: string;
+  vereda: string;
   address: string;
   promoterId: string;
-  promoterName: string;
   registrationDate: string;
-  status: 'active' | 'inactive' | 'pending';
 };
 
 export type Investor = {

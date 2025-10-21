@@ -21,17 +21,20 @@ export const promoters = users.filter(u => u.roleId === 'promoter');
 
 export const voters: Voter[] = Array.from({ length: 50 }, (_, i) => {
   const promoter = promoters[i % promoters.length];
+  const city = cities[i % cities.length];
   return {
     id: `voter-${i + 1}`,
-    name: `Voter ${i + 1}`,
+    firstName: `Votante ${i + 1}`,
+    lastName: `Apellido`,
+    idType: 'cedula',
+    idNumber: `${Math.floor(100000000 + Math.random() * 900000000)}`,
     email: `voter${i + 1}@example.com`,
-    phone: `555-01${i.toString().padStart(2, '0')}`,
-    city: ['Bogotá', 'Medellín', 'Cali'][i % 3],
-    address: `Street ${i + 1}, Neighborhood`,
+    phone: `300${Math.floor(1000000 + Math.random() * 9000000)}`,
+    cityId: city.id,
+    vereda: `Vereda ${i % 5 + 1}`,
+    address: `Calle ${i + 1}, Barrio`,
     promoterId: promoter.id,
-    promoterName: `${promoter.firstName} ${promoter.lastName}`,
     registrationDate: format(subDays(new Date(), i * 3), 'yyyy-MM-dd'),
-    status: (['active', 'pending', 'inactive'] as const)[i % 3],
   };
 });
 
