@@ -71,7 +71,7 @@ export default function CitiesPage() {
 
   const handleFormSubmit = (city: Omit<City, 'id'>) => {
     if (selectedCity) {
-      setCities(cities.map(c => c.id === selectedCity.id ? { ...c, ...city } : c))
+      setCities(cities.map(c => c.id === selectedCity.id ? { ...selectedCity, ...city } : c))
     } else {
       const newCity: City = {
         id: `city-${Date.now()}`,
