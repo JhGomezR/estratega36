@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input"
 
 const cityFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
-  vereda: z.string().optional(),
   department: z.string().min(3, "El departamento debe tener al menos 3 caracteres."),
   country: z.string().min(3, "El país debe tener al menos 3 caracteres."),
   latitude: z.preprocess(
@@ -43,7 +42,6 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
     resolver: zodResolver(cityFormSchema),
     defaultValues: {
       name: city?.name ?? "",
-      vereda: city?.vereda ?? "",
       department: city?.department ?? "",
       country: city?.country ?? "Colombia",
       latitude: city?.latitude ?? 0,
@@ -58,34 +56,19 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre de la Ciudad/Municipio</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ej: Bogotá" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-            control={form.control}
-            name="vereda"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Vereda (Opcional)</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ej: El Uval" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nombre de la Ciudad/Municipio</FormLabel>
+              <FormControl>
+                <Input placeholder="Ej: Bogotá" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
          <FormField
             control={form.control}
             name="department"

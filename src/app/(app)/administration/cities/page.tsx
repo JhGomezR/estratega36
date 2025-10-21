@@ -121,7 +121,6 @@ export default function CitiesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Ciudad/Municipio</TableHead>
-                <TableHead>Vereda</TableHead>
                 <TableHead>Departamento</TableHead>
                 <TableHead>País</TableHead>
                 <TableHead>Latitud</TableHead>
@@ -133,7 +132,6 @@ export default function CitiesPage() {
               {cities.map((city) => (
                 <TableRow key={city.id}>
                   <TableCell className="font-medium">{city.name}</TableCell>
-                  <TableCell>{city.vereda}</TableCell>
                   <TableCell>{city.department}</TableCell>
                   <TableCell>{city.country}</TableCell>
                   <TableCell>{city.latitude.toFixed(4)}</TableCell>
