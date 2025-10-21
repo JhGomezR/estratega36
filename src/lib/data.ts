@@ -1,0 +1,86 @@
+import type { Voter, Campaign, Task, Call, User, City, Role } from '@/lib/types';
+import { subDays, format } from 'date-fns';
+
+export const users: User[] = [
+  { id: 'user-1', name: 'Admin User', email: 'admin@strategacrm.com', role: 'admin', avatar: '/avatars/01.png' },
+  { id: 'user-2', name: 'Campaign Manager', email: 'manager@strategacrm.com', role: 'manager', avatar: '/avatars/02.png' },
+  { id: 'user-3', name: 'Sofia Promoter', email: 'sofia@promoter.com', role: 'promoter', avatar: '/avatars/03.png' },
+  { id: 'user-4', name: 'Carlos Promoter', email: 'carlos@promoter.com', role: 'promoter', avatar: '/avatars/04.png' },
+];
+
+export const promoters = users.filter(u => u.role === 'promoter');
+
+export const voters: Voter[] = Array.from({ length: 50 }, (_, i) => {
+  const promoter = promoters[i % promoters.length];
+  return {
+    id: `voter-${i + 1}`,
+    name: `Voter ${i + 1}`,
+    email: `voter${i + 1}@example.com`,
+    phone: `555-01${i.toString().padStart(2, '0')}`,
+    city: ['Bogotá', 'Medellín', 'Cali'][i % 3],
+    address: `Street ${i + 1}, Neighborhood`,
+    promoterId: promoter.id,
+    promoterName: promoter.name,
+    registrationDate: format(subDays(new Date(), i * 3), 'yyyy-MM-dd'),
+    status: (['active', 'pending', 'inactive'] as const)[i % 3],
+  };
+});
+
+export const campaigns: Campaign[] = [
+  { id: 'cam-1', name: 'Elecciones 2024', goal: 'Ganar elección presidencial', startDate: '2024-01-01', endDate: '2024-12-31', status: 'active', voterCount: 35, progress: 65 },
+  { id: 'cam-2', name: 'Campaña Local', goal: 'Aumentar base de votantes', startDate: '2024-03-01', endDate: '2024-09-30', status: 'active', voterCount: 15, progress: 40 },
+  { id: 'cam-3', name: 'Iniciativa Juvenil', goal: 'Conectar con votantes jóvenes', startDate: '2023-10-01', endDate: '2023-12-15', status: 'completed', voterCount: 500, progress: 100 },
+];
+
+export const tasks: Task[] = [
+    { id: 'task-1', title: 'Organizar evento de campaña', assignedTo: 'Campaign Manager', dueDate: format(new Date(), 'yyyy-MM-dd'), status: 'in-progress', priority: 'high' },
+    { id: 'task-2', title: 'Diseñar folletos', assignedTo: 'Sofia Promoter', dueDate: format(subDays(new Date(), -3), 'yyyy-MM-dd'), status: 'pending', priority: 'medium' },
+    { id: 'task-3', title: 'Contactar líderes comunitarios', assignedTo: 'Carlos Promoter', dueDate: format(subDays(new Date(), 1), 'yyyy-MM-dd'), status: 'completed', priority: 'high' },
+    { id: 'task-4', title: 'Actualizar redes sociales', assignedTo: 'Sofia Promoter', dueDate: format(new Date(), 'yyyy-MM-dd'), status: 'in-progress', priority: 'medium' },
+];
+
+export const calls: Call[] = [
+    { id: 'call-1', voterName: 'Voter 1', phoneNumber: '555-0100', scheduledTime: format(new Date(), 'yyyy-MM-dd HH:mm'), status: 'completed', notes: 'Mostró mucho interés en la propuesta educativa.' },
+    { id: 'call-2', voterName: 'Voter 5', phoneNumber: '555-0104', scheduledTime: format(subDays(new Date(), -1), 'yyyy-MM-dd HH:mm'), status: 'scheduled', notes: 'Llamar para confirmar asistencia al evento.' },
+    { id: 'call-3', voterName: 'Voter 12', phoneNumber: '555-0111', scheduledTime: format(subDays(new Date(), -2), 'yyyy-MM-dd HH:mm'), status: 'scheduled', notes: '' },
+];
+
+export const cities: City[] = [
+    { id: 'city-1', name: 'Bogotá', department: 'Cundinamarca', voterCount: voters.filter(v => v.city === 'Bogotá').length },
+    { id: 'city-2', name: 'Medellín', department: 'Antioquia', voterCount: voters.filter(v => v.city === 'Medellín').length },
+    { id: 'city-3', name: 'Cali', department: 'Valle del Cauca', voterCount: voters.filter(v => v.city === 'Cali').length },
+];
+
+export const roles: Role[] = [
+    { id: 'admin', name: 'Administrador', permissions: ['manage_users', 'manage_campaigns', 'view_all_data', 'manage_settings'] },
+    { id: 'manager', name: 'Gerente de Campaña', permissions: ['manage_campaigns', 'view_all_data', 'manage_promoters'] },
+    { id: 'promoter', name: 'Promotor', permissions: ['register_voters', 'view_own_data'] },
+];
+
+export const recentActivities = [...tasks.slice(0, 2), ...calls.slice(0, 2)].map(activity => {
+    if ('title' in activity) {
+        return {
+            id: activity.id,
+            description: activity.title,
+            type: 'Task',
+            date: activity.dueDate,
+            status: activity.status
+        }
+    }
+    return {
+        id: activity.id,
+        description: `Llamada a ${activity.voterName}`,
+        type: 'Call',
+        date: activity.scheduledTime.split(' ')[0],
+        status: activity.status
+    }
+}).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+export const voterRegistrationChartData = [
+  { month: 'Enero', registrations: 186 },
+  { month: 'Febrero', registrations: 305 },
+  { month: 'Marzo', registrations: 237 },
+  { month: 'Abril', registrations: 173 },
+  { month: 'Mayo', registrations: 209 },
+  { month: 'Junio', registrations: 214 },
+];

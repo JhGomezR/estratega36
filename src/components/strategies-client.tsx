@@ -1,0 +1,182 @@
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { generateCampaignStrategy, type GenerateCampaignStrategyOutput } from '@/ai/flows/generate-campaign-strategies'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/hooks/use-toast'
+import { Lightbulb, Loader2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
+
+const formSchema = z.object({
+  campaignData: z.string().min(50, {
+    message: 'Los datos de la campaña deben tener al menos 50 caracteres.',
+  }),
+  objectives: z.string().min(20, {
+    message: 'Los objetivos deben tener al menos 20 caracteres.',
+  }),
+  resourceConstraints: z.string().optional(),
+})
+
+export function StrategiesClient() {
+  const [result, setResult] = useState<GenerateCampaignStrategyOutput | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      campaignData: '',
+      objectives: '',
+      resourceConstraints: '',
+    },
+  })
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true)
+    setResult(null)
+    try {
+      const aiResult = await generateCampaignStrategy(values)
+      setResult(aiResult)
+    } catch (e) {
+      console.error(e)
+      toast({
+        variant: 'destructive',
+        title: 'Error de Generación',
+        description: 'No se pudo generar la estrategia. Por favor, inténtalo de nuevo.',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <Card>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardHeader>
+              <CardTitle>Generador de Estrategias</CardTitle>
+              <CardDescription>Define los parámetros para que la IA genere una estrategia de campaña.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="campaignData"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Datos Clave de la Campaña</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Resumen del rendimiento pasado, demografía de votantes, temas clave..."
+                        className="min-h-[150px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="objectives"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Objetivos Principales</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Ej: Aumentar la participación electoral, ganar un distrito específico, mejorar la imagen del candidato."
+                        className="min-h-[100px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="resourceConstraints"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Restricciones de Recursos (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Presupuesto limitado, poco personal de campo." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Cualquier limitación que la IA deba considerar.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Lightbulb className="mr-2 h-4 w-4" />
+                )}
+                {isLoading ? 'Generando...' : 'Generar Estrategia'}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      </Card>
+      
+      <div className="space-y-4">
+        {isLoading && (
+          <>
+            <Card><CardHeader><Skeleton className="h-8 w-3/4" /></CardHeader><CardContent><Skeleton className="h-32 w-full" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader><CardContent><Skeleton className="h-20 w-full" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader><CardContent><Skeleton className="h-20 w-full" /></CardContent></Card>
+          </>
+        )}
+        {result && (
+          <>
+            <Card className="bg-card/80 border-primary/50 shadow-lg">
+              <CardHeader>
+                <CardTitle>Estrategia de Campaña Generada</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-wrap">{result.strategy}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card/80 border-accent/50 shadow-lg">
+              <CardHeader>
+                <CardTitle>Recomendaciones Clave</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-wrap">{result.keyRecommendations}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <CardTitle>Riesgos Potenciales</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-wrap">{result.potentialRisks}</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
+        {!isLoading && !result && (
+             <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
+                <Lightbulb className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold">Estrategia de Campaña</h3>
+                <p className="text-muted-foreground text-sm">
+                    La estrategia generada por la IA aparecerá aquí.
+                </p>
+            </Card>
+        )}
+      </div>
+    </div>
+  )
+}
