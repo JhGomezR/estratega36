@@ -74,6 +74,7 @@ export type User = {
 export type City = {
   id: string;
   name: string;
+  vereda?: string;
   department: string;
   country: string;
   latitude: number;

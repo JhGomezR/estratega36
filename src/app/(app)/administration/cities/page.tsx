@@ -71,7 +71,7 @@ export default function CitiesPage() {
 
   const handleFormSubmit = (city: Omit<City, 'id'>) => {
     if (selectedCity) {
-      setCities(cities.map(c => c.id === selectedCity.id ? { ...selectedCity, ...city } : c))
+      setCities(cities.map(c => c.id === selectedCity.id ? { ...c, ...city } : c))
     } else {
       const newCity: City = {
         id: `city-${Date.now()}`,
@@ -121,6 +121,7 @@ export default function CitiesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Ciudad/Municipio</TableHead>
+                <TableHead>Vereda</TableHead>
                 <TableHead>Departamento</TableHead>
                 <TableHead>País</TableHead>
                 <TableHead>Latitud</TableHead>
@@ -132,6 +133,7 @@ export default function CitiesPage() {
               {cities.map((city) => (
                 <TableRow key={city.id}>
                   <TableCell className="font-medium">{city.name}</TableCell>
+                  <TableCell>{city.vereda}</TableCell>
                   <TableCell>{city.department}</TableCell>
                   <TableCell>{city.country}</TableCell>
                   <TableCell>{city.latitude.toFixed(4)}</TableCell>
