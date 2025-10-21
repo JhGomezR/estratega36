@@ -15,28 +15,14 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import {
-  BarChart,
-  LineChart,
   Target,
   UserCheck,
   UserPlus,
   Users,
 } from "lucide-react"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import {
-  Bar,
-  CartesianGrid,
-  Line,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-} from "recharts"
-import { campaigns, recentActivities, voterRegistrationChartData, voters, promoters } from "@/lib/data"
+import { campaigns, recentActivities, voters, promoters } from "@/lib/data"
 import { Progress } from "@/components/ui/progress"
+import { VoterRegistrationChart } from "@/components/voter-registration-chart"
 
 export default function Dashboard() {
   const newVotersCount = voters.filter(v => new Date(v.registrationDate) > new Date(new Date().setDate(new Date().getDate() - 30))).length;
@@ -106,30 +92,7 @@ export default function Dashboard() {
             <CardDescription>Registros mensuales de nuevos votantes.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{
-              registrations: {
-                label: "Registros",
-                color: "hsl(var(--primary))",
-              },
-            }} className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={voterRegistrationChartData}>
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                          dataKey="month"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                      />
-                      <YAxis />
-                      <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent />}
-                      />
-                      <Bar dataKey="registrations" fill="var(--color-registrations)" radius={4} />
-                  </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            <VoterRegistrationChart />
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
