@@ -1,5 +1,6 @@
-import type { Voter, Campaign, Task, Call, User, City, Role, Investor } from '@/lib/types';
+import type { Voter, Campaign, Task, Call, User, Role, Investor } from '@/lib/types';
 import { subDays, format } from 'date-fns';
+import { cities as colombianCities } from '@/lib/cities-data';
 
 export const users: User[] = [
   { id: 'user-1', name: 'Admin User', email: 'admin@strategacrm.com', role: 'admin', avatar: '/avatars/01.png' },
@@ -88,11 +89,7 @@ export const calls: Call[] = [
     { id: 'call-3', voterName: 'Voter 12', phoneNumber: '555-0111', scheduledTime: format(subDays(new Date(), -2), 'yyyy-MM-dd HH:mm'), status: 'scheduled', notes: '' },
 ];
 
-export const cities: City[] = [
-    { id: 'city-1', name: 'Bogotá', department: 'Cundinamarca', voterCount: voters.filter(v => v.city === 'Bogotá').length },
-    { id: 'city-2', name: 'Medellín', department: 'Antioquia', voterCount: voters.filter(v => v.city === 'Medellín').length },
-    { id: 'city-3', name: 'Cali', department: 'Valle del Cauca', voterCount: voters.filter(v => v.city === 'Cali').length },
-];
+export const cities = colombianCities;
 
 export const roles: Role[] = [
     { id: 'admin', name: 'Administrador', permissions: ['manage_users', 'manage_campaigns', 'view_all_data', 'manage_settings', 'manage_roles'] },

@@ -75,7 +75,9 @@ export type City = {
   id: string;
   name: string;
   department: string;
-  voterCount: number;
+  country: string;
+  latitude: number;
+  longitude: number;
 };
 
 export type Role = {
