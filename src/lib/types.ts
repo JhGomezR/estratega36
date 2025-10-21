@@ -63,11 +63,24 @@ export type Call = {
   notes: string;
 };
 
+export const IdentificationType = [
+  'cedula',
+  'dni',
+  'pasaporte',
+  'cedula_extrangeria',
+] as const;
+
 export type User = {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  idType: (typeof IdentificationType)[number];
+  idNumber: string;
   email: string;
-  role: string;
+  phone: string;
+  roleId: string;
+  cityIds: string[];
+  campaignIds: string[];
   avatar: string;
 };
 

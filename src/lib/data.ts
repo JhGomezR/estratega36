@@ -1,15 +1,23 @@
-import type { Voter, Campaign, Task, Call, User, Role, Investor } from '@/lib/types';
+import type { Voter, Campaign, Task, Call, User, Role, Investor, City } from '@/lib/types';
 import { subDays, format } from 'date-fns';
 import { cities as colombianCities } from '@/lib/cities-data';
 
-export const users: User[] = [
-  { id: 'user-1', name: 'Admin User', email: 'admin@strategacrm.com', role: 'admin', avatar: '/avatars/01.png' },
-  { id: 'user-2', name: 'Campaign Manager', email: 'manager@strategacrm.com', role: 'manager', avatar: '/avatars/02.png' },
-  { id: 'user-3', name: 'Sofia Promoter', email: 'sofia@promoter.com', role: 'promoter', avatar: '/avatars/03.png' },
-  { id: 'user-4', name: 'Carlos Promoter', email: 'carlos@promoter.com', role: 'promoter', avatar: '/avatars/04.png' },
+export const roles: Role[] = [
+    { id: 'admin', name: 'Administrador', permissions: ['manage_users', 'manage_campaigns', 'view_all_data', 'manage_settings', 'manage_roles'] },
+    { id: 'manager', name: 'Gerente de Campaña', permissions: ['manage_campaigns', 'view_all_data', 'manage_promoters'] },
+    { id: 'promoter', name: 'Promotor', permissions: ['register_voters', 'view_own_data'] },
 ];
 
-export const promoters = users.filter(u => u.role === 'promoter');
+export const cities: City[] = colombianCities;
+
+export const users: User[] = [
+  { id: 'user-1', firstName: 'Admin', lastName: 'User', idType: 'cedula', idNumber: '123456789', email: 'admin@strategacrm.com', phone: '3001234567', roleId: 'admin', cityIds: [cities[0].id], campaignIds: ['cam-1', 'cam-2'], avatar: '/avatars/01.png' },
+  { id: 'user-2', firstName: 'Campaign', lastName: 'Manager', idType: 'cedula', idNumber: '987654321', email: 'manager@strategacrm.com', phone: '3009876543', roleId: 'manager', cityIds: [cities[1].id, cities[2].id], campaignIds: ['cam-2'], avatar: '/avatars/02.png' },
+  { id: 'user-3', firstName: 'Sofia', lastName: 'Promoter', idType: 'pasaporte', idNumber: 'A1B2C3D4', email: 'sofia@promoter.com', phone: '3101112233', roleId: 'promoter', cityIds: [cities[3].id], campaignIds: ['cam-1'], avatar: '/avatars/03.png' },
+  { id: 'user-4', firstName: 'Carlos', lastName: 'Promoter', idType: 'cedula_extrangeria', idNumber: 'E9F8G7H6', email: 'carlos@promoter.com', phone: '3204445566', roleId: 'promoter', cityIds: [cities[4].id, cities[5].id], campaignIds: ['cam-1', 'cam-2'], avatar: '/avatars/04.png' },
+];
+
+export const promoters = users.filter(u => u.roleId === 'promoter');
 
 export const voters: Voter[] = Array.from({ length: 50 }, (_, i) => {
   const promoter = promoters[i % promoters.length];
@@ -21,7 +29,7 @@ export const voters: Voter[] = Array.from({ length: 50 }, (_, i) => {
     city: ['Bogotá', 'Medellín', 'Cali'][i % 3],
     address: `Street ${i + 1}, Neighborhood`,
     promoterId: promoter.id,
-    promoterName: promoter.name,
+    promoterName: `${promoter.firstName} ${promoter.lastName}`,
     registrationDate: format(subDays(new Date(), i * 3), 'yyyy-MM-dd'),
     status: (['active', 'pending', 'inactive'] as const)[i % 3],
   };
@@ -89,13 +97,6 @@ export const calls: Call[] = [
     { id: 'call-3', voterName: 'Voter 12', phoneNumber: '555-0111', scheduledTime: format(subDays(new Date(), -2), 'yyyy-MM-dd HH:mm'), status: 'scheduled', notes: '' },
 ];
 
-export const cities = colombianCities;
-
-export const roles: Role[] = [
-    { id: 'admin', name: 'Administrador', permissions: ['manage_users', 'manage_campaigns', 'view_all_data', 'manage_settings', 'manage_roles'] },
-    { id: 'manager', name: 'Gerente de Campaña', permissions: ['manage_campaigns', 'view_all_data', 'manage_promoters'] },
-    { id: 'promoter', name: 'Promotor', permissions: ['register_voters', 'view_own_data'] },
-];
 
 export const recentActivities = [...tasks.slice(0, 2), ...calls.slice(0, 2)].map(activity => {
     if ('title' in activity) {
