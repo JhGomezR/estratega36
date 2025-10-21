@@ -69,18 +69,19 @@ export default function CitiesPage() {
     }
   }
 
-  const handleFormSubmit = (city: Omit<City, 'id'>) => {
+  const handleFormSubmit = (data: Omit<City, 'id'>) => {
     if (selectedCity) {
-      setCities(cities.map(c => c.id === selectedCity.id ? { ...selectedCity, ...city } : c))
+      const updatedCity: City = { ...selectedCity, ...data };
+      setCities(cities.map(c => c.id === selectedCity.id ? updatedCity : c));
     } else {
       const newCity: City = {
         id: `city-${Date.now()}`,
-        ...city
+        ...data
       };
       setCities([...cities, newCity]);
     }
-    setIsFormOpen(false)
-  }
+    setIsFormOpen(false);
+  };
 
   return (
     <div className="flex flex-col gap-8">
