@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { addDays, eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay } from 'date-fns'
+import { addDays, eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval } from 'date-fns'
 import {
   Dialog,
   DialogContent,
@@ -37,22 +38,18 @@ const statusLabels: Record<Task['status'], string> = {
   finalizada: "Finalizada",
 };
 
+type TaskWithRenderInfo = Task & { start: Date; due: Date; span: number; level: number };
 
 function DayWithTasks({ 
     date, 
-    tasks,
+    dayTasks,
     onTaskClick,
   }: { 
     date: Date; 
-    tasks: (Task & { start: Date; due: Date; span: number; level: number })[];
+    dayTasks: TaskWithRenderInfo[];
     onTaskClick: (task: Task) => void;
   }) {
     
-  const dayTasks = tasks.filter(task => {
-    const interval = { start: task.start, end: task.due }
-    return isSameDay(date, task.start) || isSameDay(date, task.due) || (date > task.start && date < task.due);
-  });
-
   const MAX_VISIBLE_TASKS = 2;
   const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenTasksCount = dayTasks.length - MAX_VISIBLE_TASKS;
@@ -67,23 +64,21 @@ function DayWithTasks({
             const isStart = isSameDay(date, task.start);
             const isEnd = isSameDay(date, task.due);
             const weekStart = getWeekStart(date);
-            const isStartOfWeek = isSameDay(date, weekStart) || isSameDay(date, addDays(weekStart, -1)); // Handle week starts on Sunday or Monday
+            const isStartOfWeek = isSameDay(date, weekStart) || getDay(date) === 0;
             
-            const showTitle = isStart || (isStartOfWeek && date >= task.start);
+            const showTitle = isStart || (isStartOfWeek && isWithinInterval(date, { start: task.start, end: task.due}));
 
             const style = {
-              marginTop: `${task.level * 1.5}rem`,
+              marginTop: `${task.level * 1.75}rem`,
             };
 
             return (
-              <div key={task.id} className="relative" style={style}>
+              <div key={task.id} className="absolute w-[calc(100%-4px)]" style={style}>
                  <button
                     onClick={() => onTaskClick(task)}
                     className={`w-full text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} 
-                    ${isStart || (isStartOfWeek && date >= task.start) ? 'rounded-l-md' : ''}
+                    ${isStart || (isStartOfWeek && isWithinInterval(date, { start: task.start, end: task.due})) ? 'rounded-l-md' : ''}
                     ${isEnd ? 'rounded-r-md' : ''}
-                    ${!isStart && !(isStartOfWeek && date >= task.start) && 'ml-[-1px]'}
-                    ${!isEnd && 'mr-[-1px]'}
                     `}
                   >
                    {showTitle ? task.title : <>&nbsp;</>}
@@ -92,7 +87,7 @@ function DayWithTasks({
             )
         })}
          {hiddenTasksCount > 0 && (
-          <button className="text-xs text-muted-foreground mt-1 hover:underline">
+          <button className="text-xs text-muted-foreground mt-1 hover:underline" style={{ marginTop: `${MAX_VISIBLE_TASKS * 1.75}rem`}}>
             +{hiddenTasksCount} más
           </button>
         )}
@@ -120,38 +115,40 @@ export default function CalendarPage() {
         try {
             const start = parseISO(task.startDate);
             const due = parseISO(task.dueDate);
-            if (start > due) return null; // Invalid date range
+            if (start > due) return null;
             const span = eachDayOfInterval({ start, end: due }).length;
             return { ...task, start, due, span, level: 0 };
         } catch {
             return null;
         }
-    }).filter(Boolean) as (Task & { start: Date; due: Date; span: number; level: number })[];
+    }).filter(Boolean) as TaskWithRenderInfo[];
   
     parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.span - a.span);
-  
-    const taskLevels: { task: typeof parsedTasks[0]; level: number }[] = [];
-  
-    for (const task of parsedTasks) {
-      let level = 0;
-      // Find the first level where the task does not overlap
-      while (
-        taskLevels.some(
-          (t) =>
-            t.level === level &&
-            task.start < addDays(t.task.due, 1) &&
-            addDays(task.due, 1) > t.task.start
-        )
-      ) {
-        level++;
-      }
-      task.level = level;
-      taskLevels.push({ task, level });
-    }
-  
+    
+    // This is the new, corrected leveling algorithm
+    const layout: TaskWithRenderInfo[][] = [];
+    parsedTasks.forEach(task => {
+        let level = 0;
+        // Find a level where it doesn't overlap
+        while (layout[level] && layout[level].some(t => t.due >= task.start)) {
+            level++;
+        }
+        task.level = level;
+        if (!layout[level]) {
+            layout[level] = [];
+        }
+        layout[level].push(task);
+    });
+
     return parsedTasks;
+
   }, [tasksData]);
   
+  const getTasksForDay = (date: Date): TaskWithRenderInfo[] => {
+    return tasks
+      .filter(task => isWithinInterval(date, { start: task.start, end: task.due }))
+      .sort((a, b) => a.level - b.level);
+  }
 
   const allTaskDates = React.useMemo(() => {
     if (!tasks) return []
@@ -202,7 +199,8 @@ export default function CalendarPage() {
                 if (isLoading) {
                   return <div className="h-full w-full p-1"><time>{format(date, "d")}</time></div>
                 }
-                return <DayWithTasks date={date} tasks={tasks || []} onTaskClick={handleTaskClick} />
+                const dayTasks = getTasksForDay(date);
+                return <DayWithTasks date={date} dayTasks={dayTasks} onTaskClick={handleTaskClick} />
               },
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
@@ -214,7 +212,7 @@ export default function CalendarPage() {
               head_row: "flex justify-between border-b",
               head_cell: "w-full text-muted-foreground rounded-md font-normal text-[0.8rem] uppercase",
               row: "flex w-full mt-2 justify-between border-b",
-              cell: "h-36 w-full text-left text-sm p-0 relative focus-within:relative focus-within:z-20 border-r last:border-r-0",
+              cell: "h-48 w-full text-left text-sm p-0 relative focus-within:relative focus-within:z-20 border-r last:border-r-0",
               day: "h-full w-full p-0 font-normal aria-selected:opacity-100 justify-start items-start flex",
               day_selected: "",
               day_today: "bg-accent/50 text-accent-foreground",
@@ -269,3 +267,5 @@ export default function CalendarPage() {
     </div>
   )
 }
+
+    
