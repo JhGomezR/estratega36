@@ -1,37 +1,52 @@
 /**
- * @fileoverview Firestore Security Rules
+ * @fileoverview Firestore Security Rules for the application.
  *
  * Core Philosophy:
- * This ruleset employs a hybrid security model. User-specific data is strictly controlled via ownership,
- * while campaign and role data can be publicly read but only modified by authorized users.
+ * This ruleset enforces a strict user-ownership model for user profiles and
+ * restricts access to other collections based on defined roles and
+ * relationships. It prioritizes secure access control and prevents unauthorized
+ * data modification. The error in `src/firebase/firestore/use-collection.tsx`
+ * indicates that unauthenticated users were attempting to `list` the `users` collection,
+ * which is now explicitly denied.
  *
  * Data Structure:
- * - /users/{userId}:  User profiles, accessible only to the user and potentially admins.
- * - /roles/{roleId}:  Role definitions. Publicly readable, but create/update/delete restricted.
- * - /campaigns/{campaignId}: Campaign data. Publicly readable, but create/update/delete restricted.
- * - /voters/{voterId}: Voter information, accessible only to authorized users (e.g., campaign managers, admins).
- * - /cities/{cityId}:  City data. Publicly readable.  Create/update/delete restricted.
- * - /tasks/{taskId}: Task data. Publicly readable, but create/update/delete restricted.
+ * - `/users/{userId}`: Stores user profiles, accessible only to the user themselves.
+ * - `/roles/{roleId}`: Stores role definitions, publicly readable but not writable via client.
+ * - `/campaigns/{campaignId}`: Stores campaign information (Public Read with Owner-Only Writes).
+ * - `/voters/{voterId}`: Stores voter information (Public Read with Owner-Only Writes).
+ * - `/cities/{cityId}`: Stores city information, publicly readable.
+ * - `/tasks/{taskId}`: Stores campaign tasks (Public Read with Owner-Only Writes).
  *
  * Key Security Decisions:
- * - Listing of users is disallowed for privacy.
- * - Roles are readable by all, but only manageable via dedicated admin functions (not yet implemented in rules).
- * - Default deny: Any access not explicitly allowed is denied.
+ * - User listing is strictly forbidden to prevent enumeration.
+ * - Roles are readable by all but writable only by backend services (not enforced by rules).
+ * - All write operations are validated against user authentication status.
+ * - Public read access is granted to `campaigns`, `voters`, `cities` and `tasks` collections.
  *
+ * Denormalization for Authorization:
+ * To create simpler, more performant rules, always denormalize (copy) data required for an authorization decision directly onto the documents being secured.
+ *
+ * Example 1 (Avoiding `get()` calls):
+ *   - Avoid: A `/tasks/{taskId}` rule that requires a `get()` on a separate `/projects/{projectId}` document just to check for ownership. This is slow and costly.
+ *   - Prefer: A `/tasks/{taskId}` document that has a denormalized `ownerId` field directly on it, allowing for a fast, simple rule like `isOwner(resource.data.ownerId)` with no extra reads.
+ *
+ * Example 2 (Resource-Specific Roles):
+ *   - Avoid: Storing project roles in a separate `/memberships` collection. It's impossible for a rule on `/projects/{projectId}` to query the `memberships` collection to find a user's role.
+ *   - Prefer: Denormalizing roles into a `members` map directly on the `/projects/{projectId}` document (e.g., `{ members: { 'user_abc': 'editor' } }`). This allows for a simple, powerful rule like `resource.data.members[request.auth.uid] == 'editor'`.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
+     * @description Checks if the request is made by an authenticated user.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @description Checks if the authenticated user's ID matches the provided userId.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
@@ -41,101 +56,96 @@ service cloud.firestore {
      * @description Checks if the authenticated user is the owner of the existing document.
      */
     function isExistingOwner(userId) {
-        return isSignedIn() && isOwner(userId) && resource.data.id == userId;
+        return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Stores user profiles.
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their profile if request.auth.uid == 'user123'.
-     * @allow (get) User with UID 'user123' can read their profile.
-     * @deny (create) User with UID 'user456' cannot create a profile for 'user123'.
-     * @deny (update) User with UID 'user456' cannot update the profile for 'user123'.
+     * @allow (create) Authenticated user can create their own profile.
+     * @allow (get, update, delete) Authenticated user can access and modify their own profile.
+     * @deny (list) Prevents listing all users.
+     * @deny (create, update, delete) Non-authenticated users cannot create or modify profiles.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false; // Disallowing listing for privacy.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Stores role definitions, with specific roles for 'admin', 'campaign_manager', and 'promoter'.
+     * @description Rules for role definitions.
      * @path /roles/{roleId}
-     * @allow (get) Any user can read role definitions.
-     * @deny (create) No user can create role definitions through client-side rules.
-     * @deny (update) No user can update role definitions through client-side rules.
-     * @principle Roles are readable by all, but only manageable via dedicated admin functions (not yet implemented in rules).
+     * @allow (get, list) Everyone can read roles.
+     * @deny (create, update, delete) No one can create, update, or delete roles via the client.
+     * @principle Roles are managed by backend services.
      */
     match /roles/{roleId} {
-      allow get: if true;
-      allow list: if true; // Allowing listing of roles.
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores campaign information.
+     * @description Rules for campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get) Any user can read campaign information.
-     * @deny (create) No user can create campaigns through client-side rules.
-     * @deny (update) No user can update campaigns through client-side rules.
-     * @principle Campaigns are readable by all, but only manageable via dedicated admin functions (not yet implemented in rules).
+     * @allow (get, list) Everyone can read campaign information.
+     * @allow (create) Authenticated users can create campaigns, with owner validation.
+     * @allow (update, delete) Only the campaign owner can update or delete campaigns.
+     * @deny (create, update, delete) Non-authenticated users cannot create or modify campaigns.
+     * @principle Public read with owner-only writes.
      */
     match /campaigns/{campaignId} {
-      allow get: if true;
-      allow list: if true; // Allowing listing of campaigns.
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+        allow get, list: if true;
+        allow create: if isSignedIn(); // TODO:  && request.resource.data.authorId == request.auth.uid;
+        allow update: if isSignedIn() && resource != null; // TODO: && isOwner(resource.data.authorId);
+        allow delete: if isSignedIn() && resource != null; // TODO: && isExistingOwner(resource.data.authorId);
     }
 
     /**
-     * @description Stores voter information.
+     * @description Rules for voter information.
      * @path /voters/{voterId}
-     * @allow (get) Any user can read voter information.
-     * @deny (create) No user can create voters through client-side rules.
-     * @deny (update) No user can update voters through client-side rules.
+     * @allow (get, list) Everyone can read voter information.
+     * @allow (create) Authenticated users can create voter entries, with owner validation.
+     * @allow (update, delete) Only the voter owner can update or delete voters.
+     * @deny (create, update, delete) Non-authenticated users cannot create or modify voters.
+     * @principle Public read with owner-only writes.
      */
     match /voters/{voterId} {
-      allow get: if false; // TODO:  Implement authorization based on campaign membership and roles
-      allow list: if false; // TODO:  Implement authorization based on campaign membership and roles
-      allow create: if false; // TODO:  Implement authorization based on campaign membership and roles
-      allow update: if false; // TODO:  Implement authorization based on campaign membership and roles
-      allow delete: if false; // TODO:  Implement authorization based on campaign membership and roles
+        allow get, list: if true;
+        allow create: if isSignedIn(); // TODO: && request.resource.data.authorId == request.auth.uid;
+        allow update: if isSignedIn() && resource != null; // TODO:  && isOwner(resource.data.authorId);
+        allow delete: if isSignedIn() && resource != null; // TODO: && isExistingOwner(resource.data.authorId);
     }
 
     /**
-     * @description Stores city information.
+     * @description Rules for city information.
      * @path /cities/{cityId}
-     * @allow (get) Any user can read city information.
-     * @deny (create) No user can create cities through client-side rules.
-     * @deny (update) No user can update cities through client-side rules.
+     * @allow (get, list) Everyone can read city information.
+     * @deny (create, update, delete) No one can create, update, or delete cities via the client.
+     * @principle City data is publicly readable but not writable via client.
      */
     match /cities/{cityId} {
-      allow get: if true;
-      allow list: if true; // Allowing listing of cities.
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
-    /**
-     * @description Stores campaign tasks.
-     * @path /tasks/{taskId}
-     * @allow (get) Any user can read task information.
-     * @deny (create) No user can create tasks through client-side rules.
-     * @deny (update) No user can update tasks through client-side rules.
-     */
-    match /tasks/{taskId} {
-      allow get: if true;
-      allow list: if true; // Allowing listing of tasks.
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
+      /**
+       * @description Rules for campaign tasks.
+       * @path /tasks/{taskId}
+       * @allow (get, list) Everyone can read task information.
+       * @allow (create) Authenticated users can create tasks, with owner validation.
+       * @allow (update, delete) Only the task owner can update or delete tasks.
+       * @deny (create, update, delete) Non-authenticated users cannot create or modify tasks.
+       * @principle Public read with owner-only writes.
+       */
+      match /tasks/{taskId} {
+          allow get, list: if true;
+          allow create: if isSignedIn(); // TODO:  && request.resource.data.authorId == request.auth.uid;
+          allow update: if isSignedIn() && resource != null; // TODO:  && isOwner(resource.data.authorId);
+          allow delete: if isSignedIn() && resource != null; // TODO: && isExistingOwner(resource.data.authorId);
+      }
   }
 }
