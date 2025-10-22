@@ -1,109 +1,134 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset allows any authenticated user to perform all CRUD operations on all collections.
+ * @fileoverview Firestore Security Rules for the application.
  *
  * Core Philosophy:
- * The ruleset prioritizes developer convenience for rapid prototyping.  All authenticated users are granted full read and write access to all collections.
+ * This ruleset enforces a user-ownership model for user profiles and allows public read access to roles, campaigns, voters, and cities.
+ * Only authenticated users can create, update, or delete data, and they can only modify their own user profiles.
  *
  * Data Structure:
- * The Firestore database contains top-level collections for 'users', 'roles', 'campaigns', 'voters', and 'cities'.
+ * - /users/{userId}: Stores individual user profiles, accessible only by the user themselves.
+ * - /roles/{roleId}: Stores role definitions, publicly readable.
+ * - /campaigns/{campaignId}: Stores campaign information, publicly readable.
+ * - /voters/{voterId}: Stores voter information, publicly readable.
+ * - /cities/{cityId}: Stores city information, publicly readable.
  *
  * Key Security Decisions:
- * - Unrestricted Access: Any logged-in user can create, read, update, and delete any document.
- * - No Data Validation: Data validation is skipped to facilitate rapid prototyping.  Data schema and type enforcement are not part of this ruleset.
+ * - Users can only manage their own profiles. Listing of all users is disallowed.
+ * - Roles, campaigns, voters, and cities are publicly readable but not writable by clients.
+ * - The 'roles' collection is read-only, and access is granted to all users.
+ *
+ * Denormalization for Authorization:
+ * - User documents store their role ID.
+ *
+ * Structural Segregation:
+ * - No structural segregation is used. Drafts and published content are not separated into different collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is signed in.
+    /**
+     * @description Checks if the user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
+     */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Grants full CRUD access to any authenticated user for user profiles.
+     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @param {string} userId The user ID to compare against.
+     * @return {boolean} True if the authenticated user is the owner, false otherwise.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the owner and the resource exists.
+     * @param {string} userId The user ID to compare against.
+     * @return {boolean} True if the authenticated user is the owner and the resource exists, false otherwise.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) User with auth data can create a profile
-     * @allow (get) Any authenticated user can read any profile
-     * @allow (update) Any authenticated user can update any profile
-     * @allow (delete) Any authenticated user can delete any profile
-     * @deny (create) Unauthenticated user cannot create a profile
-     * @deny (get) N/A
-     * @deny (update) N/A
-     * @deny (delete) N/A
-     * @principle Allows any authenticated user to perform any operation on any user document
+     * @allow (create) Authenticated user can create their own profile if the userId matches their auth UID.
+     * @allow (read) Authenticated user can read their own profile.
+     * @allow (update) Authenticated user can update their own profile.
+     * @allow (delete) Authenticated user can delete their own profile.
+     * @deny (create) Non-authenticated user cannot create a profile.
+     * @deny (read) Non-authenticated user cannot read a profile.
+     * @deny (update) Non-authenticated user cannot update a profile.
+     * @deny (delete) Non-authenticated user cannot delete a profile.
+     * @deny (create) Authenticated user cannot create a profile with a mismatched userId.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow read, write: if isSignedIn();
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id; // Enforce immutability of userId
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Grants full CRUD access to any authenticated user for roles.
+     * @description Rules for roles.
      * @path /roles/{roleId}
-     * @allow (create) User with auth data can create a role
-     * @allow (get) Any authenticated user can read any role
-     * @allow (update) Any authenticated user can update any role
-     * @allow (delete) Any authenticated user can delete any role
-     * @deny (create) Unauthenticated user cannot create a role
-     * @deny (get) N/A
-     * @deny (update) N/A
-     * @deny (delete) N/A
-     * @principle Allows any authenticated user to perform any operation on any role document
+     * @allow (read) Any user can read roles.
+     * @deny (create) No user can create roles.
+     * @deny (update) No user can update roles.
+     * @deny (delete) No user can delete roles.
+     * @principle Allows public read access to roles.
      */
     match /roles/{roleId} {
-      allow read, write: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants full CRUD access to any authenticated user for campaigns.
+     * @description Rules for campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (create) User with auth data can create a campaign
-     * @allow (get) Any authenticated user can read any campaign
-     * @allow (update) Any authenticated user can update any campaign
-     * @allow (delete) Any authenticated user can delete any campaign
-     * @deny (create) Unauthenticated user cannot create a campaign
-     * @deny (get) N/A
-     * @deny (update) N/A
-     * @deny (delete) N/A
-     * @principle Allows any authenticated user to perform any operation on any campaign document
+     * @allow (read) Any user can read campaigns.
+     * @deny (create) No user can create campaigns.
+     * @deny (update) No user can update campaigns.
+     * @deny (delete) No user can delete campaigns.
+     * @principle Allows public read access to campaigns.
      */
     match /campaigns/{campaignId} {
-      allow read, write: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants full CRUD access to any authenticated user for voters.
+     * @description Rules for voters.
      * @path /voters/{voterId}
-     * @allow (create) User with auth data can create a voter
-     * @allow (get) Any authenticated user can read any voter
-     * @allow (update) Any authenticated user can update any voter
-     * @allow (delete) Any authenticated user can delete any voter
-     * @deny (create) Unauthenticated user cannot create a voter
-     * @deny (get) N/A
-     * @deny (update) N/A
-     * @deny (delete) N/A
-     * @principle Allows any authenticated user to perform any operation on any voter document
+     * @allow (read) Any user can read voters.
+     * @deny (create) No user can create voters.
+     * @deny (update) No user can update voters.
+     * @deny (delete) No user can delete voters.
+     * @principle Allows public read access to voters.
      */
     match /voters/{voterId} {
-      allow read, write: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants full CRUD access to any authenticated user for cities.
+     * @description Rules for cities.
      * @path /cities/{cityId}
-     * @allow (create) User with auth data can create a city
-     * @allow (get) Any authenticated user can read any city
-     * @allow (update) Any authenticated user can update any city
-     * @allow (delete) Any authenticated user can delete any city
-     * @deny (create) Unauthenticated user cannot create a city
-     * @deny (get) N/A
-     * @deny (update) N/A
-     * @deny (delete) N/A
-     * @principle Allows any authenticated user to perform any operation on any city document
+     * @allow (read) Any user can read cities.
+     * @deny (create) No user can create cities.
+     * @deny (update) No user can update cities.
+     * @deny (delete) No user can delete cities.
+     * @principle Allows public read access to cities.
      */
     match /cities/{cityId} {
-      allow read, write: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
   }
 }
