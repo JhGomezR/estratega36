@@ -13,91 +13,97 @@ service cloud.firestore {
      * @description Checks if the authenticated user ID matches the provided user ID.
      */
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user ID matches the document's owner ID.
+     * @description Checks if the authenticated user ID matches the provided user ID and the resource exists.
      */
-    function isExistingOwner(ownerId) {
-        return isSignedIn() && request.auth.uid == ownerId;
+    function isExistingOwner(userId) {
+        return (isOwner(userId) && exists( /databases/$(database)/documents/users/$(userId) ));
     }
 
     /**
-     * @description Defines a user's profile.
+     * @description Defines read and write access rules for user documents.
      * @path /users/{userId}
-     * @allow (create) - Allow the authenticated user to create their own profile if the userId matches their auth.uid.
-     * @allow (get, update, delete) - Allow the authenticated user to get, update, and delete their own profile if the userId matches their auth.uid.
-     * @deny (create) - Deny creation if the userId does not match the authenticated user's uid.
-     * @deny (get, update, delete) - Deny access if the userId does not match the authenticated user's uid.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, update, delete) if the user is the owner of the document.
+     * @allow (create) if the user id matches the authenticated user.
+     * @deny (create) if the user id does not match the authenticated user.
+     * @deny (list) always. User listing is not permitted.
+     * @principle Enforces document ownership for reads and writes and ensures a user can only create their own profile.
      */
     match /users/{userId} {
-      allow get, update, delete: if isOwner(userId);
-      allow create: if isOwner(userId);
+      allow get: if isOwner(userId);
       allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Defines roles within the application.
+     * @description Defines read access rules for role documents.
      * @path /roles/{roleId}
-     * @allow (get, list) - Allow anyone to read the roles.
-     * @deny (create, update, delete) - Prevent anyone from creating, updating, or deleting roles.
-     * @principle Roles are read-only and cannot be modified through the client.
+     * @allow (get, list) Allow public read access.
+     * @deny (create, update, delete) always.
+     * @principle Allows public read access to roles while preventing unauthorized modifications.
      */
     match /roles/{roleId} {
-      allow get, list: if true;
+      allow get: if true;
+      allow list: if true;
       allow create, update, delete: if false;
     }
 
     /**
-     * @description Defines a political campaign.
+     * @description Defines read and write access rules for campaign documents.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) - Allow anyone to read campaign information.
-     * @allow (create) - Allow creating a new campaign if the authorId field matches the authenticated user's UID.
-     * @allow (update, delete) - Allow updating or deleting a campaign if the authenticated user is the owner.
-     * @deny (create) - Deny creation if the authorId field does not match the authenticated user's UID.
-     * @deny (update, delete) - Deny access if the user is not the owner of the campaign.
-     * @principle Publicly readable campaigns with owner-only writes.
+     * @allow (get, list) Allow public read access.
+     * @deny (create, update, delete) always.
+     * @principle Allows public read access to campaigns while preventing unauthorized modifications.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid;
-    }
-
-    /**
-     * @description Defines a registered voter.
-     * @path /voters/{voterId}
-     * @deny (get, list, create, update, delete) - Prevent anyone from accessing voter information directly.
-     * @principle Voter data is private and not directly accessible.
-     */
-    match /voters/{voterId} {
-      allow get, create, update, delete: if false;
-      allow list: if false;
-    }
-
-    /**
-     * @description Defines a city.
-     * @path /cities/{cityId}
-     * @allow (get, list) - Allow anyone to read city information.
-     * @deny (create, update, delete) - Prevent anyone from creating, updating, or deleting city information.
-     * @principle City data is read-only and cannot be modified through the client.
-     */
-    match /cities/{cityId} {
-      allow get, list: if true;
+      allow get: if true;
+      allow list: if true;
       allow create, update, delete: if false;
     }
 
     /**
-     * @description Defines a task for a campaign.
+     * @description Defines read and write access rules for voter documents.
+     * @path /voters/{voterId}
+     * @allow (get, list, create, update, delete) Allow public read and write access.
+     * @principle Allows public read and write access to voters.
+     */
+    match /voters/{voterId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    /**
+     * @description Defines read access rules for city documents.
+     * @path /cities/{cityId}
+     * @allow (get, list) Allow public read access.
+     * @deny (create, update, delete) always.
+     * @principle Allows public read access to cities while preventing unauthorized modifications.
+     */
+    match /cities/{cityId} {
+      allow get: if true;
+      allow list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Defines read and write access rules for task documents.
      * @path /tasks/{taskId}
-     * @deny (get, list, create, update, delete) - Prevent anyone from accessing tasks information directly.
-     * @principle Task data is private and not directly accessible.
+     * @allow (get, list) Allow public read access.
+     * @deny (create, update, delete) always.
+     * @principle Allows public read access to tasks while preventing unauthorized modifications.
      */
     match /tasks/{taskId} {
-      allow get, create, update, delete: if false;
-      allow list: if false;
+      allow get: if true;
+      allow list: if true;
+      allow create, update, delete: if false;
     }
   }
 }
