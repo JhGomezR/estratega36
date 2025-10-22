@@ -1,112 +1,85 @@
 /**
- * @fileoverview Firestore Security Rules for Prototyping.
+ * @file Firestore Security Rules
+ * @description This ruleset allows any user to read, create, edit, and delete data in the database.
  *
  * Core Philosophy:
- * This ruleset prioritizes security by enforcing strict ownership and role-based access control.
- * It assumes that data validation will be handled in the application code to allow for rapid prototyping.
+ * The rules are configured to allow open access for all operations. This is useful for prototyping.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles, accessible only to the user themselves.
- * - /roles/{roleId}: Stores role definitions.  These are intended to be publicly readable.
- * - /campaigns/{campaignId}: Stores campaign information. Read and write access is open for prototyping.
- * - /voters/{voterId}: Stores voter information.  Read and write access is open for prototyping.
- * - /cities/{cityId}: Stores city information.  These are intended to be publicly readable.
+ * The database contains collections for users, roles, campaigns, voters, and cities.
  *
  * Key Security Decisions:
- * - Users can only read/write their own user document.
- * - Listing of users is disallowed.
- * - Read access to roles and cities is public.
- * - Campaigns and Voters are open for read and writes (prototyping mode).
+ * No specific authorization checks are implemented, granting open access to all data.
  *
- * Denormalization for Authorization:
- *  N/A - No specific denormalization is applied in this initial ruleset.
+ * WARNING: These rules provide NO AUTHORIZATION and should NEVER be used in a production application.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user's ID matches the provided user ID.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user's ID matches the provided user ID and resource exists
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for user profiles.
+     * @description Allows any user to read, create, update, and delete user profiles.
      * @path /users/{userId}
-     * @allow (create) User 'user123' can create their profile if authenticated as 'user123'.
-     * @allow (get, update, delete) User 'user123' can read, update and delete their own profile.
-     * @deny (create) User 'user456' cannot create a profile with ID 'user123'.
-     * @deny (get, update, delete) User 'user456' cannot read, update and delete profile 'user123'.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (get, list) Any user can read user profiles.
+     * @allow (create, update, delete) Any user can create, update, or delete user profiles.
+     * @deny (none)
+     * @principle Open access is configured for prototyping purposes.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Rules for roles.
+     * @description Allows any user to read, create, update, and delete roles.
      * @path /roles/{roleId}
-     * @allow (get, list) Any user can read the roles.
-     * @deny (create, update, delete) No user can create, update, or delete roles.
+     * @allow (get, list) Any user can read roles.
+     * @allow (create, update, delete) Any user can create, update, or delete roles.
+     * @deny (none)
+     * @principle Open access is configured for prototyping purposes.
      */
     match /roles/{roleId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Rules for campaigns.  Open for prototyping.
+     * @description Allows any user to read, create, update, and delete campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get, list, create, update, delete) Any user can read, write, and delete campaign data.
+     * @allow (get, list) Any user can read campaigns.
+     * @allow (create, update, delete) Any user can create, update, or delete campaigns.
+     * @deny (none)
+     * @principle Open access is configured for prototyping purposes.
      */
     match /campaigns/{campaignId} {
       allow get, list: if true;
-      allow create: if isSignedIn(); // Only signed in users can create campaigns
-      allow update: if isSignedIn() && resource != null; // Only signed in users can update campaigns and resource must exist.
-      allow delete: if isSignedIn() && resource != null; // Only signed in users can delete campaigns and resource must exist.
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Rules for voters. Open for prototyping.
+     * @description Allows any user to read, create, update, and delete voters.
      * @path /voters/{voterId}
-     * @allow (get, list, create, update, delete) Any user can read, write, and delete voter data.
+     * @allow (get, list) Any user can read voter information.
+     * @allow (create, update, delete) Any user can create, update, or delete voter information.
+     * @deny (none)
+     * @principle Open access is configured for prototyping purposes.
      */
     match /voters/{voterId} {
       allow get, list: if true;
-      allow create: if isSignedIn(); // Only signed in users can create voters
-      allow update: if isSignedIn() && resource != null; // Only signed in users can update voters and resource must exist.
-      allow delete: if isSignedIn() && resource != null; // Only signed in users can delete voters and resource must exist.
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Rules for cities.
+     * @description Allows any user to read, create, update, and delete cities.
      * @path /cities/{cityId}
-     * @allow (get, list) Any user can read the cities.
-     * @deny (create, update, delete) No user can create, update, or delete cities.
+     * @allow (get, list) Any user can read city information.
+     * @allow (create, update, delete) Any user can create, update, or delete city information.
+     * @deny (none)
+     * @principle Open access is configured for prototyping purposes.
      */
     match /cities/{cityId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
   }
 }
