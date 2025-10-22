@@ -301,7 +301,7 @@ export default function CalendarPage() {
                 }}
               >
                 <span className={`h-2 w-2 rounded-full ${priorityClasses[task.priority]}`}></span>
-                <span className="flex-1 truncate text-left">{task.title}</span>
+                <span className="flex-1 text-left truncate">{task.title}</span>
               </Button>
             ))}
           </div>
