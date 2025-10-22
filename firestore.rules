@@ -1,109 +1,163 @@
+/**
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user profiles and
+ * restricts access to other collections based on authorization.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores individual user profiles.  Access is restricted to the
+ *   authenticated user with a matching userId.
+ * - /roles/{roleId}: Stores role definitions.  Read-only for all authenticated users.
+ * - /campaigns/{campaignId}: Stores campaign information.  Write access is denied
+ *   in the base rule, requiring additional logic for specific use cases.
+ * - /voters/{voterId}: Stores voter information.  Write access is denied in the
+ *   base rule, requiring additional logic for specific use cases.
+ * - /cities/{cityId}: Stores city information.  Read-only for all authenticated users.
+ * - /tasks/{taskId}: Stores campaign tasks.  Write access is denied in the base rule,
+ *   requiring additional logic for specific use cases.
+ *
+ * Key Security Decisions:
+ * - Users collection listing is denied due to privacy concerns.
+ * - Roles and Cities collections are read-only for authenticated users.
+ * - Campaigns, Voters, and Tasks collections have no default write permissions.
+ *
+ * Denormalization for Authorization:
+ *  - For simplicity and performance, data required for authorization (e.g., user roles,
+ *    campaign membership) should be denormalized onto the documents being secured.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
+     * @description Ensures the user is signed in.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @description Checks if the authenticated user's ID matches the provided userId.
+     * @param {string} userId The user ID to compare against the authenticated user's ID.
+     * @returns {boolean} True if the user is signed in and the user IDs match, false otherwise.
+     * @example isOwner("someUserId") will return true if request.auth.uid == "someUserId".
      */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user ID matches the provided user ID and the resource exists.
+     * @description Checks if the authenticated user is the owner of an existing document.
+     * @param {string} userId The user ID to compare against the authenticated user's ID.
+     * @returns {boolean} True if the user is signed in, the user IDs match, and the resource exists.
      */
     function isExistingOwner(userId) {
-        return (isOwner(userId) && exists( /databases/$(database)/documents/users/$(userId) ));
+      return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Defines read and write access rules for user documents.
+     * @description Restricts access to user profiles to the owning user.
      * @path /users/{userId}
-     * @allow (get, update, delete) if the user is the owner of the document.
-     * @allow (create) if the user id matches the authenticated user.
-     * @deny (create) if the user id does not match the authenticated user.
-     * @deny (list) always. User listing is not permitted.
-     * @principle Enforces document ownership for reads and writes and ensures a user can only create their own profile.
+     * @allow (create) User 'user123' can create their own profile if authenticated as 'user123'.
+     * @allow (get) User 'user123' can read their own profile if authenticated as 'user123'.
+     * @allow (update) User 'user123' can update their own profile if authenticated as 'user123'.
+     * @allow (delete) User 'user123' can delete their own profile if authenticated as 'user123'.
+     * @deny (create) User 'user456' cannot create a profile for 'user123'.
+     * @deny (get) User 'user456' cannot read the profile of 'user123'.
+     * @deny (update) User 'user456' cannot update the profile of 'user123'.
+     * @deny (delete) User 'user456' cannot delete the profile of 'user123'.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
+      // User listing is denied due to privacy concerns.
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.idNumber == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.idNumber == resource.data.idNumber;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Defines read access rules for role documents.
+     * @description Allows read-only access to role definitions for authenticated users.
      * @path /roles/{roleId}
-     * @allow (get, list) Allow public read access.
-     * @deny (create, update, delete) always.
-     * @principle Allows public read access to roles while preventing unauthorized modifications.
+     * @allow (get) Any authenticated user can read a role.
+     * @allow (list) Any authenticated user can list roles.
+     * @deny (create) No one can create roles through the client.
+     * @deny (update) No one can update roles through the client.
+     * @deny (delete) No one can delete roles through the client.
+     * @principle Read-only access for authenticated users.
      */
     match /roles/{roleId} {
-      allow get: if true;
-      allow list: if true;
-      allow create, update, delete: if false;
+      allow get, list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Defines read and write access rules for campaign documents.
+     * @description Restricts access to campaign information.  Write access must be granted via custom logic.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Allow public read access.
-     * @deny (create, update, delete) always.
-     * @principle Allows public read access to campaigns while preventing unauthorized modifications.
+     * @allow (get) Any authenticated user can read campaign information.
+     * @allow (list) Any authenticated user can list campaigns.
+     * @deny (create) No one can create campaigns through the client without specific authorization.
+     * @deny (update) No one can update campaigns through the client without specific authorization.
+     * @deny (delete) No one can delete campaigns through the client without specific authorization.
      */
     match /campaigns/{campaignId} {
-      allow get: if true;
-      allow list: if true;
-      allow create, update, delete: if false;
+      allow get, list: if isSignedIn();
+      allow create: if false; // TODO: Add authorization logic for campaign creation.
+      allow update: if false; // TODO: Add authorization logic for campaign updates.
+      allow delete: if false; // TODO: Add authorization logic for campaign deletion.
     }
 
     /**
-     * @description Defines read and write access rules for voter documents.
+     * @description Restricts access to voter information.  Write access must be granted via custom logic.
      * @path /voters/{voterId}
-     * @allow (get, list, create, update, delete) Allow public read and write access.
-     * @principle Allows public read and write access to voters.
+     * @allow (get) Any authenticated user can read voter information.
+     * @allow (list) Any authenticated user can list voters.
+     * @deny (create) No one can create voters through the client without specific authorization.
+     * @deny (update) No one can update voters through the client without specific authorization.
+     * @deny (delete) No one can delete voters through the client without specific authorization.
      */
     match /voters/{voterId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow get, list: if isSignedIn();
+      allow create: if false; // TODO: Add authorization logic for voter creation.
+      allow update: if false; // TODO: Add authorization logic for voter updates.
+      allow delete: if false; // TODO: Add authorization logic for voter deletion.
     }
 
     /**
-     * @description Defines read access rules for city documents.
+     * @description Allows read-only access to city information for authenticated users.
      * @path /cities/{cityId}
-     * @allow (get, list) Allow public read access.
-     * @deny (create, update, delete) always.
-     * @principle Allows public read access to cities while preventing unauthorized modifications.
+     * @allow (get) Any authenticated user can read city information.
+     * @allow (list) Any authenticated user can list cities.
+     * @deny (create) No one can create cities through the client.
+     * @deny (update) No one can update cities through the client.
+     * @deny (delete) No one can delete cities through the client.
+     * @principle Read-only access for authenticated users.
      */
     match /cities/{cityId} {
-      allow get: if true;
-      allow list: if true;
-      allow create, update, delete: if false;
+      allow get, list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
-    /**
-     * @description Defines read and write access rules for task documents.
-     * @path /tasks/{taskId}
-     * @allow (get, list) Allow public read access.
-     * @deny (create, update, delete) always.
-     * @principle Allows public read access to tasks while preventing unauthorized modifications.
-     */
+     /**
+      * @description Restricts access to task information.  Write access must be granted via custom logic.
+      * @path /tasks/{taskId}
+      * @allow (get) Any authenticated user can read task information.
+      * @allow (list) Any authenticated user can list tasks.
+      * @deny (create) No one can create tasks through the client without specific authorization.
+      * @deny (update) No one can update tasks through the client without specific authorization.
+      * @deny (delete) No one can delete tasks through the client without specific authorization.
+      */
     match /tasks/{taskId} {
-      allow get: if true;
-      allow list: if true;
-      allow create, update, delete: if false;
+      allow get, list: if isSignedIn();
+      allow create: if false;  // TODO: Add authorization logic for task creation.
+      allow update: if false;  // TODO: Add authorization logic for task updates.
+      allow delete: if false;  // TODO: Add authorization logic for task deletion.
     }
   }
 }
