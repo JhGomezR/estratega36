@@ -80,7 +80,7 @@ function DayWithTasks({
                    ${date.getDay() !== 0 && !isSameDay(date, task.due) ? 'rounded-r-none' : ''}`
                 }
               >
-                {(isSameDay(date, task.start) || (date.getDay() === 1 && date > task.start)) && task.title}
+                {(isSameDay(date, task.start) || (date.getDay() === 1 && date > task.start)) && (task.title.length > 15 ? task.title.slice(0, 15) + '...' : task.title) }
               </button>
             )}
           </div>
