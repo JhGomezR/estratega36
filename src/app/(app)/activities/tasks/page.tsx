@@ -17,12 +17,13 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2 } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye } from "lucide-react"
 import type { Task, User } from "@/lib/types"
 import { TaskForm } from "@/components/task-form"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -41,6 +42,7 @@ import {
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { Separator } from "@/components/ui/separator"
 
 const priorityClasses: Record<Task['priority'], string> = {
   normal: "bg-blue-500 hover:bg-blue-600",
@@ -74,6 +76,7 @@ export default function TasksPage() {
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [taskToDelete, setTaskToDelete] = React.useState<Task | null>(null);
+  const [taskToView, setTaskToView] = React.useState<Task | null>(null);
 
   const handleAddNew = () => {
     setSelectedTask(null);
@@ -85,6 +88,10 @@ export default function TasksPage() {
     setIsFormOpen(true);
   };
   
+  const handleView = (task: Task) => {
+    setTaskToView(task);
+  }
+
   const confirmDelete = (task: Task) => {
     setTaskToDelete(task);
   };
@@ -191,6 +198,48 @@ export default function TasksPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
+                    <Dialog open={!!taskToView && taskToView.id === task.id} onOpenChange={(open) => !open && setTaskToView(null)}>
+                      <DialogTrigger asChild>
+                         <Button variant="ghost" size="icon" onClick={() => handleView(task)}>
+                           <Eye className="h-4 w-4" />
+                         </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-xl">
+                        <DialogHeader>
+                          <DialogTitle>{taskToView?.title}</DialogTitle>
+                          <DialogDescription>Detalles de la tarea</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-3 items-center gap-4">
+                                <span className="font-semibold text-sm">Descripción:</span>
+                                <p className="col-span-2 text-sm text-muted-foreground">{taskToView?.description || 'No hay descripción.'}</p>
+                            </div>
+                            <Separator />
+                             <div className="grid grid-cols-3 items-center gap-4">
+                                <span className="font-semibold text-sm">Asignado a:</span>
+                                <span className="col-span-2">{getUserName(taskToView?.assignedToId || '')}</span>
+                            </div>
+                             <div className="grid grid-cols-3 items-center gap-4">
+                                <span className="font-semibold text-sm">Fecha Límite:</span>
+                                <span className="col-span-2">{taskToView?.dueDate}</span>
+                            </div>
+                             <div className="grid grid-cols-3 items-center gap-4">
+                                <span className="font-semibold text-sm">Prioridad:</span>
+                                <Badge className={`col-span-2 w-fit ${priorityClasses[taskToView?.priority || 'normal']}`}>
+                                  {priorityLabels[taskToView?.priority || 'normal']}
+                                </Badge>
+                            </div>
+                             <div className="grid grid-cols-3 items-center gap-4">
+                                <span className="font-semibold text-sm">Estado:</span>
+                                <Badge variant={
+                                        taskToView?.status === "finalizada" ? "default" : taskToView?.status === "en_curso" ? "secondary" : "outline"
+                                      } className="col-span-2 w-fit">
+                                  {statusLabels[taskToView?.status || 'pendiente']}
+                                </Badge>
+                            </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(task)}>
                       <Edit className="h-4 w-4" />
                     </Button>
