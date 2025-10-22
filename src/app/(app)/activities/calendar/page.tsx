@@ -66,7 +66,7 @@ function DayWithTasks({
       <time dateTime={format(date, "yyyy-MM-dd")} className={`self-start text-xs mb-1 ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
         {format(date, "d")}
       </time>
-      <div className="w-full flex-grow space-y-px">
+      <div className="w-full flex-grow">
         {tasksToShow.map(task => (
           <div key={task.id} className="h-4" style={{ marginTop: task.level > 0 ? `calc(${task.level} * (1rem + 1px))` : undefined }}>
             {isWithinInterval(date, { start: task.start, end: task.due }) && (
