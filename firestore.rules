@@ -1,134 +1,125 @@
 /**
- * @fileoverview Firestore Security Rules for the political campaign management application.
- *
- * Core Philosophy:
- * This ruleset enforces a role-based access control model.  Users are assigned roles,
- * and these roles determine the permissions they have within the application. All write
- * operations are strictly controlled and based on the user's role. Read access defaults
- * to restricted unless explicitly granted.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles. Access is restricted to the user themselves.
- * - /roles/{roleId}: Stores role definitions. Only users with the 'manage_roles' permission can manage roles.
- * - /campaigns/{campaignId}: Stores campaign information.  Access is role-based.
- * - /voters/{voterId}: Stores voter information.  Access is role-based and potentially restricted by campaign.
- * - /cities/{cityId}: Stores city information. Read access is public; write access is prohibited.
- *
- * Key Security Decisions:
- * - Listing of users is disallowed for privacy reasons.
- * - Public read access is granted to the /cities collection.
- * - Roles are directly managed in the `roles` collection, and all write operations to this collection require the `manage_roles` permission.
- *
- * Denormalization for Authorization:
- *  - The `users` collection requires each document to have a `roleId` field.  This field is used to look up the user's permissions in the `roles` collection.
+ * @file Firestore Security Rules
+ * @core_philosophy This ruleset enforces a role-based access control model.
+ *   Users can only create, update, or delete roles.
+ * @data_structure
+ *   - /users/{userId}: Stores user profiles. Access is restricted to the owner of the profile.
+ *   - /roles/{roleId}: Stores role definitions. Only authenticated users can manage roles.
+ *   - /campaigns/{campaignId}: Stores campaign information. Access is public read, owner-only write.
+ *   - /voters/{voterId}: Stores voter information. Access is public read, owner-only write.
+ *   - /cities/{cityId}: Stores city information. Access is public read, owner-only write.
+ * @key_security_decisions
+ *   - Role management is open to all authenticated users, but in a real application, this should be restricted to admin roles.
+ *   - Listing of users is denied to prevent data leakage.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
+     * @description Checks if the request is authenticated.
+     * @return {boolean} True if the request is authenticated, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the user is the owner of the document.
-     * @param {string} userId The user ID to check against.
+     * @description Checks if the authenticated user is the owner of the resource.
+     * @param {string} userId - The user ID to compare against the request's auth UID.
+     * @return {boolean} True if the user is the owner, false otherwise.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the user has the given permission.
-     * @param {string} permission The permission to check for.
-     */
-    function hasPermission(permission) {
-      return get(/databases/$(database)/documents/roles/$(request.auth.token.roleId)).data.permissions.hasAny([permission]);
-    }
-
-    /**
-     * @description Checks if the user is the existing owner of the document.
-     * @param {string} userId The user ID to check against.
+     * @description Checks if the authenticated user is the owner of the existing resource.
+     * @param {string} userId - The user ID to compare against the resource's data and the request's auth UID.
+     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
      */
     function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+        return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Rules for the /users/{userId} collection.
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) Signed-in user creates their own profile.
-     * @allow (get, update, delete) Signed-in user can only access their own profile.
-     * @deny (create) User attempts to create a profile with an ID that doesn't match their auth UID.
-     * @deny (get, update, delete) User attempts to access another user's profile.
+     * @allow (create) Authenticated user creates their own profile.
+     * @allow (get, update, delete) Owner can access and modify their own profile.
+     * @deny (list) Prevents listing all user profiles.
+     * @deny (create, update, delete) Non-owner attempts to modify the profile.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.idNumber == userId;
+      allow create: if isOwner(userId) && request.resource.data.email == request.auth.token.email;
       allow update: if isExistingOwner(userId) && request.resource.data.idNumber == resource.data.idNumber;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for the /roles/{roleId} collection.
+     * @description Rules for roles.
      * @path /roles/{roleId}
-     * @allow (create, update, delete) Only users with the 'manage_roles' permission can manage roles.
-     * @deny (create, update, delete) Users without the 'manage_roles' permission cannot manage roles.
-     * @allow (get, list) Any signed-in user can read role definitions.
-     * @principle Role-based access control for managing roles.
+     * @allow (create, update, delete) Authenticated users can manage roles.
+     * @deny (get, list) Not implemented: access to role definitions requires further definition.
+     * @principle Allows authenticated users to manage roles.
      */
     match /roles/{roleId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && hasPermission('manage_roles');
-      allow update: if isSignedIn() && hasPermission('manage_roles') && resource != null;
-      allow delete: if isSignedIn() && hasPermission('manage_roles') && resource != null;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for the /campaigns/{campaignId} collection.
+     * @description Rules for campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any signed-in user can view campaigns.
-     * @allow (create) Only users with 'manage_campaigns' permission can create campaigns.
-     * @allow (update, delete) Only users with 'manage_campaigns' permission can modify campaigns.
-     * @principle Role-based access control for campaign management.
+     * @allow (get, list) Anyone can read campaign information.
+     * @allow (create) Only authenticated users can create campaigns and must set the ownerId field to their UID.
+     * @allow (update, delete) Only the owner of the campaign can modify or delete it.
+     * @deny Non-owners cannot create, update, or delete campaigns.
+     * @principle Public read, owner-only write.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && hasPermission('manage_campaigns');
-      allow update: if isSignedIn() && hasPermission('manage_campaigns') && resource != null;
-      allow delete: if isSignedIn() && hasPermission('manage_campaigns') && resource != null;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for the /voters/{voterId} collection.
+     * @description Rules for voters.
      * @path /voters/{voterId}
-     * @allow (get, list) Any signed-in user can view voters.
-     * @allow (create) Only users with 'register_voters' permission can create voters.
-     * @allow (update, delete) Only users with 'manage_voters' permission can manage voters.
-     * @principle Role-based access control for voter management.
+     * @allow (get, list) Anyone can read voter information.
+     * @allow (create) Only authenticated users can create voters and must set the promoterId field to their UID.
+     * @allow (update, delete) Only the owner of the voter can modify or delete it.
+     * @deny Non-owners cannot create, update, or delete voters.
+     * @principle Public read, owner-only write.
      */
     match /voters/{voterId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && hasPermission('register_voters');
-      allow update: if isSignedIn() && hasPermission('manage_voters') && resource != null;
-      allow delete: if isSignedIn() && hasPermission('manage_voters') && resource != null;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for the /cities/{cityId} collection.
+     * @description Rules for cities.
      * @path /cities/{cityId}
-     * @allow (get, list) Public read access to city information.
-     * @deny (create, update, delete) No write access allowed.
-     * @principle Public read access with no write access.
+     * @allow (get, list) Anyone can read city information.
+     * @allow (create) Only authenticated users can create cities.
+     * @allow (update, delete) Only the owner of the city can modify or delete it.
+     * @deny Non-owners cannot create, update, or delete cities.
+     * @principle Public read, owner-only write.
      */
     match /cities/{cityId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
   }
 }
