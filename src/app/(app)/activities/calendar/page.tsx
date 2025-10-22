@@ -51,7 +51,7 @@ function DayWithTasks({
   const dayTasks = tasks.filter(task => {
     const interval = { start: task.start, end: task.due }
     return isSameDay(date, task.start) || isSameDay(date, task.due) || (date > task.start && date < task.due);
-  }).sort((a,b) => a.start.getTime() - b.start.getTime());
+  });
 
   const MAX_VISIBLE_TASKS = 2;
   const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
@@ -75,14 +75,6 @@ function DayWithTasks({
             const style = {
               marginTop: `${task.level * 1.5}rem`,
             };
-
-            if(!isStart && task.level > 0 && dayTasks.findIndex(t => t.id === task.id) > 0) {
-                 const prevTask = dayTasks[dayTasks.findIndex(t => t.id === task.id)-1];
-                 if(prevTask.level === task.level) {
-                    style.marginTop = `${(task.level + 1) * 1.5}rem`;
-                 }
-            }
-
 
             return (
               <div key={task.id} className="relative" style={style}>
@@ -124,41 +116,41 @@ export default function CalendarPage() {
 
   const tasks = React.useMemo(() => {
     if (!tasksData) return [];
-  
+
     const parsedTasks = tasksData.map(task => {
-      try {
-        const start = parseISO(task.startDate);
-        const due = parseISO(task.dueDate);
-        const span = eachDayOfInterval({ start, end: due }).length;
-        return { ...task, start, due, span, level: 0 };
-      } catch {
-        return null;
-      }
+        try {
+            const start = parseISO(task.startDate);
+            const due = parseISO(task.dueDate);
+            const span = eachDayOfInterval({ start, end: due }).length;
+            return { ...task, start, due, span, level: 0 };
+        } catch {
+            return null;
+        }
     }).filter(Boolean) as (Task & { start: Date; due: Date; span: number; level: number })[];
-  
+
     parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.span - a.span);
-  
+
     const levels: (Date | null)[][] = [];
-  
+
     for (const task of parsedTasks) {
-      let level = 0;
-      while (true) {
-        if (!levels[level]) {
-          levels[level] = [];
+        let level = 0;
+        while (true) {
+            if (!levels[level]) {
+                levels[level] = [];
+            }
+            const hasOverlap = levels[level].some(endDate => endDate && task.start < endDate);
+            if (!hasOverlap) {
+                task.level = level;
+                const endOfTask = addDays(task.due, 1);
+                levels[level].push(endOfTask);
+                break;
+            }
+            level++;
         }
-        const hasOverlap = levels[level].some(endDate => endDate && task.start < endDate);
-        if (!hasOverlap) {
-          task.level = level;
-          const endOfTask = addDays(task.due, 1);
-          levels[level].push(endOfTask);
-          break;
-        }
-        level++;
-      }
     }
-  
+
     return parsedTasks;
-  }, [tasksData]);
+}, [tasksData]);
   
 
   const allTaskDates = React.useMemo(() => {
