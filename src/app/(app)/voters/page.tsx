@@ -60,7 +60,7 @@ export default function VotersPage() {
   
   const promoters = React.useMemo(() => {
     if (!users || !roles) return [];
-    const promoterRole = roles.find(r => r.name === 'promoter' || r.id === 'promoter');
+    const promoterRole = roles.find(r => r.name.toLowerCase() === 'promotor' || r.id === 'promoter');
     if (!promoterRole) return [];
     return users.filter(u => u.roleId === promoterRole.id);
   }, [users, roles]);
