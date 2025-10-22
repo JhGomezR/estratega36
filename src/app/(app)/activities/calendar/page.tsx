@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths, endOfWeek, isBefore, isAfter } from 'date-fns'
+import { isSameDay, parseISO, isWithinInterval, addMonths, subMonths, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Dialog,
@@ -56,7 +56,7 @@ function DayWithTasks({
   onTaskClick: (task: Task) => void;
   onMoreClick: (date: Date) => void;
 }) {
-  const MAX_VISIBLE_TASKS = 2;
+  const MAX_VISIBLE_TASKS = 4;
   const tasksToShow = dayTasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenTasksCount = dayTasks.length > MAX_VISIBLE_TASKS ? dayTasks.length - MAX_VISIBLE_TASKS : 0;
 
@@ -75,13 +75,13 @@ function DayWithTasks({
                 onClick={() => onTaskClick(task)}
                 className={
                   `h-full w-full text-xs text-left px-1 truncate ${priorityClasses[task.priority]} 
-                  ${(isSameDay(date, task.start) || getDay(date) === 1) ? 'rounded-l-sm' : ''}
-                  ${(isSameDay(date, task.due) || getDay(date) === 0) ? 'rounded-r-sm' : ''}
-                  ${getDay(date) !== 1 && !isSameDay(date, task.start) ? 'rounded-l-none' : ''}
-                  ${getDay(date) !== 0 && !isSameDay(date, task.due) ? 'rounded-r-none' : ''}`
+                   ${isSameDay(date, task.start) || date.getDay() === 1 ? 'rounded-l-sm' : ''}
+                   ${isSameDay(date, task.due) || date.getDay() === 0 ? 'rounded-r-sm' : ''}
+                   ${date.getDay() !== 1 && !isSameDay(date, task.start) ? 'rounded-l-none' : ''}
+                   ${date.getDay() !== 0 && !isSameDay(date, task.due) ? 'rounded-r-none' : ''}`
                 }
               >
-                {(isSameDay(date, task.start) || getDay(date) === 1) && task.title}
+                {(isSameDay(date, task.start) || (date.getDay() === 1 && date > task.start)) && task.title}
               </button>
             )}
           </div>
@@ -115,46 +115,37 @@ export default function CalendarPage() {
   
   const tasks = React.useMemo(() => {
     if (!tasksData) return [];
-    
-    return tasksData.map(task => {
+    const parsedTasks = tasksData.map(task => {
         try {
-            const start = parseISO(task.startDate);
-            const due = parseISO(task.dueDate);
-            if (isBefore(due, start)) return null;
-            return { ...task, start, due, level: 0 };
-        } catch {
-            return null;
-        }
+            return { ...task, start: parseISO(task.startDate), due: parseISO(task.dueDate), level: 0 };
+        } catch { return null; }
     }).filter(Boolean) as TaskWithRenderInfo[];
-  }, [tasksData]);
-
-
-  const getTasksForDay = (date: Date): TaskWithRenderInfo[] => {
-    const dayTasks = tasks.filter(task => isWithinInterval(date, { start: task.start, end: task.due }));
     
-    dayTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.due.getTime() - a.due.getTime());
+    parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.due.getTime() - a.due.getTime());
 
-    const levels: (Date | null)[][] = [];
-
-    for (const task of dayTasks) {
+    const levels: (Date | null)[] = [];
+    for (const task of parsedTasks) {
         let placed = false;
         for (let i = 0; i < levels.length; i++) {
-            if (!levels[i][getDay(date)]) {
-                levels[i][getDay(date)] = task.due;
+            if (!levels[i] || levels[i]! < task.start) {
+                levels[i] = task.due;
                 task.level = i;
                 placed = true;
                 break;
             }
         }
         if (!placed) {
-            const newLevel: (Date | null)[] = Array(7).fill(null);
-            newLevel[getDay(date)] = task.due;
-            levels.push(newLevel);
+            levels.push(task.due);
             task.level = levels.length - 1;
         }
     }
     
-    return dayTasks.sort((a, b) => a.level - b.level);
+    return parsedTasks;
+  }, [tasksData]);
+
+
+  const getTasksForDay = (date: Date): TaskWithRenderInfo[] => {
+    return tasks.filter(task => isWithinInterval(date, { start: task.start, end: task.due }));
   }
 
   const getUserName = (userId: string) => {
@@ -213,15 +204,17 @@ export default function CalendarPage() {
       <Card>
         <CardContent className="p-0">
           <Calendar
+            locale={es}
+            weekStartsOn={1}
             month={currentMonth}
             onMonthChange={setCurrentMonth}
             components={{
-              Day: ({ date }) => {
+              Day: ({ date, month }) => {
                 if (isLoading) {
                   return <div className="h-full w-full p-1"><time>{format(date, "d")}</time></div>
                 }
                 const dayTasks = getTasksForDay(date);
-                return <DayWithTasks date={date} dayTasks={dayTasks} month={currentMonth} onTaskClick={handleTaskClick} onMoreClick={handleMoreClick} />
+                return <DayWithTasks date={date} dayTasks={dayTasks} month={month!} onTaskClick={handleTaskClick} onMoreClick={handleMoreClick} />
               },
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
