@@ -66,11 +66,10 @@ function DayWithTasks({
         {visibleTasks.map((task) => {
             const isStart = isSameDay(date, task.start);
             const isEnd = isSameDay(date, task.due);
-            const startsOnWeekend = getDay(task.start) === 0 || getDay(task.start) === 6;
-            const endsOnWeekend = getDay(task.due) === 0 || getDay(task.due) === 6;
-
-            const isStartOfWeek = isSameDay(date, getWeekStart(date));
-            const showTitle = isStart || isStartOfWeek;
+            const weekStart = getWeekStart(date);
+            const isStartOfWeek = isSameDay(date, weekStart) || isSameDay(date, addDays(weekStart, -1)); // Handle week starts on Sunday or Monday
+            
+            const showTitle = isStart || (isStartOfWeek && date >= task.start);
 
             const style = {
               marginTop: `${task.level * 1.5}rem`,
@@ -81,9 +80,9 @@ function DayWithTasks({
                  <button
                     onClick={() => onTaskClick(task)}
                     className={`w-full text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} 
-                    ${isStart || isStartOfWeek ? 'rounded-l-md' : ''}
+                    ${isStart || (isStartOfWeek && date >= task.start) ? 'rounded-l-md' : ''}
                     ${isEnd ? 'rounded-r-md' : ''}
-                    ${!isStart && !isStartOfWeek && 'ml-[-1px]'}
+                    ${!isStart && !(isStartOfWeek && date >= task.start) && 'ml-[-1px]'}
                     ${!isEnd && 'mr-[-1px]'}
                     `}
                   >
@@ -116,41 +115,42 @@ export default function CalendarPage() {
 
   const tasks = React.useMemo(() => {
     if (!tasksData) return [];
-
+  
     const parsedTasks = tasksData.map(task => {
         try {
             const start = parseISO(task.startDate);
             const due = parseISO(task.dueDate);
+            if (start > due) return null; // Invalid date range
             const span = eachDayOfInterval({ start, end: due }).length;
             return { ...task, start, due, span, level: 0 };
         } catch {
             return null;
         }
     }).filter(Boolean) as (Task & { start: Date; due: Date; span: number; level: number })[];
-
+  
     parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.span - a.span);
-
-    const levels: (Date | null)[][] = [];
-
+  
+    const taskLevels: { task: typeof parsedTasks[0]; level: number }[] = [];
+  
     for (const task of parsedTasks) {
-        let level = 0;
-        while (true) {
-            if (!levels[level]) {
-                levels[level] = [];
-            }
-            const hasOverlap = levels[level].some(endDate => endDate && task.start < endDate);
-            if (!hasOverlap) {
-                task.level = level;
-                const endOfTask = addDays(task.due, 1);
-                levels[level].push(endOfTask);
-                break;
-            }
-            level++;
-        }
+      let level = 0;
+      // Find the first level where the task does not overlap
+      while (
+        taskLevels.some(
+          (t) =>
+            t.level === level &&
+            task.start < addDays(t.task.due, 1) &&
+            addDays(task.due, 1) > t.task.start
+        )
+      ) {
+        level++;
+      }
+      task.level = level;
+      taskLevels.push({ task, level });
     }
-
+  
     return parsedTasks;
-}, [tasksData]);
+  }, [tasksData]);
   
 
   const allTaskDates = React.useMemo(() => {
