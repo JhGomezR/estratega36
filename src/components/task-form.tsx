@@ -25,7 +25,7 @@ import {
 import { Textarea } from "./ui/textarea"
 
 const taskFormSchema = z.object({
-  title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
+  title: z.string().min(5, "El título debe tener al menos 5 caracteres.").max(50, "El título no puede tener más de 50 caracteres."),
   description: z.string().optional(),
   assignedToId: z.string({ required_error: "Debes asignar la tarea a un usuario." }),
   startDate: z.string().optional(),
