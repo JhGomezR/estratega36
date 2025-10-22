@@ -1,77 +1,85 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset allows any user to read, create, edit, and delete data in the Firestore database.
+ * @description This ruleset allows any user to read, create, edit, and delete any document in the cities collection.
  *
  * Core Philosophy:
- * This ruleset disables authorization checks for prototyping purposes. All read and write operations are permitted for all users.
+ * This ruleset prioritizes open access for prototyping and development.  All data is world-readable and writable.
+ * This should NEVER be used in a production environment as it provides no real security.
  *
  * Data Structure:
- * The Firestore database contains collections for users, roles, campaigns, voters, and cities. Each collection stores documents representing entities of the corresponding type.
+ *  - /cities/{cityId}: Stores city information.
  *
  * Key Security Decisions:
- * - All read and write operations are allowed.
- * - No authorization checks are performed.
- *
- * WARNING: This ruleset is insecure and should only be used for prototyping purposes.
- * It is highly recommended to implement proper authorization checks before deploying the application to a production environment.
+ *  - The rules are configured to allow any user to read, create, update and delete any documents.
+ *  - In a production environment, this should NEVER be the case, since anyone could modify and delete any document.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows any user to read, create, update, and delete user profiles.
-     * @path /users/{userId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None
-     * @principle Open access for prototyping.
-     */
-    match /users/{userId} {
-      allow get, list, create, update, delete: if true;
-    }
-
-    /**
-     * @description Allows any user to read, create, update, and delete role definitions.
-     * @path /roles/{roleId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None
-     * @principle Open access for prototyping.
-     */
-    match /roles/{roleId} {
-      allow get, list, create, update, delete: if true;
-    }
-
-    /**
-     * @description Allows any user to read, create, update, and delete campaign information.
-     * @path /campaigns/{campaignId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None
-     * @principle Open access for prototyping.
-     */
-    match /campaigns/{campaignId} {
-      allow get, list, create, update, delete: if true;
-    }
-
-    /**
-     * @description Allows any user to read, create, update, and delete voter information.
-     * @path /voters/{voterId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None
-     * @principle Open access for prototyping.
-     */
-    match /voters/{voterId} {
-      allow get, list, create, update, delete: if true;
-    }
-
-    /**
-     * @description Allows any user to read, create, update, and delete city information.
+     * @description Allows any user to read, create, update and delete any city.
      * @path /cities/{cityId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None
-     * @principle Open access for prototyping.
+     * @allow (get, list) Any user can read any city.
+     * @allow (create, update, delete) Any user can create, update or delete any city.
+     * @deny None. This rule is completely open.
+     * @principle Allows open access to city data for prototyping.
      */
     match /cities/{cityId} {
-      allow get, list, create, update, delete: if true;
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows any user to read, create, update and delete any campaign.
+     * @path /campaigns/{campaignId}
+     * @allow (get, list) Any user can read any campaign.
+     * @allow (create, update, delete) Any user can create, update or delete any campaign.
+     * @deny None. This rule is completely open.
+     * @principle Allows open access to campaign data for prototyping.
+     */
+    match /campaigns/{campaignId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows any user to read, create, update and delete any voter.
+     * @path /voters/{voterId}
+     * @allow (get, list) Any user can read any voter.
+     * @allow (create, update, delete) Any user can create, update or delete any voter.
+     * @deny None. This rule is completely open.
+     * @principle Allows open access to voter data for prototyping.
+     */
+    match /voters/{voterId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows any user to read, create, update and delete any user.
+     * @path /users/{userId}
+     * @allow (get, list) Any user can read any user.
+     * @allow (create, update, delete) Any user can create, update or delete any user.
+     * @deny None. This rule is completely open.
+     * @principle Allows open access to user data for prototyping.
+     */
+    match /users/{userId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows any user to read, create, update and delete any role.
+     * @path /roles/{roleId}
+     * @allow (get, list) Any user can read any role.
+     * @allow (create, update, delete) Any user can create, update or delete any role.
+     * @deny None. This rule is completely open.
+     * @principle Allows open access to role data for prototyping.
+     */
+    match /roles/{roleId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
   }
 }
