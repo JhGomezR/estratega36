@@ -59,7 +59,7 @@ function DayWithTasks({
   const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenTasksCount = dayTasks.length - MAX_VISIBLE_TASKS;
 
-  const dayOfWeek = getDay(date);
+  const dayOfWeek = getDay(date); // Sunday is 0, Monday is 1...
 
   return (
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1">
@@ -67,24 +67,30 @@ function DayWithTasks({
       <div className="w-full flex-grow space-y-0.5">
         {visibleTasks.map((task) => {
             const isStartDay = isSameDay(date, task.start);
-            // dayOfWeek: 0 is Sunday, 1 is Monday. The week starts on Monday.
-            const isBeginningOfWeek = dayOfWeek === 1;
+            // In many locales, getDay(date) === 1 is Monday.
+            const isBeginningOfWeek = dayOfWeek === 1 || (dayOfWeek === 0 && es.options?.weekStartsOn === 0);
+
+            // We only want to render the task bar from its start day, or from the first day of the week if it's a continuing task
             const shouldRenderTask = isStartDay || isBeginningOfWeek;
 
             if (!shouldRenderTask) {
-                return <div key={task.id} style={{ marginTop: `calc(1.5rem * ${task.level})` }} className="h-5"></div>;
+                // This is a placeholder to push down other tasks
+                return <div key={task.id} className="h-5" style={{ marginTop: `calc(1.5rem * ${task.level})` }}></div>;
             }
 
             const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
-            const endDate = task.due > weekEnd ? weekEnd : task.due;
-            const span = eachDayOfInterval({start: date, end: endDate}).length;
-            const taskWidth = `calc(${span * 100}% - ${span-1}*1px)`;
+            const taskEndDateForThisWeek = task.due > weekEnd ? weekEnd : task.due;
+            const span = eachDayOfInterval({start: date, end: taskEndDateForThisWeek}).length;
+            
+            // Calculate width to span across `span` number of cells.
+            // It accounts for the cells and the borders between them.
+            const taskWidth = `calc(${span * 100}% + ${span - 1}px)`;
             
             return (
               <div key={task.id} className="relative h-5" style={{ marginTop: `calc(1.5rem * ${task.level})`}}>
                   <button
                       onClick={() => onTaskClick(task)}
-                      className={`absolute text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-sm`}
+                      className={`absolute z-10 text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-sm`}
                       style={{ width: taskWidth }}
                     >
                     {task.title}
@@ -138,20 +144,34 @@ export default function CalendarPage() {
 
     parsedTasks.forEach(task => {
       let assignedLevel = -1;
+      
+      const taskInterval = { start: task.start, end: task.due };
+
       for (let i = 0; i < levels.length; i++) {
-        if (!levels[i].some(d => isWithinInterval(d, { start: task.start, end: task.due }))) {
+        // Check if the task's interval overlaps with any date in the current level
+        const levelOccupied = levels[i].some(occupiedDate => 
+            isWithinInterval(occupiedDate, taskInterval) || 
+            isWithinInterval(task.start, {start: occupiedDate, end: occupiedDate}) ||
+            isWithinInterval(task.due, {start: occupiedDate, end: occupiedDate})
+        );
+        
+        if (!levelOccupied) {
+          // Found an empty slot in this level
           assignedLevel = i;
           break;
         }
       }
 
       if (assignedLevel === -1) {
+        // No free level found, create a new one
         levels.push([]);
         assignedLevel = levels.length - 1;
       }
       
       task.level = assignedLevel;
-      const taskDays = eachDayOfInterval({start: task.start, end: task.due});
+
+      // Add all days of the current task to its assigned level to mark it as occupied
+      const taskDays = eachDayOfInterval(taskInterval);
       levels[assignedLevel].push(...taskDays);
     });
 
@@ -322,5 +342,3 @@ export default function CalendarPage() {
     </div>
   )
 }
-
-    
