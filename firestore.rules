@@ -1,160 +1,96 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a role-based access control model.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles. Accessible only to the user themselves.
- * - /roles/{roleId}: Stores role definitions. Publicly readable, writeable only by authenticated users.
- * - /campaigns/{campaignId}: Stores campaign information. Publicly readable, writeable only by authenticated users.
- * - /voters/{voterId}: Stores voter information. Publicly readable, writeable only by authenticated users.
- * - /cities/{cityId}: Stores city information. Publicly readable.
- *
- * Key Security Decisions:
- * - Users can only read and write their own user document.
- * - Listing of users is disallowed.
- * - All documents in `roles`, `campaigns`, and `voters` are publicly readable, but only authenticated users can write them.
- * - All documents in `cities` are publicly readable.
- *
- * Denormalization for Authorization:
- * - (Not explicitly used in this ruleset, but consider denormalizing role information onto user documents in the future for faster authorization checks.)
- *
- * Structural Segregation:
- * - Not applicable in this ruleset.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Protects user profiles. Only the authenticated user can read/write their own profile.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' creates their own profile.
-     *   - Request: auth.uid = 'user123', resource.data.id = 'user123'
-     * @allow (get) User with ID 'user123' reads their own profile.
-     *   - Request: auth.uid = 'user123'
-     * @allow (update) User with ID 'user123' updates their own profile.
-     *   - Request: auth.uid = 'user123', resource.data.id = 'user123' (existing document)
-     * @allow (delete) User with ID 'user123' deletes their own profile.
-     *   - Request: auth.uid = 'user123' (existing document)
-     * @deny (create) User with ID 'user123' attempts to create a profile for 'user456'.
-     *   - Request: auth.uid = 'user123', resource.data.id = 'user456'
-     * @deny (get) User with ID 'user123' attempts to read profile for 'user456'.
-     *   - Request: auth.uid = 'user123'
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     * @allow (create, update, delete): Authenticated user with matching userId.
+     * @deny (create, update, delete): Mismatched userId or unauthenticated user.
+     * @principle Enforces document ownership for writes and requires authentication for access.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.auth.uid == userId;
-      allow update: if isExistingOwner(userId) && request.auth.uid == userId;
-      allow delete: if isExistingOwner(userId) && request.auth.uid == userId;
+      // Function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Function to check if the user is signed in and the document exists with the correct owner
+      function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId);
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Listing users is not permitted
+
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Controls access to role definition documents.
+     * @description Secures role definitions.  Read-only for all authenticated users. Write access is denied.
      * @path /roles/{roleId}
-     * @allow (get) Any user can read role definitions.
-     *   - Request: No auth needed.
-     * @allow (list) Any user can list role definitions.
-     *   - Request: No auth needed.
-     * @allow (create) Authenticated user creates a new role.
-     *   - Request: auth.uid != null
-     * @allow (update) Authenticated user updates a role.
-     *   - Request: auth.uid != null (existing document)
-     * @allow (delete) Authenticated user deletes a role.
-     *   - Request: auth.uid != null (existing document)
-     * @deny (create) Unauthenticated user attempts to create a role.
-     *   - Request: auth.uid == null
-     * @principle Publicly readable, writeable only by authenticated users.
+     * @allow (get, list): Authenticated users.
+     * @deny (create, update, delete): All users.
+     * @principle Provides read-only access to role data for authenticated users.
      */
     match /roles/{roleId} {
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    /**
-     * @description Controls access to campaign information documents.
-     * @path /campaigns/{campaignId}
-     * @allow (get) Any user can read campaign information.
-     *   - Request: No auth needed.
-     * @allow (list) Any user can list campaign information.
-     *   - Request: No auth needed.
-     * @allow (create) Authenticated user creates a new campaign.
-     *   - Request: auth.uid != null
-     * @allow (update) Authenticated user updates a campaign.
-     *   - Request: auth.uid != null (existing document)
-     * @allow (delete) Authenticated user deletes a campaign.
-     *   - Request: auth.uid != null (existing document)
-     * @deny (create) Unauthenticated user attempts to create a campaign.
-     *   - Request: auth.uid == null
-     * @principle Publicly readable, writeable only by authenticated users.
-     */
-    match /campaigns/{campaignId} {
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    /**
-     * @description Controls access to voter information documents.
-     * @path /voters/{voterId}
-     * @allow (get) Any user can read voter information.
-     *   - Request: No auth needed.
-     * @allow (list) Any user can list voter information.
-     *   - Request: No auth needed.
-     * @allow (create) Authenticated user creates a new voter.
-     *   - Request: auth.uid != null
-     * @allow (update) Authenticated user updates a voter.
-     *   - Request: auth.uid != null (existing document)
-     * @allow (delete) Authenticated user deletes a voter.
-     *   - Request: auth.uid != null (existing document)
-     * @deny (create) Unauthenticated user attempts to create a voter.
-     *   - Request: auth.uid == null
-     * @principle Publicly readable, writeable only by authenticated users.
-     */
-    match /voters/{voterId} {
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    /**
-     * @description Controls access to city information documents.
-     * @path /cities/{cityId}
-     * @allow (get) Any user can read city information.
-     *   - Request: No auth needed.
-     * @allow (list) Any user can list city information.
-     *   - Request: No auth needed.
-     * @deny (create) Any user cannot create a city information
-     *   - Request: No auth needed.
-     * @deny (update) Any user cannot update a city information
-     *   - Request: No auth needed.
-     * @deny (delete) Any user cannot delete a city information
-     *   - Request: No auth needed.
-     * @principle Publicly readable.
-     */
-    match /cities/{cityId} {
-      allow get, list: if true;
+      allow get: if request.auth != null;
+      allow list: if request.auth != null;
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
-  }
 
-  // Helper functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
+    /**
+     * @description Secures campaign information.  Read-only for all authenticated users. Write access is denied.
+     * @path /campaigns/{campaignId}
+     * @allow (get, list): Authenticated users.
+     * @deny (create, update, delete): All users.
+     * @principle Provides read-only access to campaign data for authenticated users.
+     */
+    match /campaigns/{campaignId} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
 
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
+    /**
+     * @description Secures voter information.  Read-only for all authenticated users. Write access is denied.
+     * @path /voters/{voterId}
+     * @allow (get, list): Authenticated users.
+     * @deny (create, update, delete): All users.
+     * @principle Provides read-only access to voter data for authenticated users.
+     */
+    match /voters/{voterId} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
 
-    function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
+    /**
+     * @description Secures city information.  Read-only for all authenticated users. Write access is denied.
+     * @path /cities/{cityId}
+     * @allow (get, list): Authenticated users.
+     * @deny (create, update, delete): All users.
+     * @principle Provides read-only access to city data for authenticated users.
+     */
+    match /cities/{cityId} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }
