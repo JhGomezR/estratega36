@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { addDays, eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths } from 'date-fns'
+import { eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Dialog,
@@ -65,24 +65,31 @@ function DayWithTasks({
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1 overflow-hidden">
       <time dateTime={format(date, "yyyy-MM-dd")} className="self-start text-xs">{format(date, "d")}</time>
       <div className="w-full flex-grow space-y-0.5">
-        {visibleTasks.map((task) => {
+        {visibleTasks.map((task, i) => {
             const isStart = isSameDay(date, task.start);
-            const isEnd = isSameDay(date, task.due);
-            const weekStart = getWeekStart(date);
-            const isStartOfWeek = getDay(date) === 1;
             
-            const showTitle = isStart || (isStartOfWeek && isWithinInterval(date, { start: task.start, end: task.due}));
+            const dayOfWeek = getDay(date) === 0 ? 6 : getDay(date) -1; // Monday is 0
+            const isStartOfWeek = dayOfWeek === 0;
+            const isTaskStartVisible = isWithinInterval(date, { start: task.start, end: task.due });
 
+            const showTitle = isStart || (isStartOfWeek && isTaskStartVisible);
+            
             const style = {
               marginTop: `${task.level * 1.5}rem`,
             };
-            
-            const taskWidth = `calc(${task.span * 100}% - 4px)`;
 
-
-            if (!isStart && !isStartOfWeek) {
-              return <div key={task.id} className="h-5" style={style}></div>
+            if (!showTitle) {
+                // If it's not a start day, we only need to render placeholders for levels
+                return <div key={`${task.id}-placeholder`} className="h-5" style={{marginTop: `${i * 1.5}rem`}}></div>
             }
+
+            // Calculate the span from the current day to the end of the week or task
+            const daysFromToday = eachDayOfInterval({start: date, end: task.due});
+            const weekEnd = startOfWeek(date, {weekStartsOn: 1});
+            const daysInWeekLeft = 7 - dayOfWeek;
+            const span = Math.min(daysFromToday.length, daysInWeekLeft);
+
+            const taskWidth = `calc(${span * 100}% - 4px)`;
 
             return (
               <div key={task.id} className="absolute w-full" style={style}>
@@ -99,8 +106,7 @@ function DayWithTasks({
          {hiddenTasksCount > 0 && (
           <button 
             onClick={() => onMoreClick(date)} 
-            className="text-xs text-muted-foreground mt-1 hover:underline" 
-            style={{ marginTop: `${(MAX_VISIBLE_TASKS * 1.5) + 0.25}rem` }}
+            className="text-xs font-semibold text-muted-foreground mt-auto pt-1 hover:underline"
           >
             +{hiddenTasksCount} más
           </button>
@@ -132,26 +138,19 @@ export default function CalendarPage() {
             const start = parseISO(task.startDate);
             const due = parseISO(task.dueDate);
             if (start > due) return null;
-            
-            const daysInTask = eachDayOfInterval({ start, end: due });
-            const weekStart = startOfWeek(start, { weekStartsOn: 1 });
-            const dayOfWeek = getDay(start) === 0 ? 6 : getDay(start) -1; // Monday is 0
-            const daysFromStartOfWeek = daysInTask.filter(d => d >= weekStart).length;
-
-
-            const span = Math.min(daysFromStartOfWeek, 7 - dayOfWeek);
-
-            return { ...task, start, due, span, level: 0 };
+            return { ...task, start, due, span: 0, level: 0 };
         } catch {
             return null;
         }
-    }).filter(Boolean) as TaskWithRenderInfo[];
+    }).filter(Boolean) as (Task & {start: Date, due: Date, span: number, level: number})[];
   
-    parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.span - a.span);
+    parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.due.getTime() - a.due.getTime());
     
-    const layout: TaskWithRenderInfo[][] = [];
+    // This part is crucial for vertical stacking (levels)
+    const layout: (Task & {start: Date, due: Date})[][] = [];
     parsedTasks.forEach(task => {
         let level = 0;
+        // Find a level where the task doesn't overlap with existing tasks
         while (layout[level] && layout[level].some(t => t.due >= task.start)) {
             level++;
         }
