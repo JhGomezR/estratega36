@@ -55,20 +55,20 @@ function DayWithTasks({
   onTaskClick: (task: Task) => void;
   onMoreClick: (date: Date) => void;
 }) {
-  const MAX_VISIBLE_TASKS = 4;
+  const MAX_VISIBLE_TASKS = 3;
   const tasksToShow = dayTasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenTasksCount = dayTasks.length > MAX_VISIBLE_TASKS ? dayTasks.length - MAX_VISIBLE_TASKS : 0;
 
   const isOutsideMonth = date.getMonth() !== month.getMonth();
 
   return (
-    <div className="relative h-full w-full p-1 flex flex-col items-start justify-start">
+    <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1">
       <time dateTime={format(date, "yyyy-MM-dd")} className={`self-start text-xs mb-1 ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
         {format(date, "d")}
       </time>
-      <div className="w-full flex-grow">
+      <div className="w-full flex-grow space-y-px">
         {tasksToShow.map(task => (
-          <div key={task.id} className="h-4 mb-px" style={{ marginTop: task.level > 0 ? `calc(${task.level} * 1.1rem)` : undefined }}>
+          <div key={task.id} className="h-4" style={{ marginTop: task.level > 0 ? `calc(${task.level} * (1rem + 1px))` : undefined }}>
             {isWithinInterval(date, { start: task.start, end: task.due }) && (
               <button
                 onClick={() => onTaskClick(task)}
