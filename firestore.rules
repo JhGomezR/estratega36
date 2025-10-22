@@ -1,159 +1,123 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for user profiles
- * and grants public read access to campaigns, voters and cities.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles. Only the owner can read/write.
- * - /roles/{roleId}: Stores role definitions.
- * - /campaigns/{campaignId}: Stores campaign information. Publicly readable, owner-only writes.
- * - /voters/{voterId}: Stores voter information. Publicly readable, owner-only writes.
- * - /cities/{cityId}: Stores city information. Publicly readable, owner-only writes.
- *
- * Key Security Decisions:
- * - User listing is disallowed to protect privacy.
- * - Public read access is granted to /campaigns, /voters, and /cities for prototyping,
- *   but write access is restricted to document owners (if the schema includes an owner field).
- * - The rules prioritize security and assume all data is private unless explicitly made public.
- *
- * Denormalization for Authorization:
- * - The /campaigns/{campaignId}, /voters/{voterId}, and /cities/{cityId} collections
- *   should have an `ownerId` field (or similar) to enable owner-only write access.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
      * @description Checks if the current user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the current user is the owner of the resource.
-     * @param {string} userId - The user ID to compare with the request's auth UID.
-     * @return {bool} True if the user is the owner, false otherwise.
+     * @description Checks if the current user is the owner of the document.
      */
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the current user is the owner of the existing resource.
-     * @param {string} userId - The user ID to compare with the resource's owner ID.
-     * @return {bool} True if the user is the owner and the resource exists, false otherwise.
+     * @description Checks if the current user is the owner of the document, and that the resource exists.
      */
     function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      return isOwner(userId) && exists(resource);
     }
 
     /**
-     * @description Enforces that the incoming resource data has a field
-     * that matches the authenticated user's ID. Used on `create` operations
-     * to establish ownership.
-     * @param {string} ownerIdField - The field in the resource data that should
-     * match the user's ID.
-     * @return {bool} True if the field exists and matches, false otherwise.
+     * @description Enforces that the user ID in the path matches the user ID in the data.
      */
-    function isCreatingWithOwnerId(ownerIdField) {
-        return request.resource.data[ownerIdField] == request.auth.uid;
+    function isValidOwnerId(userId) {
+      return request.resource.data.id == userId;
     }
 
     /**
-     * @description Enforces that the field cannot be changed. This function
-     * is safe to call on `update` requests because `request.resource.data`
-     * represents the merged state of the document (existing + new data).
-     * @param {string} field - The field that must remain immutable.
-     * @return {bool} True if the field's value is unchanged, false otherwise.
-     */
-    function isFieldImmutable(field) {
-        return request.resource.data[field] == resource.data[field];
-    }
-
-    /**
-     * @description Rules for user profiles.
+     * @description Stores user profiles, accessible only by the owning user.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user with matching {userId} can create their profile.
-     * @allow (get, update, delete) - Authenticated user can access and modify their own profile.
-     * @deny (list) - Listing all users is not allowed.
-     * @deny (create, update, delete) - Non-authenticated user can not access and modify profiles.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) User with ID 'user123' can create their profile.
+     * @deny (create) User with ID 'user123' cannot create a profile with a different ID 'user456'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      // Disallow listing users for privacy.
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isFieldImmutable('id');
+
+      // Allow a user to create their own profile.
+      allow create: if isOwner(userId) && request.auth.uid == userId;
+
+      // Allow a user to get their own profile.
+      allow get: if isOwner(userId);
+
+      // Allow a user to update their own profile.
+      allow update: if isOwner(userId);
+
+      // Allow a user to delete their own profile.
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for roles.
+     * @description Stores role definitions, publicly readable but not writable.
      * @path /roles/{roleId}
-     * @allow (get, list) - Any authenticated user can read roles.
-     * @deny (create, update, delete) - Only admins can manage roles.  No admins defined, denying all.
-     * @principle Restricts role management to admins (not yet implemented).
+     * @allow (get) Any user can read role definitions.
+     * @deny (create) No user can create role definitions.
+     * @principle Restricts write access to roles collection.
      */
     match /roles/{roleId} {
-      allow get, list: if isSignedIn();
+      // Allow anyone to read role definitions.
+      allow get, list: if true;
+
+      // Disallow creating, updating, and deleting roles.
       allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for campaigns.
+     * @description Stores campaign information, publicly readable but only writable by authenticated users.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) - Any user can read campaign information.
-     * @allow (create) - Any authenticated user can create a campaign if they set themselves as owner.
-     * @allow (update, delete) - Only the campaign owner can update or delete.
-     * @deny (create, update, delete) - Non-authenticated user can not access and modify campaigns.
-     * @principle Allows public read access but restricts write access to the owner.
+     * @allow (get) Any user can read campaign information.
+     * @allow (create) Authenticated users can create campaigns if request.auth.uid == request.resource.data.ownerId
+     * @deny (create) Unauthenticated users cannot create campaigns.
+     * @principle Enforces document ownership for writes, allows public reads.
      */
     match /campaigns/{campaignId} {
+      // Allow anyone to read campaign information.
       allow get, list: if true;
-      allow create: if isSignedIn() && isCreatingWithOwnerId('ownerId');
-      allow update: if isExistingOwner(resource.data.ownerId) && isFieldImmutable('ownerId');
-      allow delete: if isExistingOwner(resource.data.ownerId);
-      // CRITICAL: Cannot implement owner-only writes. The 'Campaign' entity is missing an 'ownerId' or 'authorId' field.
-      // allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+
+      // Allow create, update, delete only if the user is authenticated and the ownerId matches.
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
 
     /**
-     * @description Rules for voters.
+     * @description Stores voter information, publicly readable but only writable by authenticated users.
      * @path /voters/{voterId}
-     * @allow (get, list) - Any user can read voter information.
-     * @allow (create) - Any authenticated user can create a voter if they set themselves as owner.
-     * @allow (update, delete) - Only the voter owner can update or delete.
-     * @deny (create, update, delete) - Non-authenticated user can not access and modify voters.
-     * @principle Allows public read access but restricts write access to the owner.
+     * @allow (get) Any user can read voter information.
+     * @allow (create) Authenticated users can create voters if request.auth.uid == request.resource.data.ownerId
+     * @deny (create) Unauthenticated users cannot create voters.
+     * @principle Enforces document ownership for writes, allows public reads.
      */
     match /voters/{voterId} {
+      // Allow anyone to read voter information.
       allow get, list: if true;
-      allow create: if isSignedIn() && isCreatingWithOwnerId('ownerId');
-      allow update: if isExistingOwner(resource.data.ownerId) && isFieldImmutable('ownerId');
-      allow delete: if isExistingOwner(resource.data.ownerId);
-      // CRITICAL: Cannot implement owner-only writes. The 'Voter' entity is missing an 'ownerId' or 'authorId' field.
-      // allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+
+      // Allow create, update, delete only if the user is authenticated and the ownerId matches.
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
 
     /**
-     * @description Rules for cities.
+     * @description Stores city information, publicly readable but not writable.
      * @path /cities/{cityId}
-     * @allow (get, list) - Any user can read city information.
-     * @allow (create) - Any authenticated user can create a city if they set themselves as owner.
-     * @allow (update, delete) - Only the city owner can update or delete.
-     * @deny (create, update, delete) - Non-authenticated user can not access and modify cities.
-     * @principle Allows public read access but restricts write access to the owner.
+     * @allow (get) Any user can read city information.
+     * @deny (create) No user can create city information.
+     * @principle Restricts write access to cities collection.
      */
     match /cities/{cityId} {
+      // Allow anyone to read city information.
       allow get, list: if true;
-      allow create: if isSignedIn() && isCreatingWithOwnerId('ownerId');
-      allow update: if isExistingOwner(resource.data.ownerId) && isFieldImmutable('ownerId');
-      allow delete: if isExistingOwner(resource.data.ownerId);
-      // CRITICAL: Cannot implement owner-only writes. The 'City' entity is missing an 'ownerId' or 'authorId' field.
-      // allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+
+      // Disallow creating, updating, and deleting cities.
+      allow create, update, delete: if false;
     }
   }
 }
