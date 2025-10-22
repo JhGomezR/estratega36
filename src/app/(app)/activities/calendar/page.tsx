@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths } from 'date-fns'
+import { eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths, endOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Dialog,
@@ -59,43 +59,37 @@ function DayWithTasks({
   const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenTasksCount = dayTasks.length - MAX_VISIBLE_TASKS;
 
-  const getWeekStart = (d: Date) => startOfWeek(d, { weekStartsOn: 1 });
+  const dayOfWeek = getDay(date) === 0 ? 6 : getDay(date) - 1; // Monday = 0, Sunday = 6
 
   return (
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1 overflow-hidden">
       <time dateTime={format(date, "yyyy-MM-dd")} className="self-start text-xs">{format(date, "d")}</time>
       <div className="w-full flex-grow space-y-0.5">
-        {visibleTasks.map((task, i) => {
-            const isStart = isSameDay(date, task.start);
+        {visibleTasks.map((task) => {
+            const isStartDay = isSameDay(date, task.start);
+            const isBeginningOfWeek = dayOfWeek === 0;
+            const shouldRenderTask = isStartDay || (isBeginningOfWeek && isWithinInterval(date, { start: task.start, end: task.due }));
             
-            const dayOfWeek = getDay(date) === 0 ? 6 : getDay(date) -1; // Monday is 0
-            const isStartOfWeek = dayOfWeek === 0;
-            const isTaskStartVisible = isWithinInterval(date, { start: task.start, end: task.due });
-
-            const showTitle = isStart || (isStartOfWeek && isTaskStartVisible);
-            
-            const style = {
-              marginTop: `${task.level * 1.5}rem`,
-            };
-
-            if (!showTitle) {
-                // If it's not a start day, we only need to render placeholders for levels
-                return <div key={`${task.id}-placeholder`} className="h-5" style={{marginTop: `${i * 1.5}rem`}}></div>
+            if (!shouldRenderTask) {
+                return null;
             }
 
-            // Calculate the span from the current day to the end of the week or task
-            const daysFromToday = eachDayOfInterval({start: date, end: task.due});
-            const weekEnd = startOfWeek(date, {weekStartsOn: 1});
-            const daysInWeekLeft = 7 - dayOfWeek;
-            const span = Math.min(daysFromToday.length, daysInWeekLeft);
-
+            const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
+            const remainingDaysInTask = eachDayOfInterval({start: date, end: task.due}).length;
+            const remainingDaysInWeek = eachDayOfInterval({start: date, end: weekEnd}).length;
+            const span = Math.min(remainingDaysInTask, remainingDaysInWeek);
+            
             const taskWidth = `calc(${span * 100}% - 4px)`;
-
+            
             return (
-              <div key={task.id} className="absolute w-full" style={style}>
+              <div 
+                key={task.id} 
+                className="absolute w-full" 
+                style={{ marginTop: `${task.level * 1.6}rem` }}
+              >
                  <button
                     onClick={() => onTaskClick(task)}
-                    className={`text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-md`}
+                    className={`text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-sm`}
                      style={{ width: taskWidth }}
                   >
                    {task.title}
@@ -103,15 +97,15 @@ function DayWithTasks({
               </div>
             )
         })}
+        </div>
          {hiddenTasksCount > 0 && (
           <button 
             onClick={() => onMoreClick(date)} 
-            className="text-xs font-semibold text-muted-foreground mt-auto pt-1 hover:underline"
+            className="text-xs font-semibold text-muted-foreground mt-auto pt-1 hover:underline self-start"
           >
             +{hiddenTasksCount} más
           </button>
         )}
-      </div>
     </div>
   )
 }
@@ -142,23 +136,35 @@ export default function CalendarPage() {
         } catch {
             return null;
         }
-    }).filter(Boolean) as (Task & {start: Date, due: Date, span: number, level: number})[];
+    }).filter(Boolean) as TaskWithRenderInfo[];
   
     parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.due.getTime() - a.due.getTime());
     
-    // This part is crucial for vertical stacking (levels)
-    const layout: (Task & {start: Date, due: Date})[][] = [];
+    // Assign levels to tasks to prevent visual overlap
+    const daysWithTasks: Record<string, TaskWithRenderInfo[]> = {};
+    
     parsedTasks.forEach(task => {
         let level = 0;
-        // Find a level where the task doesn't overlap with existing tasks
-        while (layout[level] && layout[level].some(t => t.due >= task.start)) {
+        const taskInterval = { start: task.start, end: task.due };
+        const taskDays = eachDayOfInterval(taskInterval).map(d => format(d, 'yyyy-MM-dd'));
+
+        // Find the first level where this task doesn't overlap with others
+        while (
+            taskDays.some(dayStr => 
+                daysWithTasks[dayStr]?.some(existingTask => existingTask.level === level)
+            )
+        ) {
             level++;
         }
         task.level = level;
-        if (!layout[level]) {
-            layout[level] = [];
-        }
-        layout[level].push(task);
+
+        // Place the task in the grid for each day it spans
+        taskDays.forEach(dayStr => {
+            if (!daysWithTasks[dayStr]) {
+                daysWithTasks[dayStr] = [];
+            }
+            daysWithTasks[dayStr].push(task);
+        });
     });
 
     return parsedTasks;
@@ -328,5 +334,3 @@ export default function CalendarPage() {
     </div>
   )
 }
-
-    
