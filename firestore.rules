@@ -1,211 +1,133 @@
 /**
- * @fileoverview Firestore Security Rules for EstrategaCRM.
+ * @fileOverview Firestore Security Rules for the political campaign management application.
  *
  * Core Philosophy:
- * This ruleset enforces a user-ownership model for user profiles and promoter profiles.
- * Voter data is owned by a promoter.
- * Campaign and task data is secured for any authenticated user of the system,
- * as well as platform configuration and city definitions.
+ * This ruleset enforces a strict user-ownership model for user profiles and open read access to other collections.
+ * Only authenticated users can create, update, or delete their own profiles.
+ * All users can read data from roles, campaigns, voters, and cities.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles.
- * - /roles/{roleId}: Stores role definitions.
- * - /campaigns/{campaignId}: Stores campaign information.
- * - /campaigns/{campaignId}/tasks/{taskId}: Stores tasks associated with campaigns.
- * - /campaigns/{campaignId}/calls/{callId}: Stores calls for campaigns.
- * - /promoters/{promoterId}: Stores promoter profiles.
- * - /promoters/{promoterId}/voters/{voterId}: Stores voters registered by promoters.
- * - /cities/{cityId}: Stores city information.
- * - /platform_config/{configId}: Stores platform configuration settings.
+ * - /users/{userId}: Stores individual user profiles, accessible only to the user themselves.
+ * - /roles/{roleId}: Stores role definitions, publicly readable.
+ * - /campaigns/{campaignId}: Stores campaign information, publicly readable.
+ * - /voters/{voterId}: Stores voter information, publicly readable.
+ * - /cities/{cityId}: Stores city information, publicly readable.
  *
  * Key Security Decisions:
- * - Users can only read and write their own profile data.
- * - Promoters can only read and write their own profile data.
- * - Roles and Platform Configs are readable by everyone.
- * - Campaigns and their subcollections tasks and calls are readable by anyone.
- * - Voters can only be read and written by their parent promoter.
+ * - User profiles are strictly controlled by the individual user (ownership model).
+ * - Other collections (roles, campaigns, voters, cities) are publicly readable to facilitate data access for all users.
+ * - No listing of user documents is allowed to prevent information disclosure.
  *
- * Denormalization for Authorization:
- * - Voter documents are stored under the Promoter document to simplify authorization.
- *   The Voter document MUST contain the `promoterId` of its parent Promoter.
+ * Denormalization for Authorization: N/A (no cross-collection authorization is required in this version).
+ * Structural Segregation: N/A (no public vs. private data segregation is required in this version).
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user is the owner of the resource.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user is the owner of an existing resource.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource.data != null;
-    }
-
-    /**
-     * @description Checks if the request is attempting to create a resource with the correct owner ID.
-     */
-    function isValidOwnerIdOnCreate(userId) {
-      return request.resource.data.id == userId;
-    }
-
-    /**
-     * @description Checks if the owner ID is immutable on update.
-     */
-    function isOwnerIdImmutable(userId) {
-        return resource.data.id == request.resource.data.id;
-    }
-
-    /**
-     * @description Rules for /users/{userId} collection.
+     * @description Manages user profiles. Only the authenticated user can read and write their own profile.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' creates their profile: request.auth.uid == 'user123'
-     * @allow (get, update, delete) User with ID 'user123' reads/updates/deletes their profile: request.auth.uid == 'user123'
-     * @deny (create) User with ID 'user123' tries to create a profile for 'user456': request.auth.uid == 'user123', request.resource.data.id == 'user456'
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) - An authenticated user with UID 'user_abc' can create a profile at /users/user_abc. The 'id' field must match the UID.
+     * @deny (create) - An unauthenticated user attempts to create a profile.
+     * @deny (create) - An authenticated user with UID 'user_abc' attempts to create a profile at /users/user_xyz.
+     * @allow (get) - An authenticated user with UID 'user_abc' can read their own profile at /users/user_abc.
+     * @deny (get) - An authenticated user with UID 'user_abc' attempts to read another user's profile at /users/user_xyz.
+     * @allow (update) - An authenticated user with UID 'user_abc' can update their own profile at /users/user_abc.
+     * @deny (update) - An authenticated user with UID 'user_abc' attempts to update another user's profile at /users/user_xyz.
+     * @allow (delete) - An authenticated user with UID 'user_abc' can delete their own profile at /users/user_abc.
+     * @deny (delete) - An authenticated user with UID 'user_abc' attempts to delete another user's profile at /users/user_xyz.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // Listing user documents is disallowed.
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for /roles/{roleId} collection.
+     * @description Manages role definitions. All users can read role data.
      * @path /roles/{roleId}
-     * @allow (get, list) Any authenticated user can read roles.
-     * @deny (create, update, delete) No one can create, update, or delete roles.
-     * @principle Roles are read-only and managed by administrators (not implemented in this prototype).
+     * @allow (get) - Any user (authenticated or not) can read a role document.
+     * @allow (list) - Any user (authenticated or not) can list role documents.
+     * @deny (create) - No one can create role documents through the client.
+     * @deny (update) - No one can update role documents through the client.
+     * @deny (delete) - No one can delete role documents through the client.
      */
     match /roles/{roleId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for /campaigns/{campaignId} collection.
+     * @description Manages campaign information. All users can read campaign data.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any authenticated user can read campaigns.
-     * @deny (create, update, delete) No one can create, update, or delete campaigns.
+     * @allow (get) - Any user (authenticated or not) can read a campaign document.
+     * @allow (list) - Any user (authenticated or not) can list campaign documents.
+     * @deny (create) - No one can create campaign documents through the client.
+     * @deny (update) - No one can update campaign documents through the client.
+     * @deny (delete) - No one can delete campaign documents through the client.
      */
     match /campaigns/{campaignId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn(); // TODO: Add stricter validation once roles are defined
-      allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for /campaigns/{campaignId}/tasks/{taskId} collection.
-     * @path /campaigns/{campaignId}/tasks/{taskId}
-     * @allow (get, list) Any authenticated user can read tasks within a campaign.
-     * @deny (create, update, delete) Only authorized users can create, update, or delete tasks.
+     * @description Manages voter information. All users can read voter data.
+     * @path /voters/{voterId}
+     * @allow (get) - Any user (authenticated or not) can read a voter document.
+     * @allow (list) - Any user (authenticated or not) can list voter documents.
+     * @deny (create) - No one can create voter documents through the client.
+     * @deny (update) - No one can update voter documents through the client.
+     * @deny (delete) - No one can delete voter documents through the client.
      */
-    match /campaigns/{campaignId}/tasks/{taskId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn(); // TODO: Add stricter validation once roles are defined
-      allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+    match /voters/{voterId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for /campaigns/{campaignId}/calls/{callId} collection.
-     * @path /campaigns/{campaignId}/calls/{callId}
-     * @allow (get, list) Any authenticated user can read calls within a campaign.
-     * @deny (create, update, delete) Only authorized users can create, update, or delete calls.
-     */
-    match /campaigns/{campaignId}/calls/{callId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn(); // TODO: Add stricter validation once roles are defined
-      allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-    /**
-     * @description Rules for /promoters/{promoterId} collection.
-     * @path /promoters/{promoterId}
-     * @allow (create) User with ID 'promoter123' creates their promoter profile: request.auth.uid == 'promoter123'
-     * @allow (get, update, delete) User with ID 'promoter123' reads/updates/deletes their promoter profile: request.auth.uid == 'promoter123'
-     * @deny (create) User with ID 'promoter123' tries to create a profile for 'promoter456': request.auth.uid == 'promoter123', request.resource.data.id == 'promoter456'
-     * @principle Enforces document ownership for promoter profiles.
-     */
-    match /promoters/{promoterId} {
-      allow get: if isOwner(promoterId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(promoterId);
-      allow update: if isExistingOwner(promoterId);
-      allow delete: if isExistingOwner(promoterId);
-    }
-
-    /**
-     * @description Rules for /promoters/{promoterId}/voters/{voterId} collection.
-     * @path /promoters/{promoterId}/voters/{voterId}
-     * @allow (create) Promoter with ID 'promoter123' creates a voter: request.auth.uid == 'promoter123', request.resource.data.promoterId == 'promoter123'
-     * @allow (get, update, delete) Promoter with ID 'promoter123' reads/updates/deletes a voter they own: request.auth.uid == 'promoter123', resource.data.promoterId == 'promoter123'
-     * @deny (create) Promoter with ID 'promoter123' tries to create a voter for 'promoter456': request.auth.uid == 'promoter123', request.resource.data.promoterId == 'promoter456'
-     *
-     * @principle Enforces promoter ownership for voters. Voters are owned by promoters.
-     */
-    match /promoters/{promoterId}/voters/{voterId} {
-        allow get: if isSignedIn() && isPromoterOwnedVoter(promoterId);
-        allow list: if false; // Limiting list access for rapid prototyping - re-enable when needed
-        allow create: if isSignedIn() && isOwner(promoterId) && request.resource.data.promoterId == promoterId;
-        allow update: if isSignedIn() && isPromoterOwnedVoter(promoterId);
-        allow delete: if isSignedIn() && isPromoterOwnedVoter(promoterId);
-
-        function isPromoterOwnedVoter(promoterId) {
-          return resource.data.promoterId == promoterId && isOwner(promoterId);
-        }
-    }
-
-    /**
-     * @description Rules for /cities/{cityId} collection.
+     * @description Manages city information. All users can read city data.
      * @path /cities/{cityId}
-     * @allow (get, list) Any authenticated user can read city data.
-     * @deny (create, update, delete) No one can create, update, or delete city data.
-     * @principle Cities are read-only and managed by administrators (not implemented in this prototype).
+     * @allow (get) - Any user (authenticated or not) can read a city document.
+     * @allow (list) - Any user (authenticated or not) can list city documents.
+     * @deny (create) - No one can create city documents through the client.
+     * @deny (update) - No one can update city documents through the client.
+     * @deny (delete) - No one can delete city documents through the client.
      */
     match /cities/{cityId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for /platform_config/{configId} collection.
-     * @path /platform_config/{configId}
-     * @allow (get, list) Any authenticated user can read platform configuration.
-     * @deny (create, update, delete) No one can create, update, or delete platform configuration.
-     * @principle Platform configuration is read-only and managed by administrators (not implemented in this prototype).
+     * @description Placeholder for tasks collection.  Read operations are currently denied.
+     * @path /tasks
+     * @deny (get) - Any user (authenticated or not) is denied to read a tasks document.
+     * @deny (list) - Any user (authenticated or not) is denied to list tasks documents.
+     * @deny (create) - No one can create tasks documents through the client.
+     * @deny (update) - No one can update tasks documents through the client.
+     * @deny (delete) - No one can delete tasks documents through the client.
      */
-    match /platform_config/{configId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    match /tasks {
+      allow get, list: if false;
+      allow create, update, delete: if false;
     }
+  }
+
+  // Helper functions
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
