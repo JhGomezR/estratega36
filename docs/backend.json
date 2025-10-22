@@ -187,7 +187,17 @@
         "permissions": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "manage_users",
+              "manage_campaigns",
+              "view_all_data",
+              "manage_settings",
+              "manage_promoters",
+              "register_voters",
+              "view_own_data",
+              "manage_roles"
+            ]
           }
         }
       },
@@ -243,7 +253,7 @@
       "schema": {
         "$ref": "#/entities/Role"
       },
-      "description": "Stores role definitions."
+      "description": "Stores role definitions, with specific roles for 'admin', 'campaign_manager', and 'promoter'."
     },
     "/campaigns/{campaignId}": {
       "schema": {
