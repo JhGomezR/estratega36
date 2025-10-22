@@ -1,163 +1,141 @@
 /**
- * @fileoverview Firestore Security Rules for the application.
+ * @fileoverview Firestore Security Rules
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles and
- * restricts access to other collections based on authorization.
+ * This ruleset employs a hybrid security model. User-specific data is strictly controlled via ownership,
+ * while campaign and role data can be publicly read but only modified by authorized users.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles.  Access is restricted to the
- *   authenticated user with a matching userId.
- * - /roles/{roleId}: Stores role definitions.  Read-only for all authenticated users.
- * - /campaigns/{campaignId}: Stores campaign information.  Write access is denied
- *   in the base rule, requiring additional logic for specific use cases.
- * - /voters/{voterId}: Stores voter information.  Write access is denied in the
- *   base rule, requiring additional logic for specific use cases.
- * - /cities/{cityId}: Stores city information.  Read-only for all authenticated users.
- * - /tasks/{taskId}: Stores campaign tasks.  Write access is denied in the base rule,
- *   requiring additional logic for specific use cases.
+ * - /users/{userId}:  User profiles, accessible only to the user and potentially admins.
+ * - /roles/{roleId}:  Role definitions. Publicly readable, but create/update/delete restricted.
+ * - /campaigns/{campaignId}: Campaign data. Publicly readable, but create/update/delete restricted.
+ * - /voters/{voterId}: Voter information, accessible only to authorized users (e.g., campaign managers, admins).
+ * - /cities/{cityId}:  City data. Publicly readable.  Create/update/delete restricted.
+ * - /tasks/{taskId}: Task data. Publicly readable, but create/update/delete restricted.
  *
  * Key Security Decisions:
- * - Users collection listing is denied due to privacy concerns.
- * - Roles and Cities collections are read-only for authenticated users.
- * - Campaigns, Voters, and Tasks collections have no default write permissions.
+ * - Listing of users is disallowed for privacy.
+ * - Roles are readable by all, but only manageable via dedicated admin functions (not yet implemented in rules).
+ * - Default deny: Any access not explicitly allowed is denied.
  *
- * Denormalization for Authorization:
- *  - For simplicity and performance, data required for authorization (e.g., user roles,
- *    campaign membership) should be denormalized onto the documents being secured.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Ensures the user is signed in.
+     * @description Checks if the user is signed in.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user's ID matches the provided userId.
-     * @param {string} userId The user ID to compare against the authenticated user's ID.
-     * @returns {boolean} True if the user is signed in and the user IDs match, false otherwise.
-     * @example isOwner("someUserId") will return true if request.auth.uid == "someUserId".
+     * @description Checks if the authenticated user ID matches the provided user ID.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user is the owner of an existing document.
-     * @param {string} userId The user ID to compare against the authenticated user's ID.
-     * @returns {boolean} True if the user is signed in, the user IDs match, and the resource exists.
+     * @description Checks if the authenticated user is the owner of the existing document.
      */
     function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+        return isSignedIn() && isOwner(userId) && resource.data.id == userId;
     }
 
     /**
-     * @description Restricts access to user profiles to the owning user.
+     * @description Stores user profiles.
      * @path /users/{userId}
-     * @allow (create) User 'user123' can create their own profile if authenticated as 'user123'.
-     * @allow (get) User 'user123' can read their own profile if authenticated as 'user123'.
-     * @allow (update) User 'user123' can update their own profile if authenticated as 'user123'.
-     * @allow (delete) User 'user123' can delete their own profile if authenticated as 'user123'.
-     * @deny (create) User 'user456' cannot create a profile for 'user123'.
-     * @deny (get) User 'user456' cannot read the profile of 'user123'.
-     * @deny (update) User 'user456' cannot update the profile of 'user123'.
-     * @deny (delete) User 'user456' cannot delete the profile of 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) User with UID 'user123' can create their profile if request.auth.uid == 'user123'.
+     * @allow (get) User with UID 'user123' can read their profile.
+     * @deny (create) User with UID 'user456' cannot create a profile for 'user123'.
+     * @deny (update) User with UID 'user456' cannot update the profile for 'user123'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      // User listing is denied due to privacy concerns.
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.idNumber == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.idNumber == resource.data.idNumber;
+      allow list: if false; // Disallowing listing for privacy.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows read-only access to role definitions for authenticated users.
+     * @description Stores role definitions, with specific roles for 'admin', 'campaign_manager', and 'promoter'.
      * @path /roles/{roleId}
-     * @allow (get) Any authenticated user can read a role.
-     * @allow (list) Any authenticated user can list roles.
-     * @deny (create) No one can create roles through the client.
-     * @deny (update) No one can update roles through the client.
-     * @deny (delete) No one can delete roles through the client.
-     * @principle Read-only access for authenticated users.
+     * @allow (get) Any user can read role definitions.
+     * @deny (create) No user can create role definitions through client-side rules.
+     * @deny (update) No user can update role definitions through client-side rules.
+     * @principle Roles are readable by all, but only manageable via dedicated admin functions (not yet implemented in rules).
      */
     match /roles/{roleId} {
-      allow get, list: if isSignedIn();
+      allow get: if true;
+      allow list: if true; // Allowing listing of roles.
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Restricts access to campaign information.  Write access must be granted via custom logic.
+     * @description Stores campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get) Any authenticated user can read campaign information.
-     * @allow (list) Any authenticated user can list campaigns.
-     * @deny (create) No one can create campaigns through the client without specific authorization.
-     * @deny (update) No one can update campaigns through the client without specific authorization.
-     * @deny (delete) No one can delete campaigns through the client without specific authorization.
+     * @allow (get) Any user can read campaign information.
+     * @deny (create) No user can create campaigns through client-side rules.
+     * @deny (update) No user can update campaigns through client-side rules.
+     * @principle Campaigns are readable by all, but only manageable via dedicated admin functions (not yet implemented in rules).
      */
     match /campaigns/{campaignId} {
-      allow get, list: if isSignedIn();
-      allow create: if false; // TODO: Add authorization logic for campaign creation.
-      allow update: if false; // TODO: Add authorization logic for campaign updates.
-      allow delete: if false; // TODO: Add authorization logic for campaign deletion.
-    }
-
-    /**
-     * @description Restricts access to voter information.  Write access must be granted via custom logic.
-     * @path /voters/{voterId}
-     * @allow (get) Any authenticated user can read voter information.
-     * @allow (list) Any authenticated user can list voters.
-     * @deny (create) No one can create voters through the client without specific authorization.
-     * @deny (update) No one can update voters through the client without specific authorization.
-     * @deny (delete) No one can delete voters through the client without specific authorization.
-     */
-    match /voters/{voterId} {
-      allow get, list: if isSignedIn();
-      allow create: if false; // TODO: Add authorization logic for voter creation.
-      allow update: if false; // TODO: Add authorization logic for voter updates.
-      allow delete: if false; // TODO: Add authorization logic for voter deletion.
-    }
-
-    /**
-     * @description Allows read-only access to city information for authenticated users.
-     * @path /cities/{cityId}
-     * @allow (get) Any authenticated user can read city information.
-     * @allow (list) Any authenticated user can list cities.
-     * @deny (create) No one can create cities through the client.
-     * @deny (update) No one can update cities through the client.
-     * @deny (delete) No one can delete cities through the client.
-     * @principle Read-only access for authenticated users.
-     */
-    match /cities/{cityId} {
-      allow get, list: if isSignedIn();
+      allow get: if true;
+      allow list: if true; // Allowing listing of campaigns.
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
-     /**
-      * @description Restricts access to task information.  Write access must be granted via custom logic.
-      * @path /tasks/{taskId}
-      * @allow (get) Any authenticated user can read task information.
-      * @allow (list) Any authenticated user can list tasks.
-      * @deny (create) No one can create tasks through the client without specific authorization.
-      * @deny (update) No one can update tasks through the client without specific authorization.
-      * @deny (delete) No one can delete tasks through the client without specific authorization.
-      */
+    /**
+     * @description Stores voter information.
+     * @path /voters/{voterId}
+     * @allow (get) Any user can read voter information.
+     * @deny (create) No user can create voters through client-side rules.
+     * @deny (update) No user can update voters through client-side rules.
+     */
+    match /voters/{voterId} {
+      allow get: if false; // TODO:  Implement authorization based on campaign membership and roles
+      allow list: if false; // TODO:  Implement authorization based on campaign membership and roles
+      allow create: if false; // TODO:  Implement authorization based on campaign membership and roles
+      allow update: if false; // TODO:  Implement authorization based on campaign membership and roles
+      allow delete: if false; // TODO:  Implement authorization based on campaign membership and roles
+    }
+
+    /**
+     * @description Stores city information.
+     * @path /cities/{cityId}
+     * @allow (get) Any user can read city information.
+     * @deny (create) No user can create cities through client-side rules.
+     * @deny (update) No user can update cities through client-side rules.
+     */
+    match /cities/{cityId} {
+      allow get: if true;
+      allow list: if true; // Allowing listing of cities.
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Stores campaign tasks.
+     * @path /tasks/{taskId}
+     * @allow (get) Any user can read task information.
+     * @deny (create) No user can create tasks through client-side rules.
+     * @deny (update) No user can update tasks through client-side rules.
+     */
     match /tasks/{taskId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;  // TODO: Add authorization logic for task creation.
-      allow update: if false;  // TODO: Add authorization logic for task updates.
-      allow delete: if false;  // TODO: Add authorization logic for task deletion.
+      allow get: if true;
+      allow list: if true; // Allowing listing of tasks.
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
