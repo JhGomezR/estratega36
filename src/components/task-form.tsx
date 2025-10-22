@@ -26,6 +26,7 @@ import { Textarea } from "./ui/textarea"
 
 const taskFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
+  description: z.string().optional(),
   assignedToId: z.string({ required_error: "Debes asignar la tarea a un usuario." }),
   dueDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "La fecha límite es inválida." }),
   priority: z.enum(TaskPriority),
@@ -58,6 +59,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
       title: task?.title ?? "",
+      description: task?.description ?? "",
       assignedToId: task?.assignedToId ?? undefined,
       dueDate: task?.dueDate ?? "",
       priority: task?.priority ?? "normal",
@@ -79,7 +81,21 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
             <FormItem>
               <FormLabel>Título de la Tarea</FormLabel>
               <FormControl>
-                <Textarea placeholder="Ej: Organizar reunión con líderes comunitarios" {...field} />
+                <Input placeholder="Ej: Organizar reunión con líderes comunitarios" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descripción</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Añade una descripción más detallada de la tarea..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

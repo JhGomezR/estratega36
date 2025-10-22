@@ -53,6 +53,7 @@ export const TaskStatus = ['pendiente', 'en_curso', 'finalizada'] as const;
 
 export type Task = WithId<{
   title: string;
+  description?: string;
   assignedToId: string;
   dueDate: string;
   status: (typeof TaskStatus)[number];

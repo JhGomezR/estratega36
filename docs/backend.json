@@ -134,6 +134,9 @@
         "title": {
           "type": "string"
         },
+        "description": {
+          "type": "string"
+        },
         "assignedToId": {
           "type": "string"
         },
