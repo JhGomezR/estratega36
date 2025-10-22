@@ -8,8 +8,17 @@ import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
-import type { Task } from "@/lib/types"
+import type { Task, User } from "@/lib/types"
 import { addDays, eachDayOfInterval, format, isSameDay, parseISO } from 'date-fns'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Separator } from "@/components/ui/separator"
 
 const priorityClasses: Record<Task['priority'], string> = {
   normal: "bg-blue-500 hover:bg-blue-600 text-white",
@@ -17,7 +26,28 @@ const priorityClasses: Record<Task['priority'], string> = {
   urgente: "bg-red-500 hover:bg-red-600 text-white",
 }
 
-function DayWithTasks({ date, tasks }: { date: Date; tasks: Task[] }) {
+const priorityLabels: Record<Task['priority'], string> = {
+  normal: "Normal",
+  alta: "Alta",
+  urgente: "Urgente",
+};
+
+const statusLabels: Record<Task['status'], string> = {
+  pendiente: "Pendiente",
+  en_curso: "En Curso",
+  finalizada: "Finalizada",
+};
+
+
+function DayWithTasks({ 
+    date, 
+    tasks,
+    onTaskClick,
+  }: { 
+    date: Date; 
+    tasks: Task[];
+    onTaskClick: (task: Task) => void;
+  }) {
   const dayTasks = tasks
     .map(task => {
         try {
@@ -41,11 +71,11 @@ function DayWithTasks({ date, tasks }: { date: Date; tasks: Task[] }) {
         {dayTasks.map((task) => {
             const isStart = isSameDay(date, task.start)
             const isEnd = isSameDay(date, task.due)
-            const isMiddle = !isStart && !isEnd
-
+            
             return (
-              <div
+              <button
                 key={task.id}
+                onClick={() => onTaskClick(task)}
                 className={`w-full text-xs p-1 truncate text-left ${priorityClasses[task.priority]} 
                 ${isStart ? 'rounded-l-lg' : ''}
                 ${isEnd ? 'rounded-r-lg' : ''}
@@ -54,7 +84,7 @@ function DayWithTasks({ date, tasks }: { date: Date; tasks: Task[] }) {
                 `}
               >
                {isStart ? task.title : <>&nbsp;</>}
-              </div>
+              </button>
             )
         })}
       </div>
@@ -67,7 +97,12 @@ export default function CalendarPage() {
   const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(
     useMemoFirebase(() => firestore ? collection(firestore, "tasks") : null, [firestore])
   )
+  const { data: users, isLoading: usersLoading } = useCollection<User>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
+  );
+  
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date())
+  const [taskToView, setTaskToView] = React.useState<Task | null>(null);
 
   const allTaskDates = React.useMemo(() => {
     if (!tasks) return []
@@ -83,6 +118,17 @@ export default function CalendarPage() {
     })
     return dates;
   }, [tasks])
+
+  const getUserName = (userId: string) => {
+    const user = users?.find(u => u.id === userId);
+    return user ? `${user.firstName} ${user.lastName}` : 'N/A';
+  };
+
+  const handleTaskClick = (task: Task) => {
+    setTaskToView(task);
+  }
+
+  const isLoading = tasksLoading || usersLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -104,10 +150,10 @@ export default function CalendarPage() {
             }}
             components={{
               Day: ({ date }) => {
-                if (tasksLoading) {
+                if (isLoading) {
                   return <div className="h-full w-full p-1"><time>{format(date, "d")}</time></div>
                 }
-                return <DayWithTasks date={date} tasks={tasks || []} />
+                return <DayWithTasks date={date} tasks={tasks || []} onTaskClick={handleTaskClick} />
               },
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
@@ -129,6 +175,48 @@ export default function CalendarPage() {
           />
         </CardContent>
       </Card>
+      
+      <Dialog open={!!taskToView} onOpenChange={(open) => !open && setTaskToView(null)}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{taskToView?.title}</DialogTitle>
+            <DialogDescription>Detalles de la tarea</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+              <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="font-semibold text-sm">Descripción:</span>
+                  <p className="col-span-2 text-sm text-muted-foreground">{taskToView?.description || 'No hay descripción.'}</p>
+              </div>
+              <Separator />
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="font-semibold text-sm">Asignado a:</span>
+                  <span className="col-span-2">{getUserName(taskToView?.assignedToId || '')}</span>
+              </div>
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="font-semibold text-sm">Fecha de Inicio:</span>
+                  <span className="col-span-2">{taskToView?.startDate}</span>
+              </div>
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="font-semibold text-sm">Fecha Límite:</span>
+                  <span className="col-span-2">{taskToView?.dueDate}</span>
+              </div>
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="font-semibold text-sm">Prioridad:</span>
+                  <Badge className={`col-span-2 w-fit ${priorityClasses[taskToView?.priority || 'normal']}`}>
+                    {priorityLabels[taskToView?.priority || 'normal']}
+                  </Badge>
+              </div>
+                <div className="grid grid-cols-3 items-center gap-4">
+                  <span className="font-semibold text-sm">Estado:</span>
+                  <Badge variant={
+                          taskToView?.status === "finalizada" ? "default" : taskToView?.status === "en_curso" ? "secondary" : "outline"
+                        } className="col-span-2 w-fit">
+                    {statusLabels[taskToView?.status || 'pendiente']}
+                  </Badge>
+              </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
