@@ -226,7 +226,7 @@ export default function CalendarPage() {
               table: "w-full border-collapse",
               head_row: "flex justify-between border-b",
               head_cell: "w-full text-muted-foreground rounded-md font-normal text-[0.8rem] uppercase",
-              row: "flex w-full mt-0 justify-between border-b min-h-[120px]",
+              row: "flex w-full mt-0 justify-between border-b h-[120px]",
               cell: "h-auto w-full text-left text-sm p-0 relative focus-within:relative focus-within:z-20 border-r last:border-r-0",
               day: "h-full w-full p-0 font-normal aria-selected:opacity-100 justify-start items-start flex",
               day_selected: "",
