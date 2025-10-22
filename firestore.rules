@@ -1,92 +1,103 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset allows any authenticated user to read, create, update, and delete data in all collections.
- *
- * Data Structure:
- * - Top-level collections: /users, /roles, /campaigns, /voters, /cities, /tasks.
- *
- * Key Security Decisions:
- * - All collections are publicly accessible for read and write operations by authenticated users.
- *
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows any authenticated user to read, create, update, and delete user profiles.
+     * @description Checks if the request is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user ID matches the provided user ID.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user ID matches the document's owner ID.
+     */
+    function isExistingOwner(ownerId) {
+        return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    /**
+     * @description Defines a user's profile.
      * @path /users/{userId}
-     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
-     * @deny (none) - There are no specific restrictions.
-     * @principle Allows all operations for prototyping.
+     * @allow (create) - Allow the authenticated user to create their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) - Allow the authenticated user to get, update, and delete their own profile if the userId matches their auth.uid.
+     * @deny (create) - Deny creation if the userId does not match the authenticated user's uid.
+     * @deny (get, update, delete) - Deny access if the userId does not match the authenticated user's uid.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow get, update, delete: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow list: if false;
     }
 
     /**
-     * @description Allows any authenticated user to read, create, update, and delete roles.
+     * @description Defines roles within the application.
      * @path /roles/{roleId}
-     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
-     * @deny (none) - There are no specific restrictions.
-     * @principle Allows all operations for prototyping.
+     * @allow (get, list) - Allow anyone to read the roles.
+     * @deny (create, update, delete) - Prevent anyone from creating, updating, or deleting roles.
+     * @principle Roles are read-only and cannot be modified through the client.
      */
     match /roles/{roleId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to read, create, update, and delete campaigns.
+     * @description Defines a political campaign.
      * @path /campaigns/{campaignId}
-     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
-     * @deny (none) - There are no specific restrictions.
-     * @principle Allows all operations for prototyping.
+     * @allow (get, list) - Allow anyone to read campaign information.
+     * @allow (create) - Allow creating a new campaign if the authorId field matches the authenticated user's UID.
+     * @allow (update, delete) - Allow updating or deleting a campaign if the authenticated user is the owner.
+     * @deny (create) - Deny creation if the authorId field does not match the authenticated user's UID.
+     * @deny (update, delete) - Deny access if the user is not the owner of the campaign.
+     * @principle Publicly readable campaigns with owner-only writes.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid;
     }
 
     /**
-     * @description Allows any authenticated user to read, create, update, and delete voters.
+     * @description Defines a registered voter.
      * @path /voters/{voterId}
-     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
-     * @deny (none) - There are no specific restrictions.
-     * @principle Allows all operations for prototyping.
+     * @deny (get, list, create, update, delete) - Prevent anyone from accessing voter information directly.
+     * @principle Voter data is private and not directly accessible.
      */
     match /voters/{voterId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow get, create, update, delete: if false;
+      allow list: if false;
     }
 
     /**
-     * @description Allows any authenticated user to read, create, update, and delete cities.
+     * @description Defines a city.
      * @path /cities/{cityId}
-     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
-     * @deny (none) - There are no specific restrictions.
-     * @principle Allows all operations for prototyping.
+     * @allow (get, list) - Allow anyone to read city information.
+     * @deny (create, update, delete) - Prevent anyone from creating, updating, or deleting city information.
+     * @principle City data is read-only and cannot be modified through the client.
      */
     match /cities/{cityId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to read, create, update, and delete tasks.
+     * @description Defines a task for a campaign.
      * @path /tasks/{taskId}
-     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
-     * @deny (none) - There are no specific restrictions.
-     * @principle Allows all operations for prototyping.
+     * @deny (get, list, create, update, delete) - Prevent anyone from accessing tasks information directly.
+     * @principle Task data is private and not directly accessible.
      */
     match /tasks/{taskId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
-    }
-
-    function isSignedIn() {
-        return request.auth != null;
+      allow get, create, update, delete: if false;
+      allow list: if false;
     }
   }
 }
