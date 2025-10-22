@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
@@ -59,7 +59,6 @@ export default function VotersPage() {
 
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [voterToDelete, setVoterToDelete] = React.useState<Voter | null>(null)
 
   const handleAddNew = () => {
@@ -74,13 +73,11 @@ export default function VotersPage() {
 
   const confirmDelete = (voter: Voter) => {
     setVoterToDelete(voter)
-    setIsDeleteDialogOpen(true)
   }
 
   const handleDelete = () => {
     if (voterToDelete && firestore) {
       deleteDocumentNonBlocking(doc(firestore, 'voters', voterToDelete.id))
-      setIsDeleteDialogOpen(false)
       setVoterToDelete(null)
     }
   }
@@ -172,7 +169,7 @@ export default function VotersPage() {
                      <Button variant="ghost" size="icon" onClick={() => handleEdit(voter)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <AlertDialog open={isDeleteDialogOpen && voterToDelete?.id === voter.id} onOpenChange={(open) => !open && setIsDeleteDialogOpen(false)}>
+                    <AlertDialog open={!!voterToDelete && voterToDelete.id === voter.id} onOpenChange={(open) => !open && setVoterToDelete(null)}>
                       <AlertDialogTrigger asChild>
                          <Button variant="ghost" size="icon" onClick={() => confirmDelete(voter)}>
                           <Trash2 className="h-4 w-4" />
@@ -186,7 +183,7 @@ export default function VotersPage() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+                          <AlertDialogCancel onClick={() => setVoterToDelete(null)}>Cancelar</AlertDialogCancel>
                           <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

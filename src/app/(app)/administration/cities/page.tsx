@@ -37,19 +37,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 
 export default function CitiesPage() {
   const firestore = useFirestore();
   const { data: cities, isLoading } = useCollection<City>(
-    React.useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
   );
 
   const [selectedCity, setSelectedCity] = React.useState<City | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [cityToDelete, setCityToDelete] = React.useState<City | null>(null)
 
   const handleAddNew = () => {
@@ -64,13 +63,11 @@ export default function CitiesPage() {
 
   const confirmDelete = (city: City) => {
     setCityToDelete(city)
-    setIsDeleteDialogOpen(true)
   }
 
   const handleDelete = () => {
     if (cityToDelete && firestore) {
       deleteDocumentNonBlocking(doc(firestore, 'cities', cityToDelete.id))
-      setIsDeleteDialogOpen(false)
       setCityToDelete(null)
     }
   }
@@ -145,7 +142,7 @@ export default function CitiesPage() {
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(city)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <AlertDialog open={isDeleteDialogOpen && cityToDelete?.id === city.id} onOpenChange={(open) => !open && setIsDeleteDialogOpen(false)}>
+                    <AlertDialog open={!!cityToDelete && cityToDelete.id === city.id} onOpenChange={(open) => !open && setCityToDelete(null)}>
                       <AlertDialogTrigger asChild>
                          <Button variant="ghost" size="icon" onClick={() => confirmDelete(city)}>
                           <Trash2 className="h-4 w-4" />
@@ -159,7 +156,7 @@ export default function CitiesPage() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+                          <AlertDialogCancel onClick={() => setCityToDelete(null)}>Cancelar</AlertDialogCancel>
                           <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

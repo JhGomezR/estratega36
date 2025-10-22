@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 
@@ -46,12 +46,11 @@ import { collection, doc } from "firebase/firestore"
 export default function RolesPage() {
   const firestore = useFirestore();
   const { data: roles, isLoading } = useCollection<Role>(
-    React.useMemo(() => firestore ? collection(firestore, 'roles') : null, [firestore])
+    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
   );
 
   const [selectedRole, setSelectedRole] = React.useState<Role | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [roleToDelete, setRoleToDelete] = React.useState<Role | null>(null)
 
 
@@ -67,13 +66,11 @@ export default function RolesPage() {
 
   const confirmDelete = (role: Role) => {
     setRoleToDelete(role)
-    setIsDeleteDialogOpen(true)
   }
 
   const handleDelete = () => {
     if (roleToDelete && firestore) {
       deleteDocumentNonBlocking(doc(firestore, 'roles', roleToDelete.id))
-      setIsDeleteDialogOpen(false)
       setRoleToDelete(null)
     }
   }
@@ -147,7 +144,7 @@ export default function RolesPage() {
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(role)} disabled={role.id === 'admin'}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <AlertDialog open={isDeleteDialogOpen && roleToDelete?.id === role.id} onOpenChange={(open) => !open && setIsDeleteDialogOpen(false)}>
+                    <AlertDialog open={!!roleToDelete && roleToDelete.id === role.id} onOpenChange={(open) => !open && setRoleToDelete(null)}>
                       <AlertDialogTrigger asChild>
                          <Button variant="ghost" size="icon" onClick={() => confirmDelete(role)} disabled={role.id === 'admin'}>
                           <Trash2 className="h-4 w-4" />
@@ -161,7 +158,7 @@ export default function RolesPage() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+                          <AlertDialogCancel onClick={() => setRoleToDelete(null)}>Cancelar</AlertDialogCancel>
                           <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

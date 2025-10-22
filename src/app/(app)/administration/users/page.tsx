@@ -61,7 +61,6 @@ export default function UsersPage() {
 
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null)
 
   const handleAddNew = () => {
@@ -76,13 +75,11 @@ export default function UsersPage() {
 
   const confirmDelete = (user: User) => {
     setUserToDelete(user)
-    setIsDeleteDialogOpen(true)
   }
 
   const handleDelete = () => {
     if (userToDelete && firestore) {
       deleteDocumentNonBlocking(doc(firestore, 'users', userToDelete.id))
-      setIsDeleteDialogOpen(false)
       setUserToDelete(null)
     }
   }
@@ -188,7 +185,7 @@ export default function UsersPage() {
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <AlertDialog open={isDeleteDialogOpen && userToDelete?.id === user.id} onOpenChange={(open) => !open && setIsDeleteDialogOpen(false)}>
+                    <AlertDialog open={!!userToDelete && userToDelete.id === user.id} onOpenChange={(open) => !open && setUserToDelete(null)}>
                       <AlertDialogTrigger asChild>
                          <Button variant="ghost" size="icon" onClick={() => confirmDelete(user)}>
                           <Trash2 className="h-4 w-4" />
@@ -202,7 +199,7 @@ export default function UsersPage() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+                          <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
                           <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

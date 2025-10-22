@@ -25,8 +25,8 @@ import { Progress } from "@/components/ui/progress"
 import { VoterRegistrationChart } from "@/components/voter-registration-chart"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
-import { Campaign, Voter, User, Task, Call } from '@/lib/types'
-import { subDays } from 'date-fns'
+import { type Campaign, type Voter, type User, type Task, type Call } from '@/lib/types'
+import { subDays, parseISO } from 'date-fns'
 
 export default function Dashboard() {
   const firestore = useFirestore();
@@ -49,7 +49,13 @@ export default function Dashboard() {
   
   const promoters = users?.filter(u => u.roleId === 'promoter');
 
-  const newVotersCount = voters?.filter(v => new Date(v.registrationDate) > subDays(new Date(), 30)).length ?? 0;
+  const newVotersCount = voters?.filter(v => {
+    try {
+      return parseISO(v.registrationDate) > subDays(new Date(), 30)
+    } catch {
+      return false
+    }
+  }).length ?? 0;
   
   const recentActivities = [...(tasks?.slice(0, 2) || []), ...(calls?.slice(0, 2) || [])].map(activity => {
     if ('title' in activity) {
@@ -66,7 +72,13 @@ export default function Dashboard() {
         type: 'Call',
         date: activity.scheduledTime.split(' ')[0],
     }
-}).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}).sort((a, b) => {
+    try {
+        return parseISO(b.date).getTime() - parseISO(a.date).getTime()
+    } catch {
+        return 0
+    }
+});
 
 
   return (

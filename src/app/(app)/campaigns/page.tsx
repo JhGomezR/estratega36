@@ -28,18 +28,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
-  const { data: campaigns, isLoading } = useCollection<Campaign>(
-    React.useMemo(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
-  );
+  const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore]);
+  const { data: campaigns, isLoading } = useCollection<Campaign>(campaignsCollection);
   
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [campaignToDelete, setCampaignToDelete] = React.useState<Campaign | null>(null);
 
   const handleAddNew = () => {
     setSelectedCampaign(null);
@@ -50,10 +61,15 @@ export default function CampaignsPage() {
     setSelectedCampaign(campaign);
     setIsFormOpen(true);
   }
+  
+  const confirmDelete = (campaign: Campaign) => {
+    setCampaignToDelete(campaign);
+  }
 
-  const handleDelete = (campaignId: string) => {
-    if (firestore) {
-      deleteDocumentNonBlocking(doc(firestore, 'campaigns', campaignId));
+  const handleDelete = () => {
+    if (firestore && campaignToDelete) {
+      deleteDocumentNonBlocking(doc(firestore, 'campaigns', campaignToDelete.id));
+      setCampaignToDelete(null);
     }
   }
 
@@ -153,9 +169,25 @@ export default function CampaignsPage() {
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(campaign)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(campaign.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <AlertDialog open={!!campaignToDelete && campaignToDelete.id === campaign.id} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => confirmDelete(campaign)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente la campaña.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setCampaignToDelete(null)}>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
