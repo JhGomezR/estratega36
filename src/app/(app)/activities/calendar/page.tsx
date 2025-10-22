@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths, endOfWeek } from 'date-fns'
+import { eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths, endOfWeek, isBefore, isAfter } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Dialog,
@@ -41,75 +41,64 @@ const statusLabels: Record<Task['status'], string> = {
   finalizada: "Finalizada",
 };
 
-type TaskWithRenderInfo = Task & { start: Date; due: Date; span: number; level: number };
+type TaskWithRenderInfo = Task & { start: Date; due: Date; level: number };
 
 function DayWithTasks({
-    date,
-    dayTasks,
-    onTaskClick,
-    onMoreClick,
-  }: {
-    date: Date;
-    dayTasks: TaskWithRenderInfo[];
-    onTaskClick: (task: Task) => void;
-    onMoreClick: (date: Date) => void;
-  }) {
+  date,
+  dayTasks,
+  month,
+  onTaskClick,
+  onMoreClick,
+}: {
+  date: Date;
+  dayTasks: TaskWithRenderInfo[];
+  month: Date;
+  onTaskClick: (task: Task) => void;
+  onMoreClick: (date: Date) => void;
+}) {
+  const MAX_VISIBLE_TASKS = 2;
+  const tasksToShow = dayTasks.slice(0, MAX_VISIBLE_TASKS);
+  const hiddenTasksCount = dayTasks.length > MAX_VISIBLE_TASKS ? dayTasks.length - MAX_VISIBLE_TASKS : 0;
 
-  const MAX_VISIBLE_TASKS = 3;
-  const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
-  const hiddenTasksCount = dayTasks.length - MAX_VISIBLE_TASKS;
-
-  const dayOfWeek = getDay(date); // Sunday is 0, Monday is 1...
+  const isOutsideMonth = date.getMonth() !== month.getMonth();
 
   return (
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1">
-      <time dateTime={format(date, "yyyy-MM-dd")} className="self-start text-xs">{format(date, "d")}</time>
+      <time dateTime={format(date, "yyyy-MM-dd")} className={`self-start text-xs ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
+        {format(date, "d")}
+      </time>
       <div className="w-full flex-grow space-y-0.5">
-        {visibleTasks.map((task) => {
-            const isStartDay = isSameDay(date, task.start);
-            // In many locales, getDay(date) === 1 is Monday.
-            const isBeginningOfWeek = dayOfWeek === 1 || (dayOfWeek === 0 && es.options?.weekStartsOn === 0);
-
-            // We only want to render the task bar from its start day, or from the first day of the week if it's a continuing task
-            const shouldRenderTask = isStartDay || isBeginningOfWeek;
-
-            if (!shouldRenderTask) {
-                // This is a placeholder to push down other tasks
-                return <div key={task.id} className="h-5" style={{ marginTop: `calc(1.5rem * ${task.level})` }}></div>;
-            }
-
-            const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
-            const taskEndDateForThisWeek = task.due > weekEnd ? weekEnd : task.due;
-            const span = eachDayOfInterval({start: date, end: taskEndDateForThisWeek}).length;
-            
-            // Calculate width to span across `span` number of cells.
-            // It accounts for the cells and the borders between them.
-            const taskWidth = `calc(${span * 100}% + ${span - 1}px)`;
-            
-            return (
-              <div key={task.id} className="relative h-5" style={{ marginTop: `calc(1.5rem * ${task.level})`}}>
-                  <button
-                      onClick={() => onTaskClick(task)}
-                      className={`absolute z-10 text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-sm`}
-                      style={{ width: taskWidth }}
-                    >
-                    {task.title}
-                  </button>
-              </div>
-            )
-        })}
-        </div>
-         {hiddenTasksCount > 0 && (
-          <button
-            onClick={() => onMoreClick(date)}
-            className="text-xs font-semibold text-muted-foreground mt-auto pt-1 hover:underline self-start"
-          >
-            +{hiddenTasksCount} más
-          </button>
-        )}
+        {tasksToShow.map(task => (
+          <div key={task.id} className="h-5" style={{ marginTop: task.level > 0 ? `calc(${task.level} * 1.25rem)` : undefined }}>
+            {isWithinInterval(date, { start: task.start, end: task.due }) && (
+              <button
+                onClick={() => onTaskClick(task)}
+                className={
+                  `h-full w-full text-xs text-left px-1 truncate ${priorityClasses[task.priority]} 
+                  ${(isSameDay(date, task.start) || getDay(date) === 1) ? 'rounded-l-sm' : ''}
+                  ${(isSameDay(date, task.due) || getDay(date) === 0) ? 'rounded-r-sm' : ''}
+                  ${getDay(date) !== 1 && !isSameDay(date, task.start) ? 'rounded-l-none' : ''}
+                  ${getDay(date) !== 0 && !isSameDay(date, task.due) ? 'rounded-r-none' : ''}`
+                }
+              >
+                {(isSameDay(date, task.start) || getDay(date) === 1) && task.title}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {hiddenTasksCount > 0 && (
+        <button
+          onClick={() => onMoreClick(date)}
+          className="text-xs font-semibold text-muted-foreground mt-auto pt-1 hover:underline self-start"
+        >
+          +{hiddenTasksCount} más
+        </button>
+      )}
     </div>
-  )
+  );
 }
+
 
 export default function CalendarPage() {
   const firestore = useFirestore()
@@ -123,66 +112,49 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date())
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
   const [moreTasksInfo, setMoreTasksInfo] = React.useState<{ date: Date, tasks: Task[] } | null>(null);
-
+  
   const tasks = React.useMemo(() => {
     if (!tasksData) return [];
-
-    const parsedTasks = tasksData.map(task => {
+    
+    return tasksData.map(task => {
         try {
             const start = parseISO(task.startDate);
             const due = parseISO(task.dueDate);
-            if (start > due) return null;
-            return { ...task, start, due, span: 0, level: 0 };
+            if (isBefore(due, start)) return null;
+            return { ...task, start, due, level: 0 };
         } catch {
             return null;
         }
     }).filter(Boolean) as TaskWithRenderInfo[];
-
-    parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.due.getTime() - a.due.getTime());
-
-    const levels: Date[][] = [];
-
-    parsedTasks.forEach(task => {
-      let assignedLevel = -1;
-      
-      const taskInterval = { start: task.start, end: task.due };
-
-      for (let i = 0; i < levels.length; i++) {
-        // Check if the task's interval overlaps with any date in the current level
-        const levelOccupied = levels[i].some(occupiedDate => 
-            isWithinInterval(occupiedDate, taskInterval) || 
-            isWithinInterval(task.start, {start: occupiedDate, end: occupiedDate}) ||
-            isWithinInterval(task.due, {start: occupiedDate, end: occupiedDate})
-        );
-        
-        if (!levelOccupied) {
-          // Found an empty slot in this level
-          assignedLevel = i;
-          break;
-        }
-      }
-
-      if (assignedLevel === -1) {
-        // No free level found, create a new one
-        levels.push([]);
-        assignedLevel = levels.length - 1;
-      }
-      
-      task.level = assignedLevel;
-
-      // Add all days of the current task to its assigned level to mark it as occupied
-      const taskDays = eachDayOfInterval(taskInterval);
-      levels[assignedLevel].push(...taskDays);
-    });
-
-    return parsedTasks;
-
   }, [tasksData]);
 
+
   const getTasksForDay = (date: Date): TaskWithRenderInfo[] => {
-    return tasks
-      .filter(task => isWithinInterval(date, { start: task.start, end: task.due }))
-      .sort((a, b) => a.level - b.level);
+    const dayTasks = tasks.filter(task => isWithinInterval(date, { start: task.start, end: task.due }));
+    
+    dayTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.due.getTime() - a.due.getTime());
+
+    const levels: (Date | null)[][] = [];
+
+    for (const task of dayTasks) {
+        let placed = false;
+        for (let i = 0; i < levels.length; i++) {
+            if (!levels[i][getDay(date)]) {
+                levels[i][getDay(date)] = task.due;
+                task.level = i;
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) {
+            const newLevel: (Date | null)[] = Array(7).fill(null);
+            newLevel[getDay(date)] = task.due;
+            levels.push(newLevel);
+            task.level = levels.length - 1;
+        }
+    }
+    
+    return dayTasks.sort((a, b) => a.level - b.level);
   }
 
   const getUserName = (userId: string) => {
@@ -249,7 +221,7 @@ export default function CalendarPage() {
                   return <div className="h-full w-full p-1"><time>{format(date, "d")}</time></div>
                 }
                 const dayTasks = getTasksForDay(date);
-                return <DayWithTasks date={date} dayTasks={dayTasks} onTaskClick={handleTaskClick} onMoreClick={handleMoreClick} />
+                return <DayWithTasks date={date} dayTasks={dayTasks} month={currentMonth} onTaskClick={handleTaskClick} onMoreClick={handleMoreClick} />
               },
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
@@ -258,12 +230,12 @@ export default function CalendarPage() {
               nav: "hidden",
               root: "w-full text-sm",
               months: "w-full",
-              month: "w-full space-y-2",
+              month: "w-full space-y-0",
               table: "w-full border-collapse",
               head_row: "flex justify-between border-b",
               head_cell: "w-full text-muted-foreground rounded-md font-normal text-[0.8rem] uppercase",
-              row: "flex w-full mt-2 justify-between border-b",
-              cell: "h-48 w-full text-left text-sm p-0 relative focus-within:relative focus-within:z-20 border-r last:border-r-0",
+              row: "flex w-full mt-0 justify-between border-b min-h-[120px]",
+              cell: "h-auto w-full text-left text-sm p-0 relative focus-within:relative focus-within:z-20 border-r last:border-r-0",
               day: "h-full w-full p-0 font-normal aria-selected:opacity-100 justify-start items-start flex",
               day_selected: "",
               day_today: "bg-accent/50 text-accent-foreground",
@@ -342,3 +314,5 @@ export default function CalendarPage() {
     </div>
   )
 }
+
+    

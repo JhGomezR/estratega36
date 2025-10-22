@@ -53,27 +53,35 @@ export default function CallsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {calls.map((call) => (
-                <TableRow key={call.id}>
-                  <TableCell className="font-medium">{call.voterName}</TableCell>
-                  <TableCell>{call.phoneNumber}</TableCell>
-                  <TableCell>{call.scheduledTime}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        call.status === "completed"
-                          ? "default"
-                          : call.status === "scheduled"
-                          ? "secondary"
-                          : "destructive"
-                      }
-                    >
-                      {call.status}
-                    </Badge>
+              {calls.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No hay llamadas programadas.
                   </TableCell>
-                  <TableCell>{call.notes}</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                calls.map((call) => (
+                  <TableRow key={call.id}>
+                    <TableCell className="font-medium">{call.voterName}</TableCell>
+                    <TableCell>{call.phoneNumber}</TableCell>
+                    <TableCell>{call.scheduledTime}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          call.status === "completed"
+                            ? "default"
+                            : call.status === "scheduled"
+                            ? "secondary"
+                            : "destructive"
+                        }
+                      >
+                        {call.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{call.notes}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -81,3 +89,5 @@ export default function CallsPage() {
     </div>
   )
 }
+
+    
