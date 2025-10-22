@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import type { Voter, City, User } from "@/lib/types"
+import type { Voter, City, User, Role } from "@/lib/types"
 import { VoterForm } from "@/components/voter-form"
 import {
   Dialog,
@@ -54,8 +54,16 @@ export default function VotersPage() {
   const { data: users, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
   );
+  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
+  );
   
-  const promoters = React.useMemo(() => users?.filter(u => u.roleId === 'promoter') || [], [users]);
+  const promoters = React.useMemo(() => {
+    if (!users || !roles) return [];
+    const promoterRole = roles.find(r => r.name === 'promoter' || r.id === 'promoter');
+    if (!promoterRole) return [];
+    return users.filter(u => u.roleId === promoterRole.id);
+  }, [users, roles]);
 
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -99,11 +107,11 @@ export default function VotersPage() {
 
   const getCityName = (cityId: string) => cities?.find(c => c.id === cityId)?.name ?? 'N/A'
   const getPromoterName = (promoterId: string) => {
-      const promoter = promoters.find(p => p.id === promoterId);
+      const promoter = users?.find(p => p.id === promoterId);
       return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
   }
 
-  const isLoading = votersLoading || citiesLoading || usersLoading;
+  const isLoading = votersLoading || citiesLoading || usersLoading || rolesLoading;
 
 
   return (
