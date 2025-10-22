@@ -209,12 +209,12 @@ export default function CalendarPage() {
             month={currentMonth}
             onMonthChange={setCurrentMonth}
             components={{
-              Day: ({ date, month }) => {
+              Day: ({ date }) => {
                 if (isLoading) {
                   return <div className="h-full w-full p-1"><time>{format(date, "d")}</time></div>
                 }
                 const dayTasks = getTasksForDay(date);
-                return <DayWithTasks date={date} dayTasks={dayTasks} month={month!} onTaskClick={handleTaskClick} onMoreClick={handleMoreClick} />
+                return <DayWithTasks date={date} dayTasks={dayTasks} month={currentMonth} onTaskClick={handleTaskClick} onMoreClick={handleMoreClick} />
               },
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
@@ -307,5 +307,3 @@ export default function CalendarPage() {
     </div>
   )
 }
-
-    
