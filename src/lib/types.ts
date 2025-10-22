@@ -55,6 +55,7 @@ export type Task = WithId<{
   title: string;
   description?: string;
   assignedToId: string;
+  startDate: string;
   dueDate: string;
   status: (typeof TaskStatus)[number];
   priority: (typeof TaskPriority)[number];

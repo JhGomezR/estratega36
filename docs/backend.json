@@ -140,6 +140,10 @@
         "assignedToId": {
           "type": "string"
         },
+        "startDate": {
+          "type": "string",
+          "format": "date"
+        },
         "dueDate": {
           "type": "string",
           "format": "date"
@@ -153,7 +157,7 @@
           "enum": ["pendiente", "en_curso", "finalizada"]
         }
       },
-      "required": ["title", "assignedToId", "dueDate", "priority", "status"]
+      "required": ["title", "assignedToId", "startDate", "dueDate", "priority", "status"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",

@@ -28,6 +28,7 @@ const taskFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   description: z.string().optional(),
   assignedToId: z.string({ required_error: "Debes asignar la tarea a un usuario." }),
+  startDate: z.string().optional(),
   dueDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "La fecha límite es inválida." }),
   priority: z.enum(TaskPriority),
   status: z.enum(TaskStatus),
@@ -38,7 +39,7 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 interface TaskFormProps {
   task?: Task | null;
   users: User[];
-  onSubmit: (data: TaskFormValues) => void;
+  onSubmit: (data: Omit<TaskFormValues, 'startDate'>) => void;
   onCancel: () => void;
 }
 
@@ -61,6 +62,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
       title: task?.title ?? "",
       description: task?.description ?? "",
       assignedToId: task?.assignedToId ?? undefined,
+      startDate: task?.startDate ?? "",
       dueDate: task?.dueDate ?? "",
       priority: task?.priority ?? "normal",
       status: task?.status ?? "pendiente",
@@ -68,7 +70,8 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
   });
 
   function handleFormSubmit(data: TaskFormValues) {
-    onSubmit(data);
+    const { startDate, ...rest } = data;
+    onSubmit(rest);
   }
 
   return (
@@ -127,7 +130,7 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
               </FormItem>
             )}
           />
-          <FormField
+           <FormField
             control={form.control}
             name="dueDate"
             render={({ field }) => (
@@ -141,6 +144,23 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
             )}
           />
         </div>
+        
+        {task && (
+            <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Fecha de Inicio</FormLabel>
+                    <FormControl>
+                    <Input type="date" {...field} disabled />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        )}
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField

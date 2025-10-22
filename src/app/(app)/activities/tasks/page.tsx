@@ -43,6 +43,7 @@ import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Separator } from "@/components/ui/separator"
+import { format } from "date-fns"
 
 const priorityClasses: Record<Task['priority'], string> = {
   normal: "bg-blue-500 hover:bg-blue-600",
@@ -103,12 +104,15 @@ export default function TasksPage() {
     }
   };
 
-  const handleFormSubmit = (data: Omit<Task, 'id'>) => {
+  const handleFormSubmit = (data: Omit<Task, 'id' | 'startDate'>) => {
     if (firestore) {
       if (selectedTask) {
         setDocumentNonBlocking(doc(firestore, 'tasks', selectedTask.id), data, { merge: true });
       } else {
-        addDocumentNonBlocking(collection(firestore, 'tasks'), data);
+         addDocumentNonBlocking(collection(firestore, 'tasks'), {
+          ...data,
+          startDate: format(new Date(), "yyyy-MM-dd"),
+        });
       }
     }
     setIsFormOpen(false);
@@ -218,6 +222,10 @@ export default function TasksPage() {
                              <div className="grid grid-cols-3 items-center gap-4">
                                 <span className="font-semibold text-sm">Asignado a:</span>
                                 <span className="col-span-2">{getUserName(taskToView?.assignedToId || '')}</span>
+                            </div>
+                             <div className="grid grid-cols-3 items-center gap-4">
+                                <span className="font-semibold text-sm">Fecha de Inicio:</span>
+                                <span className="col-span-2">{taskToView?.startDate}</span>
                             </div>
                              <div className="grid grid-cols-3 items-center gap-4">
                                 <span className="font-semibold text-sm">Fecha Límite:</span>
