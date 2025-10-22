@@ -1,126 +1,106 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a role-based access control model where users have specific permissions.
+ * @description This ruleset defines the access control for the political campaign management application.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes ease of data modification by all users, and maintains authentication.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles.  Access is restricted to the user themselves.
- * - /roles/{roleId}: Stores role definitions. Read-only for all authenticated users.
- * - /campaigns/{campaignId}: Stores campaign information.  Write access not defined, using a placeholder to prevent accidental open access.
- * - /voters/{voterId}: Stores voter information. Only campaign directors, volunteers and leaders can create new voters.
- * - /cities/{cityId}: Stores city information.  Read-only for all authenticated users.
+ * - /users/{userId}: Stores user profiles.  Access is restricted to authenticated users for reading and any user to writing.
+ * - /roles/{roleId}: Stores role definitions. Allows any user to read and write role definitions.
+ * - /campaigns/{campaignId}: Stores campaign information. Allows any user to read and write campaigns.
+ * - /voters/{voterId}: Stores voter information.  Allows any user to read and write voter information.
+ * - /cities/{cityId}: Stores city information. Allows any user to read and write city information.
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - Roles and Cities are read-only for authenticated users.
- * - The ruleset prioritizes strict authorization and omits data validation for prototyping.
- * - Where write permissions are not explicitly defined, placeholder rules are used to prevent open access.
+ * - The ruleset defaults to open access for write operations on most collections as per instructions.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profiles.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their own profile.
-     * @allow (get, update, delete) User with UID 'user123' can read, update, and delete their own profile.
-     * @deny (create) User with UID 'user456' cannot create a profile for 'user123'.
-     * @deny (get, update, delete) User with UID 'user456' cannot read, update, or delete the profile of 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, list) Authenticated user can read their profile.
+     * @allow (create, update, delete) Any authenticated user can modify their profile.
+     * @deny  User attempts to modify another user's profile without being authenticated.
+     * @principle Allows any authenticated user to write.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isExistingOwner(userId);
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to role definitions.
+     * @description Controls access to role definition documents.
      * @path /roles/{roleId}
-     * @allow (get, list) Any signed-in user can read role definitions.
-     * @deny (create, update, delete) No one can create, update, or delete role definitions.
-     * @principle Roles are globally read-only for authenticated users.
+     * @allow (get, list) Any authenticated user can read role definitions.
+     * @allow (create, update, delete) Any authenticated user can modify role definitions.
+     * @deny  Unauthenticated user attempts to read or write role definitions.
+     * @principle Open read and write access for any authenticated user.
      */
     match /roles/{roleId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to campaign information.
+     * @description Controls access to campaign documents.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any signed-in user can read campaign information.
-     * @deny (create, update, delete) No one can create, update, or delete campaign information.
-     * @principle Placeholder rules to prevent accidental open access.
+     * @allow (get, list) Any authenticated user can read campaign information.
+     * @allow (create, update, delete) Any authenticated user can modify campaign information.
+     * @deny  Unauthenticated user attempts to read or write campaign information.
+     * @principle Open read and write access for any authenticated user.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;  // TODO: Implement access control for campaigns
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to voter information.
+     * @description Controls access to voter documents.
      * @path /voters/{voterId}
-     * @allow (create) Campaign directors, volunteers, and leaders can create new voters.
-     * @deny (create) Other users cannot create new voters.
+     * @allow (get, list) Any authenticated user can read voter information.
+     * @allow (create, update, delete) Any authenticated user can modify voter information.
+     * @deny  Unauthenticated user attempts to read or write voter information.
+     * @principle Open read and write access for any authenticated user.
      */
     match /voters/{voterId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isAllowedRole(['campaign_director', 'volunteer', 'leader']);
-      allow update: if false; // TODO: Implement access control for updates to voter information
-      allow delete: if false; // TODO: Implement access control for deletes to voter information
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to city information.
+     * @description Controls access to city documents.
      * @path /cities/{cityId}
-     * @allow (get, list) Any signed-in user can read city information.
-     * @deny (create, update, delete) No one can create, update, or delete city information.
-     * @principle Cities are globally read-only for authenticated users.
+     * @allow (get, list) Any authenticated user can read city information.
+     * @allow (create, update, delete) Any authenticated user can modify city information.
+     * @deny  Unauthenticated user attempts to read or write city information.
+     * @principle Open read and write access for any authenticated user.
      */
     match /cities/{cityId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
-    /**
-     * @description Checks if the user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
-     */
     function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the user ID matches the requested ID.
-     * @param {string} userId The user ID to check against.
-     * @return {bool} True if the user ID matches, false otherwise.
-     * @example isOwner('user123') == true when request.auth.uid is 'user123'.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-     /**
-      * @description Checks if the user is the owner of an existing document.
-      * @param {string} userId The user ID to check against.
-      * @return {bool} True if the user ID matches and the document exists, false otherwise.
-      * @example isExistingOwner('user123') == true when request.auth.uid is 'user123' and the document exists.
-      */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Checks if the user has one of the allowed roles.
-     * @param {array} allowedRoles An array of allowed role names.
-     * @return {bool} True if the user has one of the allowed roles, false otherwise.
-     */
-    function isAllowedRole(allowedRoles) {
-      return isSignedIn() && request.auth.token.role in allowedRoles;
+        return request.auth != null;
     }
   }
 }
