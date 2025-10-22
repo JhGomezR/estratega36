@@ -66,7 +66,7 @@ function DayWithTasks({
       <time dateTime={format(date, "yyyy-MM-dd")} className={`self-start text-xs mb-1 ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
         {format(date, "d")}
       </time>
-      <div className="w-full flex-grow">
+      <div className="w-full flex-grow flex flex-col">
         {tasksToShow.map(task => (
           <div 
             key={task.id} 
@@ -294,14 +294,16 @@ export default function CalendarPage() {
               <Button
                 key={task.id}
                 variant="ghost"
-                className="w-full justify-start gap-2"
+                className="w-full"
                 onClick={() => {
                   setMoreTasksInfo(null);
                   handleTaskClick(task);
                 }}
               >
-                <span className={`h-2 w-2 rounded-full ${priorityClasses[task.priority]}`}></span>
-                <span className="flex-1 text-left truncate">{task.title}</span>
+                <div className="flex items-center w-full gap-2">
+                  <span className={`h-2 w-2 rounded-full flex-shrink-0 ${priorityClasses[task.priority]}`}></span>
+                  <span className="flex-1 text-left truncate">{task.title}</span>
+                </div>
               </Button>
             ))}
           </div>
