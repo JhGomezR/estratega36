@@ -42,6 +42,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { CampaignStatus } from "@/lib/types"
+
+const statusLabels: Record<(typeof CampaignStatus)[number], string> = {
+  planned: 'Futura',
+  active: 'En Campaña',
+  completed: 'Finalizada'
+};
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
@@ -73,7 +80,7 @@ export default function CampaignsPage() {
     }
   }
 
-  const handleFormSubmit = (data: Omit<Campaign, 'id' | 'progress' | 'status'>) => {
+  const handleFormSubmit = (data: Omit<Campaign, 'id' | 'progress'>) => {
     if (firestore) {
       if (selectedCampaign) {
         setDocumentNonBlocking(doc(firestore, 'campaigns', selectedCampaign.id), data, { merge: true });
@@ -81,7 +88,6 @@ export default function CampaignsPage() {
         addDocumentNonBlocking(collection(firestore, 'campaigns'), {
           ...data,
           progress: 0,
-          status: 'planned'
         });
       }
     }
@@ -155,7 +161,7 @@ export default function CampaignsPage() {
                       }
                       className="capitalize"
                     >
-                      {campaign.status}
+                      {statusLabels[campaign.status]}
                     </Badge>
                   </TableCell>
                   <TableCell>

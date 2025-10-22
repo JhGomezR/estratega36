@@ -4,7 +4,7 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { Campaign, Investor } from "@/lib/types"
-import { CampaignType } from "@/lib/types"
+import { CampaignType, CampaignStatus } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -45,6 +45,7 @@ const campaignFormSchema = z.object({
   goal: z.string().min(5, "El objetivo debe tener al menos 5 caracteres."),
   startDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Fecha de inicio inválida." }),
   endDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Fecha de fin inválida." }),
+  status: z.enum(CampaignStatus),
   hasInvestors: z.boolean(),
   investors: z.array(investorSchema).optional(),
 });
@@ -52,7 +53,7 @@ const campaignFormSchema = z.object({
 type CampaignFormValues = z.infer<typeof campaignFormSchema>;
 
 interface CampaignFormProps {
-  campaign?: Omit<Campaign, 'progress' | 'status'> | null;
+  campaign?: Omit<Campaign, 'id' | 'progress'> | null;
   onSubmit: (data: CampaignFormValues) => void;
   onCancel: () => void;
 }
@@ -65,6 +66,7 @@ export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps
     goal: campaign?.goal ?? "",
     startDate: campaign?.startDate ?? "",
     endDate: campaign?.endDate ?? "",
+    status: campaign?.status ?? "planned",
     hasInvestors: campaign?.hasInvestors ?? false,
     investors: campaign?.investors ?? [],
   }), [campaign]);
@@ -80,6 +82,12 @@ export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps
   });
 
   const hasInvestors = form.watch("hasInvestors");
+
+  const statusLabels: Record<(typeof CampaignStatus)[number], string> = {
+    planned: 'Futura',
+    active: 'En Campaña',
+    completed: 'Finalizada'
+  };
 
   function handleFormSubmit(data: CampaignFormValues) {
     onSubmit(data);
@@ -171,19 +179,45 @@ export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps
             />
         </div>
 
-        <FormField
-          control={form.control}
-          name="goal"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Objetivo Principal</FormLabel>
-              <FormControl>
-                <Input placeholder="Ej: Ganar con el 55% de los votos" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+            control={form.control}
+            name="goal"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Objetivo Principal</FormLabel>
+                <FormControl>
+                    <Input placeholder="Ej: Ganar con el 55% de los votos" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+             <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Estado</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un estado" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {CampaignStatus.map(status => (
+                        <SelectItem key={status} value={status} className="capitalize">
+                            {statusLabels[status]}
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        </div>
         
         <FormField
           control={form.control}

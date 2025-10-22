@@ -33,6 +33,8 @@ export const CampaignType = [
   'camara'
 ] as const;
 
+export const CampaignStatus = ['planned', 'active', 'completed'] as const;
+
 export type Campaign = WithId<{
   name: string;
   description: string;
@@ -42,7 +44,7 @@ export type Campaign = WithId<{
   goal: string;
   startDate: string;
   endDate: string;
-  status: 'active' | 'completed' | 'planned';
+  status: (typeof CampaignStatus)[number];
   progress: number;
 }>;
 
