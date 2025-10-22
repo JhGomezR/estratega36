@@ -1,196 +1,92 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset is configured in Prototyping Mode, meaning it prioritizes security by enforcing authentication and authorization while being permissive on data shapes to allow for rapid development.
- *
- * Core Philosophy:
- *  - Read operations are generally open to all authenticated users, while write operations are typically restricted to specific roles or ownership.
- *  - The "calls" module is completely open for all operations as per the user request.
+ * @description This ruleset allows any authenticated user to read, create, update, and delete data in all collections.
  *
  * Data Structure:
- *  - Data is organized into top-level collections: /users, /roles, /campaigns, /voters, /cities, /tasks, and /calls.
- *  - Each collection contains documents representing entities like users, roles, campaigns, etc.
+ * - Top-level collections: /users, /roles, /campaigns, /voters, /cities, /tasks.
  *
  * Key Security Decisions:
- *  - User listing is disabled for privacy.
- *  - Data schema validation is relaxed during prototyping.
- *  - The rules explicitly define all CRUD operations for each collection.
- *  - The "/calls/{callId}" collection is configured to allow all read and write operations for any authenticated user.
+ * - All collections are publicly accessible for read and write operations by authenticated users.
+ *
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
-     * @return {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user ID matches the provided user ID.
-     * @param {string} userId The user ID to compare against the authenticated user's ID.
-     * @return {boolean} True if the user IDs match, false otherwise.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user is the owner of an existing resource.
-     * @param {string} userId The user ID of the owner.
-     * @return {boolean} True if the user is the owner and the resource exists.
-     */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for user profiles.
+     * @description Allows any authenticated user to read, create, update, and delete user profiles.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' creates their own profile document.
-     *    - request.auth.uid: 'user123'
-     *    - resource.data.id: 'user123'
-     * @allow (get) User with UID 'user123' reads their own profile document.
-     *    - request.auth.uid: 'user123'
-     * @allow (update) User with UID 'user123' updates their own profile document.
-     *    - request.auth.uid: 'user123'
-     * @deny (create) User with UID 'user123' attempts to create a profile for 'user456'.
-     *    - request.auth.uid: 'user123'
-     *    - resource.data.id: 'user456'
-     * @deny (update) User with UID 'user123' attempts to update profile for 'user456'.
-     *    - request.auth.uid: 'user123'
-     * @principle Enforces document ownership for writes, ensures data consistency, and restricts listing.
+     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
+     * @deny (none) - There are no specific restrictions.
+     * @principle Allows all operations for prototyping.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for roles.
+     * @description Allows any authenticated user to read, create, update, and delete roles.
      * @path /roles/{roleId}
-     * @allow (get) Any authenticated user can read role information.
-     *    - request.auth.uid: 'user123'
-     * @deny (create) No one can create roles.
-     *    - request.auth.uid: 'user123'
-     * @deny (update) No one can update roles.
-     *    - request.auth.uid: 'user123'
-     * @principle Restricts writes to roles, making them effectively read-only for authenticated users.
+     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
+     * @deny (none) - There are no specific restrictions.
+     * @principle Allows all operations for prototyping.
      */
     match /roles/{roleId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for campaigns.
+     * @description Allows any authenticated user to read, create, update, and delete campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get) Any authenticated user can read campaign information.
-     *    - request.auth.uid: 'user123'
-     * @allow (create) Any authenticated user can create campaigns.
-     *    - request.auth.uid: 'user123'
-     * @allow (update) Any authenticated user can update campaigns.
-     *    - request.auth.uid: 'user123'
-     * @allow (delete) Any authenticated user can delete campaigns.
-     *    - request.auth.uid: 'user123'
-     * @principle Allows any authenticated user to read, create, update and delete campaigns
+     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
+     * @deny (none) - There are no specific restrictions.
+     * @principle Allows all operations for prototyping.
      */
     match /campaigns/{campaignId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for voters.
+     * @description Allows any authenticated user to read, create, update, and delete voters.
      * @path /voters/{voterId}
-     * @allow (get) Any authenticated user can read voter information.
-     *    - request.auth.uid: 'user123'
-     * @allow (create) Any authenticated user can create voters.
-     *    - request.auth.uid: 'user123'
-     * @allow (update) Any authenticated user can update voters.
-     *    - request.auth.uid: 'user123'
-     * @allow (delete) Any authenticated user can delete voters.
-     *    - request.auth.uid: 'user123'
-     * @principle Allows any authenticated user to read, create, update and delete voters
+     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
+     * @deny (none) - There are no specific restrictions.
+     * @principle Allows all operations for prototyping.
      */
     match /voters/{voterId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for cities.
+     * @description Allows any authenticated user to read, create, update, and delete cities.
      * @path /cities/{cityId}
-     * @allow (get) Any authenticated user can read city information.
-     *    - request.auth.uid: 'user123'
-     * @deny (create) No one can create cities.
-     *    - request.auth.uid: 'user123'
-     * @deny (update) No one can update cities.
-     *    - request.auth.uid: 'user123'
-     * @principle Restricts writes to cities, making them effectively read-only for authenticated users.
+     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
+     * @deny (none) - There are no specific restrictions.
+     * @principle Allows all operations for prototyping.
      */
     match /cities/{cityId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for tasks.
+     * @description Allows any authenticated user to read, create, update, and delete tasks.
      * @path /tasks/{taskId}
-     * @allow (get) Any authenticated user can read task information.
-     *    - request.auth.uid: 'user123'
-     * @allow (create) Any authenticated user can create tasks.
-     *    - request.auth.uid: 'user123'
-     * @allow (update) Any authenticated user can update tasks.
-     *    - request.auth.uid: 'user123'
-     * @allow (delete) Any authenticated user can delete tasks.
-     *    - request.auth.uid: 'user123'
-     * @principle Allows any authenticated user to read, create, update and delete tasks
+     * @allow (read, create, update, delete) - Any authenticated user can perform these actions.
+     * @deny (none) - There are no specific restrictions.
+     * @principle Allows all operations for prototyping.
      */
     match /tasks/{taskId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
-    /**
-     * @description Rules for calls.
-     * @path /calls/{callId}
-     * @allow (get) Any authenticated user can read call information.
-     *    - request.auth.uid: 'user123'
-     * @allow (create) Any authenticated user can create calls.
-     *    - request.auth.uid: 'user123'
-     * @allow (update) Any authenticated user can update calls.
-     *    - request.auth.uid: 'user123'
-     * @allow (delete) Any authenticated user can delete calls.
-     *    - request.auth.uid: 'user123'
-     * @principle Allows any authenticated user to read, create, update and delete calls
-     */
-    match /calls/{callId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+    function isSignedIn() {
+        return request.auth != null;
     }
   }
 }
