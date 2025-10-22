@@ -43,64 +43,59 @@ const statusLabels: Record<Task['status'], string> = {
 
 type TaskWithRenderInfo = Task & { start: Date; due: Date; span: number; level: number };
 
-function DayWithTasks({ 
-    date, 
+function DayWithTasks({
+    date,
     dayTasks,
     onTaskClick,
     onMoreClick,
-  }: { 
-    date: Date; 
+  }: {
+    date: Date;
     dayTasks: TaskWithRenderInfo[];
     onTaskClick: (task: Task) => void;
     onMoreClick: (date: Date) => void;
   }) {
-    
+
   const MAX_VISIBLE_TASKS = 3;
   const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenTasksCount = dayTasks.length - MAX_VISIBLE_TASKS;
 
-  const dayOfWeek = getDay(date) === 0 ? 6 : getDay(date) - 1; // Monday = 0, Sunday = 6
+  const dayOfWeek = getDay(date);
 
   return (
-    <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1 overflow-hidden">
+    <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1">
       <time dateTime={format(date, "yyyy-MM-dd")} className="self-start text-xs">{format(date, "d")}</time>
       <div className="w-full flex-grow space-y-0.5">
         {visibleTasks.map((task) => {
             const isStartDay = isSameDay(date, task.start);
-            const isBeginningOfWeek = dayOfWeek === 0;
-            const shouldRenderTask = isStartDay || (isBeginningOfWeek && isWithinInterval(date, { start: task.start, end: task.due }));
-            
+            // dayOfWeek: 0 is Sunday, 1 is Monday. The week starts on Monday.
+            const isBeginningOfWeek = dayOfWeek === 1;
+            const shouldRenderTask = isStartDay || isBeginningOfWeek;
+
             if (!shouldRenderTask) {
-                return null;
+                return <div key={task.id} style={{ marginTop: `calc(1.5rem * ${task.level})` }} className="h-5"></div>;
             }
 
             const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
-            const remainingDaysInTask = eachDayOfInterval({start: date, end: task.due}).length;
-            const remainingDaysInWeek = eachDayOfInterval({start: date, end: weekEnd}).length;
-            const span = Math.min(remainingDaysInTask, remainingDaysInWeek);
-            
-            const taskWidth = `calc(${span * 100}% - 4px)`;
+            const endDate = task.due > weekEnd ? weekEnd : task.due;
+            const span = eachDayOfInterval({start: date, end: endDate}).length;
+            const taskWidth = `calc(${span * 100}% - ${span-1}*1px)`;
             
             return (
-              <div 
-                key={task.id} 
-                className="absolute w-full" 
-                style={{ marginTop: `${task.level * 1.6}rem` }}
-              >
-                 <button
-                    onClick={() => onTaskClick(task)}
-                    className={`text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-sm`}
-                     style={{ width: taskWidth }}
-                  >
-                   {task.title}
+              <div key={task.id} className="relative h-5" style={{ marginTop: `calc(1.5rem * ${task.level})`}}>
+                  <button
+                      onClick={() => onTaskClick(task)}
+                      className={`absolute text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-sm`}
+                      style={{ width: taskWidth }}
+                    >
+                    {task.title}
                   </button>
               </div>
             )
         })}
         </div>
          {hiddenTasksCount > 0 && (
-          <button 
-            onClick={() => onMoreClick(date)} 
+          <button
+            onClick={() => onMoreClick(date)}
             className="text-xs font-semibold text-muted-foreground mt-auto pt-1 hover:underline self-start"
           >
             +{hiddenTasksCount} más
@@ -118,15 +113,14 @@ export default function CalendarPage() {
   const { data: users, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
   );
-  
+
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date())
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
   const [moreTasksInfo, setMoreTasksInfo] = React.useState<{ date: Date, tasks: Task[] } | null>(null);
 
-
   const tasks = React.useMemo(() => {
     if (!tasksData) return [];
-  
+
     const parsedTasks = tasksData.map(task => {
         try {
             const start = parseISO(task.startDate);
@@ -137,40 +131,34 @@ export default function CalendarPage() {
             return null;
         }
     }).filter(Boolean) as TaskWithRenderInfo[];
-  
+
     parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.due.getTime() - a.due.getTime());
-    
-    // Assign levels to tasks to prevent visual overlap
-    const daysWithTasks: Record<string, TaskWithRenderInfo[]> = {};
-    
+
+    const levels: Date[][] = [];
+
     parsedTasks.forEach(task => {
-        let level = 0;
-        const taskInterval = { start: task.start, end: task.due };
-        const taskDays = eachDayOfInterval(taskInterval).map(d => format(d, 'yyyy-MM-dd'));
-
-        // Find the first level where this task doesn't overlap with others
-        while (
-            taskDays.some(dayStr => 
-                daysWithTasks[dayStr]?.some(existingTask => existingTask.level === level)
-            )
-        ) {
-            level++;
+      let assignedLevel = -1;
+      for (let i = 0; i < levels.length; i++) {
+        if (!levels[i].some(d => isWithinInterval(d, { start: task.start, end: task.due }))) {
+          assignedLevel = i;
+          break;
         }
-        task.level = level;
+      }
 
-        // Place the task in the grid for each day it spans
-        taskDays.forEach(dayStr => {
-            if (!daysWithTasks[dayStr]) {
-                daysWithTasks[dayStr] = [];
-            }
-            daysWithTasks[dayStr].push(task);
-        });
+      if (assignedLevel === -1) {
+        levels.push([]);
+        assignedLevel = levels.length - 1;
+      }
+      
+      task.level = assignedLevel;
+      const taskDays = eachDayOfInterval({start: task.start, end: task.due});
+      levels[assignedLevel].push(...taskDays);
     });
 
     return parsedTasks;
 
   }, [tasksData]);
-  
+
   const getTasksForDay = (date: Date): TaskWithRenderInfo[] => {
     return tasks
       .filter(task => isWithinInterval(date, { start: task.start, end: task.due }))
@@ -190,7 +178,7 @@ export default function CalendarPage() {
     const dailyTasks = getTasksForDay(date);
     setMoreTasksInfo({ date, tasks: dailyTasks });
   }
-  
+
   const handlePrevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
   };
@@ -198,7 +186,7 @@ export default function CalendarPage() {
   const handleNextMonth = () => {
     setCurrentMonth(addMonths(currentMonth, 1));
   };
-  
+
   const handleGoToToday = () => {
     setCurrentMonth(new Date());
   };
@@ -214,7 +202,7 @@ export default function CalendarPage() {
             <p className="text-muted-foreground">Organiza y visualiza los eventos de tu campaña.</p>
         </div>
       </div>
-      
+
       <div className="flex items-center gap-4">
         <Button variant="outline" onClick={handleGoToToday}>Hoy</Button>
         <div className="flex items-center gap-2">
@@ -265,7 +253,7 @@ export default function CalendarPage() {
           />
         </CardContent>
       </Card>
-      
+
       <Dialog open={!!taskToView} onOpenChange={(open) => !open && setTaskToView(null)}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -334,3 +322,5 @@ export default function CalendarPage() {
     </div>
   )
 }
+
+    
