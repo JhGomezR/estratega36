@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { addDays, eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval } from 'date-fns'
+import { addDays, eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay, isWithinInterval, addMonths, subMonths } from 'date-fns'
+import { es } from 'date-fns/locale'
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 const priorityClasses: Record<Task['priority'], string> = {
   normal: "bg-blue-500 hover:bg-blue-600 text-white",
@@ -67,24 +69,29 @@ function DayWithTasks({
             const isStart = isSameDay(date, task.start);
             const isEnd = isSameDay(date, task.due);
             const weekStart = getWeekStart(date);
-            const isStartOfWeek = isSameDay(date, weekStart) || getDay(date) === 0;
+            const isStartOfWeek = getDay(date) === 1;
             
             const showTitle = isStart || (isStartOfWeek && isWithinInterval(date, { start: task.start, end: task.due}));
 
             const style = {
-              marginTop: `${task.level * 1.75}rem`,
+              marginTop: `${task.level * 1.5}rem`,
             };
+            
+            const taskWidth = `calc(${task.span * 100}% - 4px)`;
+
+
+            if (!isStart && !isStartOfWeek) {
+              return <div key={task.id} className="h-5" style={style}></div>
+            }
 
             return (
-              <div key={task.id} className="absolute w-[calc(100%-4px)]" style={style}>
+              <div key={task.id} className="absolute w-full" style={style}>
                  <button
                     onClick={() => onTaskClick(task)}
-                    className={`w-full text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} 
-                    ${isStart || (isStartOfWeek && isWithinInterval(date, { start: task.start, end: task.due})) ? 'rounded-l-md' : ''}
-                    ${isEnd ? 'rounded-r-md' : ''}
-                    `}
+                    className={`text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} rounded-md`}
+                     style={{ width: taskWidth }}
                   >
-                   {showTitle ? task.title : <>&nbsp;</>}
+                   {task.title}
                   </button>
               </div>
             )
@@ -93,7 +100,7 @@ function DayWithTasks({
           <button 
             onClick={() => onMoreClick(date)} 
             className="text-xs text-muted-foreground mt-1 hover:underline" 
-            style={{ marginTop: `${MAX_VISIBLE_TASKS * 1.75}rem` }}
+            style={{ marginTop: `${(MAX_VISIBLE_TASKS * 1.5) + 0.25}rem` }}
           >
             +{hiddenTasksCount} más
           </button>
@@ -125,7 +132,15 @@ export default function CalendarPage() {
             const start = parseISO(task.startDate);
             const due = parseISO(task.dueDate);
             if (start > due) return null;
-            const span = eachDayOfInterval({ start, end: due }).length;
+            
+            const daysInTask = eachDayOfInterval({ start, end: due });
+            const weekStart = startOfWeek(start, { weekStartsOn: 1 });
+            const dayOfWeek = getDay(start) === 0 ? 6 : getDay(start) -1; // Monday is 0
+            const daysFromStartOfWeek = daysInTask.filter(d => d >= weekStart).length;
+
+
+            const span = Math.min(daysFromStartOfWeek, 7 - dayOfWeek);
+
             return { ...task, start, due, span, level: 0 };
         } catch {
             return null;
@@ -157,21 +172,6 @@ export default function CalendarPage() {
       .sort((a, b) => a.level - b.level);
   }
 
-  const allTaskDates = React.useMemo(() => {
-    if (!tasks) return []
-    const dates: Date[] = []
-    tasks.forEach(task => {
-        try {
-            const start = task.start;
-            const due = task.due;
-            if (start && due) {
-                dates.push(...eachDayOfInterval({ start, end: due }))
-            }
-        } catch {}
-    })
-    return dates;
-  }, [tasks])
-
   const getUserName = (userId: string) => {
     const user = users?.find(u => u.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : 'N/A';
@@ -185,14 +185,44 @@ export default function CalendarPage() {
     const dailyTasks = getTasksForDay(date);
     setMoreTasksInfo({ date, tasks: dailyTasks });
   }
+  
+  const handlePrevMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
+  };
+  
+  const handleGoToToday = () => {
+    setCurrentMonth(new Date());
+  };
+
 
   const isLoading = tasksLoading || usersLoading;
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Calendario de Actividades</h1>
-        <p className="text-muted-foreground">Organiza y visualiza los eventos de tu campaña.</p>
+      <div className="flex items-center justify-between">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Calendario de Actividades</h1>
+            <p className="text-muted-foreground">Organiza y visualiza los eventos de tu campaña.</p>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-4">
+        <Button variant="outline" onClick={handleGoToToday}>Hoy</Button>
+        <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
+                <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+        </div>
+        <h2 className="text-xl font-semibold capitalize">
+            {format(currentMonth, 'MMMM yyyy', { locale: es })}
+        </h2>
       </div>
 
       <Card>
@@ -200,12 +230,6 @@ export default function CalendarPage() {
           <Calendar
             month={currentMonth}
             onMonthChange={setCurrentMonth}
-            modifiers={{
-                taskDay: allTaskDates,
-            }}
-            modifiersClassNames={{
-                taskDay: "has-task",
-            }}
             components={{
               Day: ({ date }) => {
                 if (isLoading) {
@@ -217,6 +241,8 @@ export default function CalendarPage() {
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
              classNames={{
+              caption: "hidden",
+              nav: "hidden",
               root: "w-full text-sm",
               months: "w-full",
               month: "w-full space-y-2",
@@ -253,11 +279,11 @@ export default function CalendarPage() {
               </div>
                 <div className="grid grid-cols-3 items-center gap-4">
                   <span className="font-semibold text-sm">Fecha de Inicio:</span>
-                  <span className="col-span-2">{taskToView?.startDate ? format(parseISO(taskToView.startDate), 'PPP') : 'N/A'}</span>
+                  <span className="col-span-2">{taskToView?.startDate ? format(parseISO(taskToView.startDate), 'PPP', { locale: es }) : 'N/A'}</span>
               </div>
                 <div className="grid grid-cols-3 items-center gap-4">
                   <span className="font-semibold text-sm">Fecha Límite:</span>
-                  <span className="col-span-2">{taskToView?.dueDate ? format(parseISO(taskToView.dueDate), 'PPP') : 'N/A'}</span>
+                  <span className="col-span-2">{taskToView?.dueDate ? format(parseISO(taskToView.dueDate), 'PPP', { locale: es }) : 'N/A'}</span>
               </div>
                 <div className="grid grid-cols-3 items-center gap-4">
                   <span className="font-semibold text-sm">Prioridad:</span>
@@ -280,7 +306,7 @@ export default function CalendarPage() {
       <Dialog open={!!moreTasksInfo} onOpenChange={(open) => !open && setMoreTasksInfo(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Tareas del {moreTasksInfo?.date ? format(moreTasksInfo.date, 'PPP') : ''}</DialogTitle>
+            <DialogTitle>Tareas del {moreTasksInfo?.date ? format(moreTasksInfo.date, 'PPP', { locale: es }) : ''}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2">
             {moreTasksInfo?.tasks.map(task => (
@@ -303,3 +329,5 @@ export default function CalendarPage() {
     </div>
   )
 }
+
+    
