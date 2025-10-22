@@ -173,11 +173,6 @@ export default function CalendarPage() {
     setCurrentMonth(addMonths(currentMonth, 1));
   };
 
-  const handleGoToToday = () => {
-    setCurrentMonth(new Date());
-  };
-
-
   const isLoading = tasksLoading || usersLoading;
 
   return (
@@ -190,7 +185,6 @@ export default function CalendarPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={handleGoToToday}>Hoy</Button>
         <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
                 <ChevronLeft className="h-4 w-4" />
