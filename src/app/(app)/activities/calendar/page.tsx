@@ -68,7 +68,11 @@ function DayWithTasks({
       </time>
       <div className="w-full flex-grow">
         {tasksToShow.map(task => (
-          <div key={task.id} className="h-4" style={{ marginTop: task.level > 0 ? `calc(${task.level} * (1rem + 1px))` : undefined }}>
+          <div 
+            key={task.id} 
+            className="h-4"
+            style={task.level > 0 ? { marginTop: '3px' } : undefined}
+          >
             {isWithinInterval(date, { start: task.start, end: task.due }) && (
               <button
                 onClick={() => onTaskClick(task)}
