@@ -62,7 +62,7 @@ function DayWithTasks({
   const isOutsideMonth = date.getMonth() !== month.getMonth();
 
   return (
-    <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1">
+    <div className="relative h-full w-full p-1 flex flex-col items-start justify-start">
       <time dateTime={format(date, "yyyy-MM-dd")} className={`self-start text-xs mb-1 ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
         {format(date, "d")}
       </time>
