@@ -60,9 +60,14 @@ export default function VotersPage() {
   
   const promoters = React.useMemo(() => {
     if (!users || !roles) return [];
-    const promoterRole = roles.find(r => r.name.toLowerCase() === 'promotor' || r.id === 'promoter');
-    if (!promoterRole) return [];
-    return users.filter(u => u.roleId === promoterRole.id);
+    const requiredRoles = ['promotor', 'lider', 'voluntario'];
+    const promoterRoleIds = roles
+        .filter(r => requiredRoles.includes(r.name.toLowerCase()))
+        .map(r => r.id);
+        
+    if (promoterRoleIds.length === 0) return [];
+    
+    return users.filter(u => promoterRoleIds.includes(u.roleId));
   }, [users, roles]);
 
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
@@ -132,13 +137,22 @@ export default function VotersPage() {
             <DialogHeader>
               <DialogTitle>{selectedVoter ? "Editar Votante" : "Registrar Votante"}</DialogTitle>
             </DialogHeader>
-            <VoterForm
-              voter={selectedVoter}
-              cities={cities || []}
-              promoters={promoters || []}
-              onSubmit={handleFormSubmit}
-              onCancel={() => setIsFormOpen(false)}
-            />
+            {promoters.length > 0 ? (
+              <VoterForm
+                voter={selectedVoter}
+                cities={cities || []}
+                promoters={promoters}
+                onSubmit={handleFormSubmit}
+                onCancel={() => setIsFormOpen(false)}
+              />
+            ) : (
+               <div className="py-10 text-center">
+                 <p className="mb-2 text-lg font-semibold">No se encontraron roles requeridos.</p>
+                 <p className="text-muted-foreground">
+                   Para registrar votantes, por favor crea al menos un rol de "Promotor", "Lider" o "Voluntario" y asigna usuarios a ese rol.
+                 </p>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
@@ -165,6 +179,14 @@ export default function VotersPage() {
             </TableHeader>
             <TableBody>
               {isLoading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
+              {!isLoading && voters?.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <p className="font-medium">No hay votantes registrados.</p>
+                    <p className="text-sm text-muted-foreground">Comienza registrando un nuevo votante.</p>
+                  </TableCell>
+                </TableRow>
+              )}
               {voters?.map((voter) => (
                 <TableRow key={voter.id}>
                   <TableCell className="font-medium">{`${voter.firstName} ${voter.lastName}`}</TableCell>
