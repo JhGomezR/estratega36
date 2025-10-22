@@ -19,6 +19,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
 
 const priorityClasses: Record<Task['priority'], string> = {
   normal: "bg-blue-500 hover:bg-blue-600 text-white",
@@ -44,13 +45,15 @@ function DayWithTasks({
     date, 
     dayTasks,
     onTaskClick,
+    onMoreClick,
   }: { 
     date: Date; 
     dayTasks: TaskWithRenderInfo[];
     onTaskClick: (task: Task) => void;
+    onMoreClick: (date: Date) => void;
   }) {
     
-  const MAX_VISIBLE_TASKS = 2;
+  const MAX_VISIBLE_TASKS = 3;
   const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenTasksCount = dayTasks.length - MAX_VISIBLE_TASKS;
 
@@ -87,7 +90,11 @@ function DayWithTasks({
             )
         })}
          {hiddenTasksCount > 0 && (
-          <button className="text-xs text-muted-foreground mt-1 hover:underline" style={{ marginTop: `${MAX_VISIBLE_TASKS * 1.75}rem`}}>
+          <button 
+            onClick={() => onMoreClick(date)} 
+            className="text-xs text-muted-foreground mt-1 hover:underline" 
+            style={{ marginTop: `${MAX_VISIBLE_TASKS * 1.75}rem` }}
+          >
             +{hiddenTasksCount} más
           </button>
         )}
@@ -107,6 +114,8 @@ export default function CalendarPage() {
   
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date())
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
+  const [moreTasksInfo, setMoreTasksInfo] = React.useState<{ date: Date, tasks: Task[] } | null>(null);
+
 
   const tasks = React.useMemo(() => {
     if (!tasksData) return [];
@@ -125,11 +134,9 @@ export default function CalendarPage() {
   
     parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.span - a.span);
     
-    // This is the new, corrected leveling algorithm
     const layout: TaskWithRenderInfo[][] = [];
     parsedTasks.forEach(task => {
         let level = 0;
-        // Find a level where it doesn't overlap
         while (layout[level] && layout[level].some(t => t.due >= task.start)) {
             level++;
         }
@@ -174,6 +181,11 @@ export default function CalendarPage() {
     setTaskToView(task);
   }
 
+  const handleMoreClick = (date: Date) => {
+    const dailyTasks = getTasksForDay(date);
+    setMoreTasksInfo({ date, tasks: dailyTasks });
+  }
+
   const isLoading = tasksLoading || usersLoading;
 
   return (
@@ -200,7 +212,7 @@ export default function CalendarPage() {
                   return <div className="h-full w-full p-1"><time>{format(date, "d")}</time></div>
                 }
                 const dayTasks = getTasksForDay(date);
-                return <DayWithTasks date={date} dayTasks={dayTasks} onTaskClick={handleTaskClick} />
+                return <DayWithTasks date={date} dayTasks={dayTasks} onTaskClick={handleTaskClick} onMoreClick={handleMoreClick} />
               },
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
@@ -241,11 +253,11 @@ export default function CalendarPage() {
               </div>
                 <div className="grid grid-cols-3 items-center gap-4">
                   <span className="font-semibold text-sm">Fecha de Inicio:</span>
-                  <span className="col-span-2">{taskToView?.startDate}</span>
+                  <span className="col-span-2">{taskToView?.startDate ? format(parseISO(taskToView.startDate), 'PPP') : 'N/A'}</span>
               </div>
                 <div className="grid grid-cols-3 items-center gap-4">
                   <span className="font-semibold text-sm">Fecha Límite:</span>
-                  <span className="col-span-2">{taskToView?.dueDate}</span>
+                  <span className="col-span-2">{taskToView?.dueDate ? format(parseISO(taskToView.dueDate), 'PPP') : 'N/A'}</span>
               </div>
                 <div className="grid grid-cols-3 items-center gap-4">
                   <span className="font-semibold text-sm">Prioridad:</span>
@@ -264,8 +276,30 @@ export default function CalendarPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!moreTasksInfo} onOpenChange={(open) => !open && setMoreTasksInfo(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tareas del {moreTasksInfo?.date ? format(moreTasksInfo.date, 'PPP') : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            {moreTasksInfo?.tasks.map(task => (
+              <Button
+                key={task.id}
+                variant="ghost"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setMoreTasksInfo(null);
+                  handleTaskClick(task);
+                }}
+              >
+                <span className={`h-2 w-2 rounded-full ${priorityClasses[task.priority]}`}></span>
+                <span className="flex-1 truncate text-left">{task.title}</span>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
-    
