@@ -48,14 +48,16 @@ export type Campaign = WithId<{
   progress: number;
 }>;
 
-export type Task = {
-  id: string;
+export const TaskPriority = ['normal', 'alta', 'urgente'] as const;
+export const TaskStatus = ['pendiente', 'en_curso', 'finalizada'] as const;
+
+export type Task = WithId<{
   title: string;
-  assignedTo: string;
+  assignedToId: string;
   dueDate: string;
-  status: 'pending' | 'in-progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-};
+  status: (typeof TaskStatus)[number];
+  priority: (typeof TaskPriority)[number];
+}>;
 
 export type Call = {
   id: string;

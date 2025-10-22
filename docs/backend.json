@@ -125,6 +125,33 @@
         "registrationDate"
       ]
     },
+    "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "type": "object",
+      "description": "Represents a task for a campaign.",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "assignedToId": {
+          "type": "string"
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["normal", "alta", "urgente"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pendiente", "en_curso", "finalizada"]
+        }
+      },
+      "required": ["title", "assignedToId", "dueDate", "priority", "status"]
+    },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
@@ -272,6 +299,12 @@
         "$ref": "#/entities/City"
       },
       "description": "Stores city information."
+    },
+    "/tasks/{taskId}": {
+      "schema": {
+        "$ref": "#/entities/Task"
+      },
+      "description": "Stores campaign tasks."
     }
   }
 }
