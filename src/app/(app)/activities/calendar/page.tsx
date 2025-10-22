@@ -9,14 +9,13 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { addDays, eachDayOfInterval, format, isSameDay, parseISO } from 'date-fns'
+import { addDays, eachDayOfInterval, format, isSameDay, parseISO, startOfWeek, getDay } from 'date-fns'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 
@@ -45,48 +44,67 @@ function DayWithTasks({
     onTaskClick,
   }: { 
     date: Date; 
-    tasks: Task[];
+    tasks: (Task & { start: Date; due: Date; span: number; level: number })[];
     onTaskClick: (task: Task) => void;
   }) {
-  const dayTasks = tasks
-    .map(task => {
-        try {
-            const start = parseISO(task.startDate)
-            const due = parseISO(task.dueDate)
-            return { ...task, start, due }
-        } catch {
-            return null
-        }
-    })
-    .filter((task): task is Task & { start: Date; due: Date } => {
-        if (!task) return false;
-        const interval = { start: task.start, end: task.due }
-        return isSameDay(date, task.start) || isSameDay(date, task.due) || (date > task.start && date < task.due);
-    })
+    
+  const dayTasks = tasks.filter(task => {
+    const interval = { start: task.start, end: task.due }
+    return isSameDay(date, task.start) || isSameDay(date, task.due) || (date > task.start && date < task.due);
+  }).sort((a,b) => a.start.getTime() - b.start.getTime());
+
+  const MAX_VISIBLE_TASKS = 2;
+  const visibleTasks = dayTasks.slice(0, MAX_VISIBLE_TASKS);
+  const hiddenTasksCount = dayTasks.length - MAX_VISIBLE_TASKS;
+
+  const getWeekStart = (d: Date) => startOfWeek(d, { weekStartsOn: 1 });
 
   return (
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start gap-1 overflow-hidden">
-      <time dateTime={format(date, "yyyy-MM-dd")} className="self-start">{format(date, "d")}</time>
-      <div className="w-full flex-grow space-y-1">
-        {dayTasks.map((task) => {
-            const isStart = isSameDay(date, task.start)
-            const isEnd = isSameDay(date, task.due)
-            
+      <time dateTime={format(date, "yyyy-MM-dd")} className="self-start text-xs">{format(date, "d")}</time>
+      <div className="w-full flex-grow space-y-0.5">
+        {visibleTasks.map((task) => {
+            const isStart = isSameDay(date, task.start);
+            const isEnd = isSameDay(date, task.due);
+            const startsOnWeekend = getDay(task.start) === 0 || getDay(task.start) === 6;
+            const endsOnWeekend = getDay(task.due) === 0 || getDay(task.due) === 6;
+
+            const isStartOfWeek = isSameDay(date, getWeekStart(date));
+            const showTitle = isStart || isStartOfWeek;
+
+            const style = {
+              marginTop: `${task.level * 1.5}rem`,
+            };
+
+            if(!isStart && task.level > 0 && dayTasks.findIndex(t => t.id === task.id) > 0) {
+                 const prevTask = dayTasks[dayTasks.findIndex(t => t.id === task.id)-1];
+                 if(prevTask.level === task.level) {
+                    style.marginTop = `${(task.level + 1) * 1.5}rem`;
+                 }
+            }
+
+
             return (
-              <button
-                key={task.id}
-                onClick={() => onTaskClick(task)}
-                className={`w-full text-xs p-1 truncate text-left ${priorityClasses[task.priority]} 
-                ${isStart ? 'rounded-l-lg' : ''}
-                ${isEnd ? 'rounded-r-lg' : ''}
-                ${!isStart && 'ml-[-1px]'}
-                ${!isEnd && 'mr-[-1px]'}
-                `}
-              >
-               {isStart ? task.title : <>&nbsp;</>}
-              </button>
+              <div key={task.id} className="relative" style={style}>
+                 <button
+                    onClick={() => onTaskClick(task)}
+                    className={`w-full text-xs p-0.5 h-5 leading-tight truncate text-left ${priorityClasses[task.priority]} 
+                    ${isStart || isStartOfWeek ? 'rounded-l-md' : ''}
+                    ${isEnd ? 'rounded-r-md' : ''}
+                    ${!isStart && !isStartOfWeek && 'ml-[-1px]'}
+                    ${!isEnd && 'mr-[-1px]'}
+                    `}
+                  >
+                   {showTitle ? task.title : <>&nbsp;</>}
+                  </button>
+              </div>
             )
         })}
+         {hiddenTasksCount > 0 && (
+          <button className="text-xs text-muted-foreground mt-1 hover:underline">
+            +{hiddenTasksCount} más
+          </button>
+        )}
       </div>
     </div>
   )
@@ -94,7 +112,7 @@ function DayWithTasks({
 
 export default function CalendarPage() {
   const firestore = useFirestore()
-  const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(
+  const { data: tasksData, isLoading: tasksLoading } = useCollection<Task>(
     useMemoFirebase(() => firestore ? collection(firestore, "tasks") : null, [firestore])
   )
   const { data: users, isLoading: usersLoading } = useCollection<User>(
@@ -104,13 +122,52 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date())
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
 
+  const tasks = React.useMemo(() => {
+    if (!tasksData) return [];
+  
+    const parsedTasks = tasksData.map(task => {
+      try {
+        const start = parseISO(task.startDate);
+        const due = parseISO(task.dueDate);
+        const span = eachDayOfInterval({ start, end: due }).length;
+        return { ...task, start, due, span, level: 0 };
+      } catch {
+        return null;
+      }
+    }).filter(Boolean) as (Task & { start: Date; due: Date; span: number; level: number })[];
+  
+    parsedTasks.sort((a, b) => a.start.getTime() - b.start.getTime() || b.span - a.span);
+  
+    const levels: (Date | null)[][] = [];
+  
+    for (const task of parsedTasks) {
+      let level = 0;
+      while (true) {
+        if (!levels[level]) {
+          levels[level] = [];
+        }
+        const hasOverlap = levels[level].some(endDate => endDate && task.start < endDate);
+        if (!hasOverlap) {
+          task.level = level;
+          const endOfTask = addDays(task.due, 1);
+          levels[level].push(endOfTask);
+          break;
+        }
+        level++;
+      }
+    }
+  
+    return parsedTasks;
+  }, [tasksData]);
+  
+
   const allTaskDates = React.useMemo(() => {
     if (!tasks) return []
     const dates: Date[] = []
     tasks.forEach(task => {
         try {
-            const start = parseISO(task.startDate);
-            const due = parseISO(task.dueDate)
+            const start = task.start;
+            const due = task.due;
             if (start && due) {
                 dates.push(...eachDayOfInterval({ start, end: due }))
             }
@@ -158,17 +215,17 @@ export default function CalendarPage() {
             }}
             className="w-full p-0 [&_td]:p-0 [&_th]:p-2 [&_button]:h-full [&_button]:w-full [&_button]:rounded-none"
              classNames={{
-              root: "w-full",
+              root: "w-full text-sm",
               months: "w-full",
-              month: "w-full space-y-4",
+              month: "w-full space-y-2",
               table: "w-full border-collapse",
               head_row: "flex justify-between border-b",
               head_cell: "w-full text-muted-foreground rounded-md font-normal text-[0.8rem] uppercase",
               row: "flex w-full mt-2 justify-between border-b",
-              cell: "h-32 w-full text-left text-sm p-0 relative focus-within:relative focus-within:z-20 border-r",
+              cell: "h-36 w-full text-left text-sm p-0 relative focus-within:relative focus-within:z-20 border-r last:border-r-0",
               day: "h-full w-full p-0 font-normal aria-selected:opacity-100 justify-start items-start flex",
               day_selected: "",
-              day_today: "bg-accent text-accent-foreground",
+              day_today: "bg-accent/50 text-accent-foreground",
               day_outside: "text-muted-foreground opacity-50",
               day_disabled: "text-muted-foreground opacity-50",
             }}
