@@ -18,7 +18,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import { roles as initialRoles } from "@/lib/data"
 import type { Role } from "@/lib/types"
 import { RoleForm } from "@/components/role-form"
 import {
@@ -39,10 +38,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useCollection, useFirestore } from "@/firebase"
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { collection, doc } from "firebase/firestore"
 
 
 export default function RolesPage() {
-  const [roles, setRoles] = React.useState<Role[]>(initialRoles)
+  const firestore = useFirestore();
+  const { data: roles, isLoading } = useCollection<Role>(
+    React.useMemo(() => firestore ? collection(firestore, 'roles') : null, [firestore])
+  );
+
   const [selectedRole, setSelectedRole] = React.useState<Role | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
@@ -65,22 +71,21 @@ export default function RolesPage() {
   }
 
   const handleDelete = () => {
-    if (roleToDelete) {
-      setRoles(roles.filter(r => r.id !== roleToDelete.id))
+    if (roleToDelete && firestore) {
+      deleteDocumentNonBlocking(doc(firestore, 'roles', roleToDelete.id))
       setIsDeleteDialogOpen(false)
       setRoleToDelete(null)
     }
   }
 
-  const handleFormSubmit = (role: Omit<Role, 'id'>) => {
-    if (selectedRole) {
-      setRoles(roles.map(r => r.id === selectedRole.id ? { ...selectedRole, ...role } : r))
-    } else {
-      const newRole: Role = {
-        id: role.name.toLowerCase().replace(/\s/g, '_'),
-        ...role
-      };
-      setRoles([...roles, newRole]);
+  const handleFormSubmit = (data: Omit<Role, 'id'>) => {
+    if (firestore) {
+      if (selectedRole) {
+        setDocumentNonBlocking(doc(firestore, 'roles', selectedRole.id), data, { merge: true });
+      } else {
+        const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
+        setDocumentNonBlocking(doc(firestore, 'roles', newRoleId), data, {});
+      }
     }
     setIsFormOpen(false)
   }
@@ -129,7 +134,8 @@ export default function RolesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {roles.map((role) => (
+              {isLoading && <TableRow><TableCell colSpan={3} className="text-center">Cargando...</TableCell></TableRow>}
+              {roles?.map((role) => (
                 <TableRow key={role.id}>
                   <TableCell className="font-medium capitalize">{role.name}</TableCell>
                   <TableCell>

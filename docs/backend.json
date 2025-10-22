@@ -6,40 +6,70 @@
       "type": "object",
       "description": "Represents a political campaign.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Campaign entity."
-        },
         "name": {
           "type": "string",
           "description": "Name of the campaign."
         },
-        "startDate": {
+        "description": {
           "type": "string",
-          "description": "Start date of the campaign.",
-          "format": "date-time"
+          "description": "Detailed description of the campaign."
         },
-        "endDate": {
+        "campaignType": {
           "type": "string",
-          "description": "End date of the campaign.",
-          "format": "date-time"
+          "description": "The type of campaign (e.g., 'presidencia', 'alcaldia')."
         },
         "goal": {
           "type": "string",
           "description": "The primary goal of the campaign."
         },
-        "description": {
+        "startDate": {
           "type": "string",
-          "description": "Detailed description of the campaign."
+          "description": "Start date of the campaign.",
+          "format": "date"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "End date of the campaign.",
+          "format": "date"
+        },
+        "hasInvestors": {
+          "type": "boolean"
+        },
+        "investors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/entities/Investor"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "completed", "planned"]
+        },
+        "progress": {
+            "type": "number"
         }
       },
       "required": [
-        "id",
         "name",
+        "description",
+        "campaignType",
+        "goal",
         "startDate",
         "endDate",
-        "goal"
+        "status",
+        "progress"
       ]
+    },
+    "Investor": {
+        "title": "Investor",
+        "type": "object",
+        "properties": {
+            "firstName": {"type": "string"},
+            "lastName": {"type": "string"},
+            "description": {"type": "string"},
+            "investmentAmount": {"type": "number"}
+        },
+        "required": ["firstName", "lastName", "investmentAmount"]
     },
     "Voter": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -47,228 +77,102 @@
       "type": "object",
       "description": "Represents a registered voter.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Voter entity."
-        },
         "firstName": {
-          "type": "string",
-          "description": "First name of the voter."
+          "type": "string"
         },
         "lastName": {
-          "type": "string",
-          "description": "Last name of the voter."
+          "type": "string"
+        },
+        "idType": {
+            "type": "string"
+        },
+        "idNumber": {
+            "type": "string"
         },
         "email": {
           "type": "string",
-          "description": "Email address of the voter.",
           "format": "email"
         },
         "phone": {
-          "type": "string",
-          "description": "Phone number of the voter."
+          "type": "string"
         },
         "address": {
-          "type": "string",
-          "description": "Address of the voter."
+          "type": "string"
         },
         "cityId": {
-          "type": "string",
-          "description": "Reference to City. (Relationship: City 1:N Voter)"
+          "type": "string"
+        },
+        "vereda": {
+            "type": "string"
         },
         "promoterId": {
-          "type": "string",
-          "description": "Reference to Promoter. (Relationship: Promoter 1:N Voter). The promoter who registered the voter."
+          "type": "string"
+        },
+        "registrationDate": {
+            "type": "string",
+            "format": "date"
         }
       },
       "required": [
-        "id",
         "firstName",
         "lastName",
+        "idType",
+        "idNumber",
         "address",
         "cityId",
-        "promoterId"
-      ]
-    },
-    "Promoter": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Promoter",
-      "type": "object",
-      "description": "Represents a campaign promoter.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Promoter entity."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the promoter."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the promoter."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the promoter.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "Phone number of the promoter."
-        }
-      },
-      "required": [
-        "id",
-        "firstName",
-        "lastName"
-      ]
-    },
-    "City": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "City",
-      "type": "object",
-      "description": "Represents a city.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the City entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the city."
-        },
-        "state": {
-          "type": "string",
-          "description": "State the city belongs to."
-        },
-        "country": {
-          "type": "string",
-          "description": "Country the city belongs to."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "state",
-        "country"
-      ]
-    },
-    "Task": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Task",
-      "type": "object",
-      "description": "Represents a task within a campaign.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Task entity."
-        },
-        "campaignId": {
-          "type": "string",
-          "description": "Reference to Campaign. (Relationship: Campaign 1:N Task)"
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the task."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "Due date for the task.",
-          "format": "date-time"
-        },
-        "status": {
-          "type": "string",
-          "description": "Status of the task (e.g., 'Open', 'In Progress', 'Completed')."
-        },
-        "assignedTo": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Task). User assigned to the task."
-        }
-      },
-      "required": [
-        "id",
-        "campaignId",
-        "description",
-        "dueDate",
-        "status",
-        "assignedTo"
-      ]
-    },
-    "Call": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Call",
-      "type": "object",
-      "description": "Represents a call scheduled within a campaign.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Call entity."
-        },
-        "campaignId": {
-          "type": "string",
-          "description": "Reference to Campaign. (Relationship: Campaign 1:N Call)"
-        },
-        "voterId": {
-          "type": "string",
-          "description": "Reference to Voter. (Relationship: Voter 1:N Call). Voter to be called."
-        },
-        "scheduledTime": {
-          "type": "string",
-          "description": "Scheduled time for the call.",
-          "format": "date-time"
-        },
-        "notes": {
-          "type": "string",
-          "description": "Notes about the call."
-        },
-        "madeBy": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Call). User who made the call."
-        }
-      },
-      "required": [
-        "id",
-        "campaignId",
-        "voterId",
-        "scheduledTime",
-        "madeBy"
+        "vereda",
+        "promoterId",
+        "registrationDate"
       ]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the application. This is an abstraction and would need to be connected to your external Authentication Provider.",
+      "description": "Represents a user of the application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
         "firstName": {
-          "type": "string",
-          "description": "First name of the user."
+          "type": "string"
         },
         "lastName": {
-          "type": "string",
-          "description": "Last name of the user."
+          "type": "string"
+        },
+         "idType": {
+            "type": "string"
+        },
+        "idNumber": {
+            "type": "string"
         },
         "email": {
           "type": "string",
-          "description": "Email address of the user.",
           "format": "email"
         },
+        "phone": {
+            "type": "string"
+        },
         "roleId": {
-          "type": "string",
-          "description": "Reference to Role. (Relationship: Role 1:N User)"
+          "type": "string"
+        },
+        "cityIds": {
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "campaignIds": {
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "avatar": {
+            "type": "string",
+            "format": "uri"
         }
       },
       "required": [
-        "id",
         "firstName",
         "lastName",
         "email",
-        "roleId"
+        "roleId",
+        "cityIds",
+        "campaignIds"
       ]
     },
     "Role": {
@@ -277,230 +181,87 @@
       "type": "object",
       "description": "Represents a role within the application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Role entity."
-        },
         "name": {
-          "type": "string",
-          "description": "Name of the role."
+          "type": "string"
         },
         "permissions": {
           "type": "array",
-          "description": "List of permissions associated with the role.",
           "items": {
             "type": "string"
           }
         }
       },
       "required": [
-        "id",
-        "name"
+        "name",
+        "permissions"
       ]
     },
-    "PlatformConfig": {
+    "City": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PlatformConfig",
+      "title": "City",
       "type": "object",
-      "description": "Represents the platform configuration settings (colors, logo, background).",
+      "description": "Represents a city.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the PlatformConfig entity."
+        "name": {
+          "type": "string"
         },
-        "primaryColor": {
-          "type": "string",
-          "description": "Primary color of the platform (e.g., deep blue)."
+        "department": {
+          "type": "string"
         },
-        "backgroundColor": {
-          "type": "string",
-          "description": "Background color of the platform (e.g., light blue)."
+        "country": {
+          "type": "string"
         },
-        "accentColor": {
-          "type": "string",
-          "description": "Accent color of the platform (e.g., gold)."
+        "latitude": {
+            "type": "number"
         },
-        "logoUrl": {
-          "type": "string",
-          "description": "URL of the platform logo.",
-          "format": "uri"
-        },
-        "backgroundUrl": {
-          "type": "string",
-          "description": "URL of the platform background image.",
-          "format": "uri"
+        "longitude": {
+            "type": "number"
         }
       },
       "required": [
-        "id"
+        "name",
+        "department",
+        "country",
+        "latitude",
+        "longitude"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles. User ID is the document ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
       },
-      {
-        "path": "/roles/{roleId}",
-        "definition": {
-          "entityName": "Role",
-          "schema": {
-            "$ref": "#/backend/entities/Role"
-          },
-          "description": "Stores role definitions.",
-          "params": [
-            {
-              "name": "roleId",
-              "description": "The unique identifier of the role."
-            }
-          ]
-        }
+      "description": "Stores user profiles."
+    },
+    "/roles/{roleId}": {
+      "schema": {
+        "$ref": "#/entities/Role"
       },
-      {
-        "path": "/campaigns/{campaignId}",
-        "definition": {
-          "entityName": "Campaign",
-          "schema": {
-            "$ref": "#/backend/entities/Campaign"
-          },
-          "description": "Stores campaign information.",
-          "params": [
-            {
-              "name": "campaignId",
-              "description": "The unique identifier of the campaign."
-            }
-          ]
-        }
+      "description": "Stores role definitions."
+    },
+    "/campaigns/{campaignId}": {
+      "schema": {
+        "$ref": "#/entities/Campaign"
       },
-      {
-        "path": "/campaigns/{campaignId}/tasks/{taskId}",
-        "definition": {
-          "entityName": "Task",
-          "schema": {
-            "$ref": "#/backend/entities/Task"
-          },
-          "description": "Stores tasks associated with a specific campaign.",
-          "params": [
-            {
-              "name": "campaignId",
-              "description": "The unique identifier of the campaign."
-            },
-            {
-              "name": "taskId",
-              "description": "The unique identifier of the task."
-            }
-          ]
-        }
+      "description": "Stores campaign information."
+    },
+    "/voters/{voterId}": {
+      "schema": {
+        "$ref": "#/entities/Voter"
       },
-      {
-        "path": "/campaigns/{campaignId}/calls/{callId}",
-        "definition": {
-          "entityName": "Call",
-          "schema": {
-            "$ref": "#/backend/entities/Call"
-          },
-          "description": "Stores calls scheduled for a specific campaign.",
-          "params": [
-            {
-              "name": "campaignId",
-              "description": "The unique identifier of the campaign."
-            },
-            {
-              "name": "callId",
-              "description": "The unique identifier of the call."
-            }
-          ]
-        }
+      "description": "Stores voter information."
+    },
+    "/cities/{cityId}": {
+      "schema": {
+        "$ref": "#/entities/City"
       },
-      {
-        "path": "/promoters/{promoterId}",
-        "definition": {
-          "entityName": "Promoter",
-          "schema": {
-            "$ref": "#/backend/entities/Promoter"
-          },
-          "description": "Stores promoter information. Includes denormalized data for authorization independence: promoterId",
-          "params": [
-            {
-              "name": "promoterId",
-              "description": "The unique identifier of the promoter."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/promoters/{promoterId}/voters/{voterId}",
-        "definition": {
-          "entityName": "Voter",
-          "schema": {
-            "$ref": "#/backend/entities/Voter"
-          },
-          "description": "Stores voters registered by a specific promoter. Includes denormalized promoterId from parent for authorization independence.",
-          "params": [
-            {
-              "name": "promoterId",
-              "description": "The unique identifier of the promoter."
-            },
-            {
-              "name": "voterId",
-              "description": "The unique identifier of the voter."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/cities/{cityId}",
-        "definition": {
-          "entityName": "City",
-          "schema": {
-            "$ref": "#/backend/entities/City"
-          },
-          "description": "Stores city information.",
-          "params": [
-            {
-              "name": "cityId",
-              "description": "The unique identifier of the city."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/platform_config/{configId}",
-        "definition": {
-          "entityName": "PlatformConfig",
-          "schema": {
-            "$ref": "#/backend/entities/PlatformConfig"
-          },
-          "description": "Stores platform configuration settings.",
-          "params": [
-            {
-              "name": "configId",
-              "description": "The unique identifier of the platform configuration."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to support the EstrategaCRM application, focusing on campaign management, voter registration, and activity tracking. The structure prioritizes authorization independence and efficient data retrieval. User-owned data is nested under the `/users/{userId}` path. Voter data is nested under the corresponding Promoter's document to easily manage the relationship between them.\n\nAuthorization Independence:\n\n*   The design avoids hierarchical authorization dependencies by storing authorization data directly within the documents. For example, access to Voter documents is determined by the promoterId. The Voters document stores the promoterId that registered the user, enabling security rules that check the `request.auth.uid` against the promoterId.\n\nQAPs (Rules are not Filters):\n\n*   The structure enables secure `list` operations by segregating data with different access requirements into separate collections. For example, campaign-related activities (tasks, calls) are stored in subcollections of the campaign document, and secured based on the user's role (e.g., admin, campaign member).\n*   The structure also takes into consideration a balance between security and performance. Lists can be handled in a performant way with the proposed data structure."
+      "description": "Stores city information."
+    }
   }
 }

@@ -32,7 +32,7 @@ const cityFormSchema = z.object({
 type CityFormValues = z.infer<typeof cityFormSchema>;
 
 interface CityFormProps {
-  city?: City | null;
+  city?: Omit<City, 'id'> | null;
   onSubmit: (data: CityFormValues) => void;
   onCancel: () => void;
 }
@@ -48,6 +48,21 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
       longitude: city?.longitude ?? 0,
     },
   });
+
+  React.useEffect(() => {
+    if (city) {
+      form.reset(city);
+    } else {
+        form.reset({
+            name: "",
+            department: "",
+            country: "Colombia",
+            latitude: 0,
+            longitude: 0,
+        });
+    }
+  }, [city, form]);
+
 
   function handleFormSubmit(data: CityFormValues) {
     onSubmit(data);

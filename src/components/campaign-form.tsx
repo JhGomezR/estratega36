@@ -29,7 +29,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, Trash2 } from "lucide-react"
 
 const investorSchema = z.object({
-  id: z.string().optional(),
   firstName: z.string().min(1, "El nombre es requerido."),
   lastName: z.string().min(1, "El apellido es requerido."),
   description: z.string().optional(),
@@ -53,8 +52,8 @@ const campaignFormSchema = z.object({
 type CampaignFormValues = z.infer<typeof campaignFormSchema>;
 
 interface CampaignFormProps {
-  campaign?: Campaign | null;
-  onSubmit: (data: Campaign) => void;
+  campaign?: Omit<Campaign, 'progress' | 'status'> | null;
+  onSubmit: (data: CampaignFormValues) => void;
   onCancel: () => void;
 }
 
@@ -83,11 +82,7 @@ export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps
   const hasInvestors = form.watch("hasInvestors");
 
   function handleFormSubmit(data: CampaignFormValues) {
-    onSubmit({
-      ...(campaign ?? { id: "", progress: 0, voterCount: 0, status: 'planned' }),
-      ...data,
-      investors: hasInvestors ? data.investors : [],
-    } as Campaign);
+    onSubmit(data);
   }
 
   return (

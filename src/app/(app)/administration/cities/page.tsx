@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import { cities as initialCities } from "@/lib/data"
 import type { City } from "@/lib/types"
 import { CityForm } from "@/components/city-form"
 import {
@@ -38,9 +37,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useCollection, useFirestore } from "@/firebase"
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { collection, doc } from "firebase/firestore"
 
 export default function CitiesPage() {
-  const [cities, setCities] = React.useState<City[]>(initialCities)
+  const firestore = useFirestore();
+  const { data: cities, isLoading } = useCollection<City>(
+    React.useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+  );
+
   const [selectedCity, setSelectedCity] = React.useState<City | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
@@ -62,22 +68,20 @@ export default function CitiesPage() {
   }
 
   const handleDelete = () => {
-    if (cityToDelete) {
-      setCities(cities.filter(c => c.id !== cityToDelete.id))
+    if (cityToDelete && firestore) {
+      deleteDocumentNonBlocking(doc(firestore, 'cities', cityToDelete.id))
       setIsDeleteDialogOpen(false)
       setCityToDelete(null)
     }
   }
 
   const handleFormSubmit = (data: Omit<City, 'id'>) => {
-    if (selectedCity) {
-      setCities(cities.map(c => c.id === selectedCity.id ? { ...selectedCity, ...data } : c));
-    } else {
-      const newCity: City = {
-        id: `city-${Date.now()}`,
-        ...data
-      };
-      setCities([...cities, newCity]);
+    if (firestore) {
+      if (selectedCity) {
+        setDocumentNonBlocking(doc(firestore, 'cities', selectedCity.id), data, { merge: true });
+      } else {
+        addDocumentNonBlocking(collection(firestore, 'cities'), data);
+      }
     }
     setIsFormOpen(false);
   };
@@ -129,7 +133,8 @@ export default function CitiesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cities.map((city) => (
+              {isLoading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
+              {cities?.map((city) => (
                 <TableRow key={city.id}>
                   <TableCell className="font-medium">{city.name}</TableCell>
                   <TableCell>{city.department}</TableCell>

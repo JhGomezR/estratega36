@@ -1,17 +1,18 @@
-export type Voter = {
-  id: string;
+export type WithId<T> = T & { id: string };
+
+export type Voter = WithId<{
   firstName: string;
   lastName: string;
   idType: (typeof IdentificationType)[number];
   idNumber: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   cityId: string;
   vereda: string;
   address: string;
   promoterId: string;
   registrationDate: string;
-};
+}>;
 
 export type Investor = {
   id: string;
@@ -32,8 +33,7 @@ export const CampaignType = [
   'camara'
 ] as const;
 
-export type Campaign = {
-  id: string;
+export type Campaign = WithId<{
   name: string;
   description: string;
   campaignType: (typeof CampaignType)[number];
@@ -43,9 +43,8 @@ export type Campaign = {
   startDate: string;
   endDate: string;
   status: 'active' | 'completed' | 'planned';
-  voterCount: number;
   progress: number;
-};
+}>;
 
 export type Task = {
   id: string;
@@ -72,8 +71,7 @@ export const IdentificationType = [
   'cedula_extrangeria',
 ] as const;
 
-export type User = {
-  id: string;
+export type User = WithId<{
   firstName: string;
   lastName: string;
   idType: (typeof IdentificationType)[number];
@@ -84,22 +82,20 @@ export type User = {
   cityIds: string[];
   campaignIds: string[];
   avatar: string;
-};
+}>;
 
-export type City = {
-  id: string;
+export type City = WithId<{
   name: string;
   department: string;
   country: string;
   latitude: number;
   longitude: number;
-};
+}>;
 
-export type Role = {
-  id: string;
+export type Role = WithId<{
   name: string;
   permissions: string[];
-};
+}>;
 
 export const availablePermissions = [
   'manage_users',

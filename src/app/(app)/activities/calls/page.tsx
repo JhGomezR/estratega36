@@ -16,9 +16,11 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
-import { calls } from "@/lib/data"
 
 export default function CallsPage() {
+
+  const calls: any[] = [];
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">

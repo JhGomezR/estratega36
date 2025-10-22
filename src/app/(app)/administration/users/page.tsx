@@ -18,8 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import { users as initialUsers, roles, cities, campaigns } from "@/lib/data"
-import type { User } from "@/lib/types"
+import type { User, Role, City, Campaign } from "@/lib/types"
 import { UserForm } from "@/components/user-form"
 import {
   Dialog,
@@ -40,9 +39,26 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, doc } from "firebase/firestore"
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function UsersPage() {
-  const [users, setUsers] = React.useState<User[]>(initialUsers)
+  const firestore = useFirestore();
+
+  const { data: users, isLoading: usersLoading } = useCollection<User>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
+  );
+  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
+  );
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+  );
+  const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
+  );
+
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
@@ -64,30 +80,33 @@ export default function UsersPage() {
   }
 
   const handleDelete = () => {
-    if (userToDelete) {
-      setUsers(users.filter(u => u.id !== userToDelete.id))
+    if (userToDelete && firestore) {
+      deleteDocumentNonBlocking(doc(firestore, 'users', userToDelete.id))
       setIsDeleteDialogOpen(false)
       setUserToDelete(null)
     }
   }
 
   const handleFormSubmit = (data: Omit<User, 'id' | 'avatar'>) => {
-    if (selectedUser) {
-      setUsers(users.map(u => u.id === selectedUser.id ? { ...selectedUser, ...data } : u));
-    } else {
-      const newUser: User = {
-        id: `user-${Date.now()}`,
-        avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-        ...data
-      };
-      setUsers([...users, newUser]);
+    if (firestore) {
+      if (selectedUser) {
+        setDocumentNonBlocking(doc(firestore, 'users', selectedUser.id), data, { merge: true });
+      } else {
+        const newUser: Omit<User, 'id'> = {
+          avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
+          ...data
+        };
+        addDocumentNonBlocking(collection(firestore, 'users'), newUser);
+      }
     }
     setIsFormOpen(false);
   };
 
   const getRoleName = (roleId: string) => {
-    return roles.find(r => r.id === roleId)?.name ?? 'N/A'
+    return roles?.find(r => r.id === roleId)?.name ?? 'N/A'
   }
+  
+  const isLoading = usersLoading || rolesLoading || citiesLoading || campaignsLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -109,9 +128,9 @@ export default function UsersPage() {
             </DialogHeader>
             <UserForm
               user={selectedUser}
-              roles={roles}
-              cities={cities}
-              campaigns={campaigns.filter(c => c.status === 'active')}
+              roles={roles || []}
+              cities={cities || []}
+              campaigns={campaigns?.filter(c => c.status === 'active') || []}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />
@@ -139,7 +158,8 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {isLoading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
+              {users?.map((user) => (
                 <TableRow key={user.id}>
                    <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
@@ -156,12 +176,12 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {user.cityIds.map(id => <Badge variant="outline" key={id}>{cities.find(c=>c.id === id)?.name}</Badge>)}
+                      {user.cityIds.map(id => <Badge variant="outline" key={id}>{cities?.find(c=>c.id === id)?.name}</Badge>)}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {user.campaignIds.map(id => <Badge variant="outline" key={id}>{campaigns.find(c=>c.id === id)?.name}</Badge>)}
+                      {user.campaignIds.map(id => <Badge variant="outline" key={id}>{campaigns?.find(c=>c.id === id)?.name}</Badge>)}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">

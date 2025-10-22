@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import { voters as initialVoters, cities, promoters } from "@/lib/data"
-import type { Voter } from "@/lib/types"
+import type { Voter, City, User } from "@/lib/types"
 import { VoterForm } from "@/components/voter-form"
 import {
   Dialog,
@@ -39,9 +38,25 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, doc } from "firebase/firestore"
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function VotersPage() {
-  const [voters, setVoters] = React.useState<Voter[]>(initialVoters)
+  const firestore = useFirestore();
+
+  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
+  );
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+  );
+  const { data: users, isLoading: usersLoading } = useCollection<User>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
+  );
+  
+  const promoters = React.useMemo(() => users?.filter(u => u.roleId === 'promoter') || [], [users]);
+
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
@@ -63,32 +78,35 @@ export default function VotersPage() {
   }
 
   const handleDelete = () => {
-    if (voterToDelete) {
-      setVoters(voters.filter(v => v.id !== voterToDelete.id))
+    if (voterToDelete && firestore) {
+      deleteDocumentNonBlocking(doc(firestore, 'voters', voterToDelete.id))
       setIsDeleteDialogOpen(false)
       setVoterToDelete(null)
     }
   }
 
   const handleFormSubmit = (data: Omit<Voter, 'id' | 'registrationDate'>) => {
-    if (selectedVoter) {
-      setVoters(voters.map(v => v.id === selectedVoter.id ? { ...selectedVoter, ...data } : v));
-    } else {
-      const newVoter: Voter = {
-        id: `voter-${Date.now()}`,
-        registrationDate: format(new Date(), "yyyy-MM-dd"),
-        ...data
-      };
-      setVoters([newVoter, ...voters]);
+    if (firestore) {
+      if (selectedVoter) {
+        setDocumentNonBlocking(doc(firestore, 'voters', selectedVoter.id), data, { merge: true });
+      } else {
+        const newVoter = {
+          ...data,
+          registrationDate: format(new Date(), "yyyy-MM-dd"),
+        };
+        addDocumentNonBlocking(collection(firestore, 'voters'), newVoter);
+      }
     }
     setIsFormOpen(false);
   };
 
-  const getCityName = (cityId: string) => cities.find(c => c.id === cityId)?.name ?? 'N/A'
+  const getCityName = (cityId: string) => cities?.find(c => c.id === cityId)?.name ?? 'N/A'
   const getPromoterName = (promoterId: string) => {
       const promoter = promoters.find(p => p.id === promoterId);
       return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
   }
+
+  const isLoading = votersLoading || citiesLoading || usersLoading;
 
 
   return (
@@ -111,8 +129,8 @@ export default function VotersPage() {
             </DialogHeader>
             <VoterForm
               voter={selectedVoter}
-              cities={cities}
-              promoters={promoters}
+              cities={cities || []}
+              promoters={promoters || []}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />
@@ -141,7 +159,8 @@ export default function VotersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {voters.map((voter) => (
+              {isLoading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
+              {voters?.map((voter) => (
                 <TableRow key={voter.id}>
                   <TableCell className="font-medium">{`${voter.firstName} ${voter.lastName}`}</TableCell>
                   <TableCell>{`${voter.idType}: ${voter.idNumber}`}</TableCell>

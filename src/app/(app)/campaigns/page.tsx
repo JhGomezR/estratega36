@@ -18,7 +18,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import { campaigns as initialCampaigns } from "@/lib/data"
 import { Progress } from "@/components/ui/progress"
 import type { Campaign } from "@/lib/types"
 import { CampaignForm } from "@/components/campaign-form"
@@ -29,9 +28,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useCollection, useFirestore } from "@/firebase"
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { collection, doc } from "firebase/firestore"
 
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = React.useState<Campaign[]>(initialCampaigns);
+  const firestore = useFirestore();
+  const { data: campaigns, isLoading } = useCollection<Campaign>(
+    React.useMemo(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
+  );
+  
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
@@ -46,14 +52,22 @@ export default function CampaignsPage() {
   }
 
   const handleDelete = (campaignId: string) => {
-    setCampaigns(campaigns.filter(c => c.id !== campaignId));
+    if (firestore) {
+      deleteDocumentNonBlocking(doc(firestore, 'campaigns', campaignId));
+    }
   }
 
-  const handleFormSubmit = (campaign: Campaign) => {
-    if (selectedCampaign) {
-      setCampaigns(campaigns.map(c => c.id === campaign.id ? campaign : c));
-    } else {
-      setCampaigns([...campaigns, { ...campaign, id: `cam-${Date.now()}` }]);
+  const handleFormSubmit = (data: Omit<Campaign, 'id' | 'progress' | 'status'>) => {
+    if (firestore) {
+      if (selectedCampaign) {
+        setDocumentNonBlocking(doc(firestore, 'campaigns', selectedCampaign.id), data, { merge: true });
+      } else {
+        addDocumentNonBlocking(collection(firestore, 'campaigns'), {
+          ...data,
+          progress: 0,
+          status: 'planned'
+        });
+      }
     }
     setIsFormOpen(false);
   }
@@ -105,7 +119,12 @@ export default function CampaignsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {campaigns.map((campaign) => (
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
+                </TableRow>
+              )}
+              {campaigns?.map((campaign) => (
                 <TableRow key={campaign.id}>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
                   <TableCell className="capitalize">{campaign.campaignType}</TableCell>

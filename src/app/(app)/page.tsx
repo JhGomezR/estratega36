@@ -1,3 +1,5 @@
+"use client"
+import React from 'react'
 import {
   Card,
   CardContent,
@@ -13,19 +15,59 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import {
   Target,
   UserCheck,
   UserPlus,
   Users,
 } from "lucide-react"
-import { campaigns, recentActivities, voters, promoters } from "@/lib/data"
 import { Progress } from "@/components/ui/progress"
 import { VoterRegistrationChart } from "@/components/voter-registration-chart"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection } from "firebase/firestore"
+import { Campaign, Voter, User, Task, Call } from '@/lib/types'
+import { subDays } from 'date-fns'
 
 export default function Dashboard() {
-  const newVotersCount = voters.filter(v => new Date(v.registrationDate) > new Date(new Date().setDate(new Date().getDate() - 30))).length;
+  const firestore = useFirestore();
+
+  const { data: campaigns } = useCollection<Campaign>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
+  );
+  const { data: voters } = useCollection<Voter>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
+  );
+  const { data: users } = useCollection<User>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
+  );
+  const { data: tasks } = useCollection<Task>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'tasks') : null, [firestore])
+  );
+  const { data: calls } = useCollection<Call>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'calls') : null, [firestore])
+  );
+  
+  const promoters = users?.filter(u => u.roleId === 'promoter');
+
+  const newVotersCount = voters?.filter(v => new Date(v.registrationDate) > subDays(new Date(), 30)).length ?? 0;
+  
+  const recentActivities = [...(tasks?.slice(0, 2) || []), ...(calls?.slice(0, 2) || [])].map(activity => {
+    if ('title' in activity) {
+        return {
+            id: activity.id,
+            description: activity.title,
+            type: 'Task',
+            date: activity.dueDate,
+        }
+    }
+    return {
+        id: activity.id,
+        description: `Llamada a votante`,
+        type: 'Call',
+        date: activity.scheduledTime.split(' ')[0],
+    }
+}).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -39,7 +81,7 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{voters.length}</div>
+            <div className="text-2xl font-bold">{voters?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
               Total de votantes registrados
             </p>
@@ -65,7 +107,7 @@ export default function Dashboard() {
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{promoters.length}</div>
+            <div className="text-2xl font-bold">{promoters?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
               Miembros del equipo registrando votantes
             </p>
@@ -77,7 +119,7 @@ export default function Dashboard() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaigns.filter(c => c.status === 'active').length}</div>
+            <div className="text-2xl font-bold">{campaigns?.filter(c => c.status === 'active').length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
               Campañas actualmente en progreso
             </p>
@@ -101,7 +143,7 @@ export default function Dashboard() {
             <CardDescription>Progreso actual de las campañas activas.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {campaigns.filter(c => c.status === 'active').map(campaign => (
+            {campaigns?.filter(c => c.status === 'active').map(campaign => (
               <div key={campaign.id} className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">{campaign.name}</span>
