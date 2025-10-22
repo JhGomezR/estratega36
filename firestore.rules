@@ -1,99 +1,89 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for user profiles and allows public read access to campaigns, roles and cities.
- *
- * Data Structure:
- * - /users/{userId}: Stores individual user profiles. Access is restricted to the user themselves.
- * - /roles/{roleId}: Stores role definitions. Read access is public, write access is restricted.
- * - /campaigns/{campaignId}: Stores campaign information. Read access is public, write access is restricted.
- * - /voters/{voterId}: Stores voter information. Write access is restricted.
- * - /cities/{cityId}: Stores city information. Read access is public, write access is restricted.
- *
- * Key Security Decisions:
- * - Users can only read and write their own profile data.
- * - Listing of users is explicitly denied to prevent enumeration.
- * - Read access to roles, campaigns, and cities is public.
- * - Write access to roles, campaigns, voters, and cities is restricted.
+ * @description This ruleset allows anyone to create, update, and delete data in all collections.
+ *   This is intended for prototyping and should be replaced with more restrictive rules for production.
+ * @dataStructure
+ *   /users/{userId} - Stores user profiles.
+ *   /roles/{roleId} - Stores role definitions.
+ *   /campaigns/{campaignId} - Stores campaign information.
+ *   /voters/{voterId} - Stores voter information.
+ *   /cities/{cityId} - Stores city information.
+ * @keySecurityDecisions
+ *   - All collections are writeable by anyone. This is unsafe for production.
+ *   - Read access is public for all collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profiles.
+     * @description Allows anyone to read and write user profiles.
      * @path /users/{userId}
-     * @allow (get, update, delete) A user can only access their own profile.
-     * @allow (create) A user can create their own profile, matching the document ID to their auth ID.
-     * @deny (get, update, delete) A user cannot access another user's profile.
-     * @deny (list) Listing users is not allowed.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) - Any authenticated user can create a user profile.
+     * @allow (update) - Any authenticated user can update any user profile.
+     * @allow (delete) - Any authenticated user can delete any user profile.
+     * @deny (none) - No restrictions on read/write access.
+     * @principle Open access for prototyping.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource.data.id == userId;
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to role definitions.
+     * @description Allows anyone to read and write role definitions.
      * @path /roles/{roleId}
-     * @allow (get, list) Anyone can read role definitions.
-     * @deny (create, update, delete) Only authorized users can modify roles.
-     * @principle Public read access with restricted writes.
+     * @allow (create) - Any authenticated user can create a role.
+     * @allow (update) - Any authenticated user can update any role.
+     * @allow (delete) - Any authenticated user can delete any role.
+     * @deny (none) - No restrictions on read/write access.
+     * @principle Open access for prototyping.
      */
     match /roles/{roleId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add role-based authorization for managing roles.
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to campaign information.
+     * @description Allows anyone to read and write campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Anyone can read campaign information.
-     * @deny (create, update, delete) Only authorized users can modify campaigns.
-     * @principle Public read access with restricted writes.
+     * @allow (create) - Any authenticated user can create a campaign.
+     * @allow (update) - Any authenticated user can update any campaign.
+     * @allow (delete) - Any authenticated user can delete any campaign.
+     * @deny (none) - No restrictions on read/write access.
+     * @principle Open access for prototyping.
      */
     match /campaigns/{campaignId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add role-based authorization for managing campaigns.
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to voter information.
+     * @description Allows anyone to read and write voter information.
      * @path /voters/{voterId}
-     * @deny (get, list, create, update, delete) Only authorized users can modify voters.
-     * @principle Restricted writes.
+     * @allow (create) - Any authenticated user can create a voter.
+     * @allow (update) - Any authenticated user can update any voter.
+     * @allow (delete) - Any authenticated user can delete any voter.
+     * @deny (none) - No restrictions on read/write access.
+     * @principle Open access for prototyping.
      */
     match /voters/{voterId} {
-      allow get, list: if false; // TODO: Add role-based authorization for managing voters.
-      allow create, update, delete: if false; // TODO: Add role-based authorization for managing voters.
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to city information.
+     * @description Allows anyone to read and write city information.
      * @path /cities/{cityId}
-     * @allow (get, list) Anyone can read city information.
-     * @deny (create, update, delete) Only authorized users can modify cities.
-     * @principle Public read access with restricted writes.
+     * @allow (create) - Any authenticated user can create a city.
+     * @allow (update) - Any authenticated user can update any city.
+     * @allow (delete) - Any authenticated user can delete any city.
+     * @deny (none) - No restrictions on read/write access.
+     * @principle Open access for prototyping.
      */
     match /cities/{cityId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add role-based authorization for managing cities.
-    }
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      allow create, update, delete: if true;
     }
   }
 }
