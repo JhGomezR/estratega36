@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Eye, Loader2 } from "lucide-react"
+import { Edit, Eye, Loader2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -56,7 +56,48 @@ export default function CallsPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isViewOpen, setIsViewOpen] = React.useState(false);
   const [selectedCall, setSelectedCall] = React.useState<Call | null>(null);
-  const [isCreatingList, setIsCreatingList] = React.useState(false);
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  React.useEffect(() => {
+    const syncCallList = async () => {
+      if (!firestore || !voters || !calls) return;
+
+      setIsSyncing(true);
+      try {
+        const existingCallVoterIds = new Set(calls.map(c => c.voterId));
+        const votersToCall = voters.filter(v => !existingCallVoterIds.has(v.id));
+
+        if (votersToCall.length > 0) {
+          const batch = writeBatch(firestore);
+          votersToCall.forEach(voter => {
+            const newCallRef = doc(collection(firestore, "calls"));
+            batch.set(newCallRef, {
+              voterId: voter.id,
+              status: "pendiente",
+              attempts: 0,
+            });
+          });
+
+          await batch.commit();
+          toast({
+            title: "Lista de llamadas sincronizada",
+            description: `Se agregaron ${votersToCall.length} nuevos votantes a la lista.`,
+          });
+        }
+      } catch (error) {
+        console.error("Error syncing call list:", error);
+        toast({
+          variant: "destructive",
+          title: "Error de Sincronización",
+          description: "No se pudo actualizar la lista de llamadas.",
+        });
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    syncCallList();
+  }, [voters, calls, firestore, toast]);
 
   const handleEdit = (call: Call) => {
     setSelectedCall(call);
@@ -79,50 +120,6 @@ export default function CallsPage() {
     setIsFormOpen(false);
   };
   
-  const handleCreateCallList = async () => {
-    if (!firestore || !voters) return;
-
-    setIsCreatingList(true);
-    try {
-      const existingCallVoterIds = new Set(calls?.map(c => c.voterId));
-      const votersToCall = voters.filter(v => !existingCallVoterIds.has(v.id));
-
-      if (votersToCall.length === 0) {
-        toast({
-          title: "Lista de llamadas actualizada",
-          description: "Todos los votantes ya están en la lista de llamadas.",
-        });
-        return;
-      }
-
-      const batch = writeBatch(firestore);
-      votersToCall.forEach(voter => {
-        const newCallRef = doc(collection(firestore, "calls"));
-        batch.set(newCallRef, {
-          voterId: voter.id,
-          status: "pendiente",
-          attempts: 0,
-        });
-      });
-
-      await batch.commit();
-      toast({
-        title: "Éxito",
-        description: `Se agregaron ${votersToCall.length} votantes a la lista de llamadas.`,
-      });
-
-    } catch (error) {
-      console.error("Error creating call list:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo crear la lista de llamadas.",
-      });
-    } finally {
-      setIsCreatingList(false);
-    }
-  };
-
   const getVoterInfo = (voterId: string) => {
     return voters?.find(v => v.id === voterId);
   }
@@ -142,14 +139,12 @@ export default function CallsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Llamadas</h1>
           <p className="text-muted-foreground">Coordina y registra las llamadas a los votantes.</p>
         </div>
-        <Button onClick={handleCreateCallList} disabled={isCreatingList}>
-          {isCreatingList ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <PlusCircle className="mr-2 h-4 w-4" />
-          )}
-          {isCreatingList ? 'Creando...' : 'Crear Lista de Llamadas'}
-        </Button>
+         {isSyncing && (
+            <div className="flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sincronizando...
+            </div>
+        )}
       </div>
 
       <Card>
@@ -178,7 +173,7 @@ export default function CallsPage() {
               ) : !calls || calls.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
-                    No hay llamadas. Crea una lista de llamadas para empezar.
+                    No hay llamadas pendientes. Agrega un votante para empezar.
                   </TableCell>
                 </TableRow>
               ) : (
