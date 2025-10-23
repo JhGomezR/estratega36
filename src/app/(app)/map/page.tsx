@@ -1,13 +1,27 @@
 
 "use client";
 import * as React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { VotersMap } from '@/components/voters-map';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Voter, City } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+
+function generateColorFromString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).slice(-2);
+    }
+    return color;
+}
+
 
 export default function MapPage() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -37,6 +51,7 @@ export default function MapPage() {
       .map(city => ({
         ...city,
         voterCount: counts.get(city.id) || 0,
+        color: generateColorFromString(city.id),
       }))
       .filter(city => city.voterCount > 0)
       .sort((a, b) => b.voterCount - a.voterCount);
@@ -53,10 +68,7 @@ export default function MapPage() {
           <p className="text-muted-foreground">Visualiza la distribución geográfica de tus votantes.</p>
         </div>
         <Card>
-          <CardHeader>
-            <CardTitle>Configuración Requerida</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800">
                 <p className="font-bold">Se necesita una clave de API de Google Maps.</p>
                 <p className="text-sm">
@@ -94,8 +106,8 @@ export default function MapPage() {
               <VotersMap apiKey={apiKey} voters={votersWithLocation} />
             )}
           </div>
-          <div className="lg:col-span-1 border-l">
-            <div className="p-4">
+          <div className="lg:col-span-1 border-l overflow-y-auto">
+            <div className="p-4 sticky top-0 bg-card/80 backdrop-blur-sm z-10">
               <h3 className="text-lg font-semibold">Votantes por Ciudad</h3>
               <p className="text-sm text-muted-foreground">Conteo total por municipio.</p>
             </div>
@@ -108,9 +120,12 @@ export default function MapPage() {
               ) : voterCountsByCity.length > 0 ? (
                 voterCountsByCity.map(city => (
                     <div key={city.id} className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium">{city.name}</p>
-                            <p className="text-sm text-muted-foreground">{city.department}</p>
+                        <div className="flex items-center gap-3">
+                           <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: city.color }}></span>
+                           <div>
+                                <p className="font-medium">{city.name}</p>
+                                <p className="text-sm text-muted-foreground">{city.department}</p>
+                           </div>
                         </div>
                         <div className="text-lg font-bold text-primary">
                             {city.voterCount}
