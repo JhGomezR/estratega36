@@ -38,7 +38,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
@@ -156,26 +155,10 @@ export default function TasksPage() {
                     Lista
                 </Button>
             </div>
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={handleAddNew}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Nueva Tarea
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                  <DialogTitle>{selectedTask ? "Editar Tarea" : "Nueva Tarea"}</DialogTitle>
-                </DialogHeader>
-                <TaskForm
-                  task={selectedTask}
-                  users={users || []}
-                  lists={lists}
-                  onSubmit={handleFormSubmit}
-                  onCancel={() => setIsFormOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
+            <Button onClick={handleAddNew}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nueva Tarea
+            </Button>
         </div>
       </div>
 
@@ -230,74 +213,15 @@ export default function TasksPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Dialog open={!!taskToView && taskToView.id === task.id} onOpenChange={(open) => !open && setTaskToView(null)}>
-                      <DialogTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={() => handleView(task)}>
-                           <Eye className="h-4 w-4" />
-                         </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-xl">
-                        <DialogHeader>
-                          <DialogTitle>{taskToView?.title}</DialogTitle>
-                          <DialogDescription>Detalles de la tarea</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-3 items-center gap-4">
-                                <span className="font-semibold text-sm">Descripción:</span>
-                                <p className="col-span-2 text-sm text-muted-foreground">{taskToView?.description || 'No hay descripción.'}</p>
-                            </div>
-                            <Separator />
-                             <div className="grid grid-cols-3 items-center gap-4">
-                                <span className="font-semibold text-sm">Asignado a:</span>
-                                <span className="col-span-2">{getUserName(taskToView?.assignedToId || '')}</span>
-                            </div>
-                             <div className="grid grid-cols-3 items-center gap-4">
-                                <span className="font-semibold text-sm">Fecha de Inicio:</span>
-                                <span className="col-span-2">{taskToView?.startDate}</span>
-                            </div>
-                             <div className="grid grid-cols-3 items-center gap-4">
-                                <span className="font-semibold text-sm">Fecha Límite:</span>
-                                <span className="col-span-2">{taskToView?.dueDate}</span>
-                            </div>
-                             <div className="grid grid-cols-3 items-center gap-4">
-                                <span className="font-semibold text-sm">Prioridad:</span>
-                                <Badge className={cn("col-span-2 w-fit capitalize", priorityClasses[taskToView?.priority || 'normal'])}>
-                                  {taskToView?.priority}
-                                </Badge>
-                            </div>
-                             <div className="grid grid-cols-3 items-center gap-4">
-                                <span className="font-semibold text-sm">Estado:</span>
-                                <Badge variant={
-                                        taskToView?.status === "finalizada" ? "default" : taskToView?.status === "en_curso" ? "secondary" : "outline"
-                                      } className="col-span-2 w-fit capitalize">
-                                  {taskToView?.status.replace(/_/g, ' ')}
-                                </Badge>
-                            </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <Button variant="ghost" size="icon" onClick={() => handleView(task)}>
+                        <Eye className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(task)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <AlertDialog open={!!taskToDelete && taskToDelete.id === task.id} onOpenChange={(open) => !open && setTaskToDelete(null)}>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => confirmDelete(task)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente la tarea.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button variant="ghost" size="icon" onClick={() => confirmDelete(task)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -319,6 +243,21 @@ export default function TasksPage() {
         />
       )}
 
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{selectedTask ? "Editar Tarea" : "Nueva Tarea"}</DialogTitle>
+          </DialogHeader>
+          <TaskForm
+            task={selectedTask}
+            users={users || []}
+            lists={lists}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      
       <Dialog open={!!taskToView} onOpenChange={(open) => !open && setTaskToView(null)}>
         <DialogContent className="sm:max-w-xl">
             <DialogHeader>
