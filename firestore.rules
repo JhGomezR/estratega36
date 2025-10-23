@@ -1,154 +1,105 @@
 /**
- * @fileOverview Firestore Security Rules for the application.
+ * @file Firestore Security Rules
+ * @description This ruleset allows any read and write access to all documents in the database.
  *
  * Core Philosophy:
- * This ruleset prioritizes ease of use by allowing any authenticated user to view, create, edit, or delete call records. 
+ * This ruleset is for PROTOTYPING ONLY and provides NO AUTHENTICATION OR AUTHORIZATION.
+ * It is explicitly designed for rapid development iterations.  It is **critically insecure**
+ * for production deployments.
  *
  * Data Structure:
- * The Firestore database contains collections for users, roles, campaigns, voters, cities, tasks, and calls. Each top-level collection stores documents of the corresponding entity type.
+ * The Firestore database contains collections for users, roles, campaigns, voters, cities, tasks and calls.
  *
  * Key Security Decisions:
- * - Any authenticated user can read, create, update, and delete call records.
- * - No schema validation is performed in this prototype, except for authorization-critical fields.
+ * - All reads and writes are allowed.
+ * - No data validation is performed.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows any authenticated user to read, create, update, and delete call records.
-     * @path /calls/{callId}
-     * @allow (create) - Any authenticated user can create a call.
-     * @allow (get) - Any authenticated user can read a call.
-     * @allow (update) - Any authenticated user can update a call.
-     * @allow (delete) - Any authenticated user can delete a call.
-     * @principle Public read and write access for authenticated users.
-     */
-    match /calls/{callId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
-    }
-
-    /**
-     * @description Stores user profiles. Only the user can read/write their own profile.
+     * @description Allows any read or write to user profiles.
      * @path /users/{userId}
-     * @allow (create) - An authenticated user can create their own profile.
-     * @allow (get) - An authenticated user can read their own profile.
-     * @allow (update) - An authenticated user can update their own profile.
-     * @allow (delete) - An authenticated user can delete their own profile.
-     * @deny (create) - An unauthenticated user cannot create a profile.
-     * @deny (get) - An unauthenticated user cannot read a profile.
-     * @deny (update) - An unauthenticated user cannot update a profile.
-     * @deny (delete) - An unauthenticated user cannot delete a profile.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
+     * @deny (none)
+     * @principle This rule is insecure and for prototyping only.
      */
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource.data.id == userId;
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Stores role definitions. Only admin users can manage roles.
+     * @description Allows any read or write to roles.
      * @path /roles/{roleId}
-     * @allow (get) - Any authenticated user can read role definitions.
-     * @allow (create) - No one can create a role.
-     * @allow (update) - No one can update a role.
-     * @allow (delete) - No one can delete a role.
-     * @deny (create) - No one can create a role.
-     * @deny (update) - No one can update a role.
-     * @deny (delete) - No one can delete a role.
-     * @principle Enforces that no one can create, update, or delete roles.
+     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
+     * @deny (none)
+     * @principle This rule is insecure and for prototyping only.
      */
     match /roles/{roleId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Stores campaign information. Only authenticated users can read campaigns.
+     * @description Allows any read or write to campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get) - Any authenticated user can read campaigns.
-     * @allow (list) - Any authenticated user can list campaigns.
-     * @allow (create) - Any authenticated user can create campaigns.
-     * @allow (update) - Any authenticated user can update campaigns.
-     * @allow (delete) - Any authenticated user can delete campaigns.
-     * @principle Allows any authenticated user to perform all operations on campaigns.
+     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
+     * @deny (none)
+     * @principle This rule is insecure and for prototyping only.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Stores voter information. Only authenticated users can read voter information.
+     * @description Allows any read or write to voters.
      * @path /voters/{voterId}
-     * @allow (get) - Any authenticated user can read voters.
-     * @allow (list) - Any authenticated user can list voters.
-     * @allow (create) - Any authenticated user can create voters.
-     * @allow (update) - Any authenticated user can update voters.
-     * @allow (delete) - Any authenticated user can delete voters.
-     * @principle Public read access, owner-only writes.
+     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
+     * @deny (none)
+     * @principle This rule is insecure and for prototyping only.
      */
     match /voters/{voterId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Stores city information. Only authenticated users can read city information.
+     * @description Allows any read or write to cities.
      * @path /cities/{cityId}
-     * @allow (get) - Any authenticated user can read cities.
-     * @allow (list) - Any authenticated user can list cities.
-     * @allow (create) - No one can create a city.
-     * @allow (update) - No one can update a city.
-     * @allow (delete) - No one can delete a city.
-     * @principle Allows any authenticated user to read, but no one to create, update or delete.
+     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
+     * @deny (none)
+     * @principle This rule is insecure and for prototyping only.
      */
     match /cities/{cityId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Stores campaign tasks. Only authenticated users can read/write tasks.
+     * @description Allows any read or write to tasks.
      * @path /tasks/{taskId}
-     * @allow (get) - Any authenticated user can read tasks.
-     * @allow (list) - Any authenticated user can list tasks.
-     * @allow (create) - Any authenticated user can create tasks.
-     * @allow (update) - Any authenticated user can update tasks.
-     * @allow (delete) - Any authenticated user can delete tasks.
-     * @principle Allows any authenticated user to perform all operations on tasks.
+     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
+     * @deny (none)
+     * @principle This rule is insecure and for prototyping only.
      */
     match /tasks/{taskId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
-  }
 
-  // Helper function to determine if the user is signed in.
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  // Helper function to determine if the user is the owner of the document.
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  // Helper function to determine if the user is the existing owner of the document.
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
+    /**
+     * @description Allows any read or write to calls.
+     * @path /calls/{callId}
+     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
+     * @deny (none)
+     * @principle This rule is insecure and for prototyping only.
+     */
+    match /calls/{callId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
   }
 }
