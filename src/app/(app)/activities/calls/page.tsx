@@ -17,15 +17,16 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Eye, Loader2 } from "lucide-react"
+import { Edit, Eye, Loader2, Save } from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc, writeBatch } from "firebase/firestore"
 import type { Call, Voter, User } from "@/lib/types"
 import { CallForm } from "@/components/call-form"
@@ -37,6 +38,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CallStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 const statusLabels: Record<Call['status'], string> = {
   pendiente: "Pendiente",
@@ -46,6 +49,7 @@ const statusLabels: Record<Call['status'], string> = {
 export default function CallsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   
   const { data: calls, isLoading: callsLoading } = useCollection<Call>(
     useMemoFirebase(() => firestore ? collection(firestore, "calls") : null, [firestore])
@@ -59,7 +63,9 @@ export default function CallsPage() {
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isViewOpen, setIsViewOpen] = React.useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
   const [selectedCall, setSelectedCall] = React.useState<Call | null>(null);
+  const [callDetails, setCallDetails] = React.useState("");
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [localAttempts, setLocalAttempts] = React.useState<Record<string, number>>({});
 
@@ -151,16 +157,31 @@ export default function CallsPage() {
     }
   }
 
-  const handleStatusChange = (callId: string, newStatus: Call['status']) => {
-    if (firestore) {
-      const originalCall = calls?.find(c => c.id === callId);
-      if(originalCall && originalCall.status !== newStatus) {
-        let callData: Partial<Call> = { status: newStatus };
-        if (newStatus === 'atendida') {
-          callData.callDate = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'");
-        }
-        setDocumentNonBlocking(doc(firestore, 'calls', callId), callData, { merge: true });
-      }
+  const handleStatusChange = (call: Call, newStatus: Call['status']) => {
+    if (newStatus === 'atendida') {
+        setSelectedCall(call);
+        setCallDetails("");
+        setIsDetailsOpen(true);
+    } else if (firestore) {
+        setDocumentNonBlocking(doc(firestore, 'calls', call.id), { status: newStatus }, { merge: true });
+    }
+  };
+
+  const handleSaveDetails = () => {
+    if (firestore && selectedCall) {
+      const callData: Partial<Call> = {
+        status: 'atendida',
+        details: callDetails,
+        callDate: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+        userId: selectedCall.userId || currentUser?.uid,
+      };
+      setDocumentNonBlocking(doc(firestore, 'calls', selectedCall.id), callData, { merge: true });
+      toast({
+        title: "Detalles guardados",
+        description: "La información de la llamada ha sido registrada.",
+      });
+      setIsDetailsOpen(false);
+      setSelectedCall(null);
     }
   };
   
@@ -223,14 +244,16 @@ export default function CallsPage() {
               ) : (
                 calls.map((call) => {
                   const voter = getVoterInfo(call.voterId);
+                  const isLocked = !!call.details;
                   return (
-                    <TableRow key={call.id}>
+                    <TableRow key={call.id} className={isLocked ? 'bg-muted/50' : ''}>
                       <TableCell className="font-medium">{voter ? `${voter.firstName} ${voter.lastName}` : 'Votante no encontrado'}</TableCell>
                       <TableCell>{voter?.phone || 'N/A'}</TableCell>
                       <TableCell>
                         <Select
                             value={call.status}
-                            onValueChange={(newStatus: Call['status']) => handleStatusChange(call.id, newStatus)}
+                            onValueChange={(newStatus: Call['status']) => handleStatusChange(call, newStatus)}
+                            disabled={isLocked}
                         >
                             <SelectTrigger className={cn(
                               "h-8 w-32 focus:ring-0 border-0 font-semibold",
@@ -255,6 +278,7 @@ export default function CallsPage() {
                           onChange={(e) => handleAttemptsChange(call.id, e.target.value)}
                           onBlur={() => handleAttemptsBlur(call.id)}
                           className="h-8 w-20 p-1 text-center"
+                          disabled={isLocked}
                          />
                       </TableCell>
                       <TableCell>{call.callDate ? format(new Date(call.callDate), 'dd/MM/yyyy HH:mm') : 'N/A'}</TableCell>
@@ -263,7 +287,7 @@ export default function CallsPage() {
                          <Button variant="ghost" size="icon" onClick={() => handleView(call)}>
                            <Eye className="h-4 w-4" />
                          </Button>
-                         <Button variant="ghost" size="icon" onClick={() => handleEdit(call)}>
+                         <Button variant="ghost" size="icon" onClick={() => handleEdit(call)} disabled={isLocked}>
                            <Edit className="h-4 w-4" />
                          </Button>
                       </TableCell>
@@ -333,12 +357,65 @@ export default function CallsPage() {
                     <span className="font-semibold text-sm">Realizada por:</span>
                     <p className="col-span-2 text-sm text-muted-foreground">{getUserName(selectedCall.userId)}</p>
                 </div>
+                <Separator />
+                 <div className="space-y-2">
+                    <span className="font-semibold text-sm">Detalles de la Llamada:</span>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedCall.details || 'No hay detalles registrados.'}</p>
+                </div>
              </div>
            )}
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Detalles de Llamada Atendida</DialogTitle>
+            <DialogDescription>
+                Añade los detalles de la conversación con el votante. Una vez guardados, el registro se bloqueará.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="call-details">Detalles de la llamada</Label>
+              <Textarea 
+                id="call-details"
+                placeholder="Escribe aquí las notas de la llamada..."
+                value={callDetails}
+                onChange={(e) => setCallDetails(e.target.value)}
+                className="min-h-[150px]"
+              />
+            </div>
+             <div className="space-y-2">
+                <Label>Llamada realizada por</Label>
+                 <Select
+                    value={selectedCall?.userId || currentUser?.uid}
+                    onValueChange={(userId) => {
+                        setSelectedCall(prev => prev ? {...prev, userId} : null);
+                    }}
+                 >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un usuario" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {users?.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                                {user.firstName} {user.lastName}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveDetails}>
+              <Save className="mr-2 h-4 w-4" />
+              Guardar y Bloquear
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-
-    

@@ -297,6 +297,10 @@
         "attempts": {
           "type": "number",
           "description": "Number of attempts made to call the voter."
+        },
+        "details": {
+            "type": "string",
+            "description": "Details or notes from the call."
         }
       },
       "required": ["voterId", "status", "attempts"]

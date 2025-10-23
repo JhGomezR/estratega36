@@ -69,6 +69,7 @@ export type Call = WithId<{
   status: (typeof CallStatus)[number];
   callDate?: string;
   attempts: number;
+  details?: string;
 }>;
 
 export const IdentificationType = [
