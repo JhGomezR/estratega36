@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List, Search } from "lucide-react"
 import type { Task, User, ManagedList } from "@/lib/types"
 import { TaskForm } from "@/components/task-form"
 import {
@@ -46,6 +46,7 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { KanbanBoard } from "@/components/kanban-board"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Input } from "@/components/ui/input"
 
 const priorityClasses: Record<string, string> = {
   normal: "bg-blue-500 hover:bg-blue-600",
@@ -70,6 +71,7 @@ export default function TasksPage() {
   const [taskToDelete, setTaskToDelete] = React.useState<Task | null>(null);
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
   const [view, setView] = React.useState<'kanban' | 'list'>('kanban');
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -80,6 +82,29 @@ export default function TasksPage() {
     }
     return listsMap;
   }, [managedLists]);
+
+  const getUser = (userId: string) => {
+    return users?.find(u => u.id === userId);
+  };
+  
+  const getUserName = (userId: string) => {
+    const user = getUser(userId);
+    return user ? `${user.firstName} ${user.lastName}` : 'N/A';
+  };
+
+  const filteredTasks = React.useMemo(() => {
+    if (!tasks) return [];
+    if (!searchQuery) return tasks;
+
+    const lowercasedQuery = searchQuery.toLowerCase();
+
+    return tasks.filter(task => {
+      const taskTitle = task.title.toLowerCase();
+      const assignedUserName = getUserName(task.assignedToId).toLowerCase();
+
+      return taskTitle.includes(lowercasedQuery) || assignedUserName.includes(lowercasedQuery);
+    });
+  }, [tasks, searchQuery, users]);
 
   const handleAddNew = () => {
     setSelectedTask(null);
@@ -119,15 +144,6 @@ export default function TasksPage() {
     }
     setIsFormOpen(false);
   };
-
-  const getUser = (userId: string) => {
-    return users?.find(u => u.id === userId);
-  };
-  
-  const getUserName = (userId: string) => {
-    const user = getUser(userId);
-    return user ? `${user.firstName} ${user.lastName}` : 'N/A';
-  };
   
   const getUserInitials = (user?: User) => {
     if (!user) return 'NN'
@@ -160,6 +176,16 @@ export default function TasksPage() {
             </Button>
         </div>
       </div>
+      
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por tarea o persona asignada..."
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
 
      {view === 'list' && (
       <Card>
@@ -187,7 +213,7 @@ export default function TasksPage() {
                   <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
                 </TableRow>
               )}
-              {tasks?.map((task) => (
+              {filteredTasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell className="font-medium">{task.title}</TableCell>
                   <TableCell>
@@ -232,7 +258,7 @@ export default function TasksPage() {
 
       {view === 'kanban' && (
         <KanbanBoard 
-            tasks={tasks || []}
+            tasks={filteredTasks}
             users={users || []}
             lists={lists}
             isLoading={isLoading}
@@ -323,3 +349,5 @@ export default function TasksPage() {
     </div>
   )
 }
+
+    
