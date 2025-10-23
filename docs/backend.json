@@ -110,6 +110,12 @@
         "registrationDate": {
             "type": "string",
             "format": "date"
+        },
+        "latitude": {
+            "type": "number"
+        },
+        "longitude": {
+            "type": "number"
         }
       },
       "required": [

@@ -12,6 +12,8 @@ export type Voter = WithId<{
   address: string;
   promoterId: string;
   registrationDate: string;
+  latitude?: number;
+  longitude?: number;
 }>;
 
 export type Investor = {
