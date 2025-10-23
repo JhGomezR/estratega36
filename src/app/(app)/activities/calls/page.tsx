@@ -137,7 +137,12 @@ export default function CallsPage() {
       if (!searchQuery) return true;
       const voter = getVoterInfo(call.voterId);
       const lowercasedQuery = searchQuery.toLowerCase();
-      return voter ? `${voter.firstName} ${voter.lastName}`.toLowerCase().includes(lowercasedQuery) : false;
+
+      const nameMatch = voter ? `${voter.firstName} ${voter.lastName}`.toLowerCase().includes(lowercasedQuery) : false;
+      const phoneMatch = voter?.phone ? voter.phone.toLowerCase().includes(lowercasedQuery) : false;
+      const statusMatch = statusLabels[call.status].toLowerCase().includes(lowercasedQuery);
+
+      return nameMatch || phoneMatch || statusMatch;
     });
 
     return filtered.sort((a, b) => {
@@ -272,7 +277,7 @@ export default function CallsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar por nombre de votante..."
+          placeholder="Buscar por nombre, teléfono o estado..."
           className="pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -485,5 +490,3 @@ export default function CallsPage() {
     </div>
   )
 }
-
-    
