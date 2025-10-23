@@ -7,7 +7,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
 const SettingsSchema = z.object({
   primaryColor: z.string(),
@@ -35,9 +36,9 @@ const saveSettingsFlow = ai.defineFlow(
   },
   async (settings) => {
     try {
-      const db = getFirestore();
-      const settingsRef = db.collection('settings').doc('app');
-      await settingsRef.set(settings, { merge: true });
+      const { firestore } = initializeFirebase();
+      const settingsRef = doc(firestore, 'settings', 'app');
+      await setDoc(settingsRef, settings, { merge: true });
       return { success: true };
     } catch (error) {
       console.error("Error saving settings:", error);
