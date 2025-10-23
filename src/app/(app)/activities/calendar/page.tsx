@@ -64,7 +64,7 @@ function DayWithTasks({
 
   return (
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start">
-      <div className="flex items-center gap-2 self-start mb-1">
+      <div className="flex justify-between items-center w-full self-start mb-1">
         <time dateTime={format(date, "yyyy-MM-dd")} className={`text-xs ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
             {format(date, "d")}
         </time>
