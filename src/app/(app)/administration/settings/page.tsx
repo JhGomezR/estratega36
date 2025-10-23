@@ -199,7 +199,7 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Configuración de la Plataforma</h1>
             <p className="text-muted-foreground">Personaliza la apariencia y el comportamiento de la aplicación.</p>
         </div>
-        <Button onClick={handleSave}>Guardar Cambios</Button>
+        <Button onClick={handleSave} disabled={true}>Guardar Cambios</Button>
       </div>
 
       <Card>
