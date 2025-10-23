@@ -5,21 +5,22 @@ import React from 'react';
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
 import type { Voter } from '@/lib/types';
 
+type VoterWithColor = Voter & { color?: string };
 
 interface VotersMapProps {
     apiKey: string;
-    voters: Voter[];
+    voters: VoterWithColor[];
 }
 
-const VoterMarker = () => (
+const VoterMarker = ({ color }: { color?: string }) => (
     <div
         style={{
             width: '10px',
             height: '10px',
-            backgroundColor: 'red',
+            backgroundColor: color || 'red',
             borderRadius: '50%',
-            opacity: 0.6,
-            border: '1px solid darkred',
+            opacity: 0.7,
+            border: `1px solid ${color ? 'darken(color, 20%)' : 'darkred'}`,
         }}
     />
 );
@@ -45,7 +46,7 @@ export function VotersMap({ apiKey, voters }: VotersMapProps) {
                         position={{ lat: voter.latitude, lng: voter.longitude }}
                         title={`${voter.firstName} ${voter.lastName}`}
                     >
-                       <VoterMarker />
+                       <VoterMarker color={voter.color} />
                     </AdvancedMarker>
                 ))}
             </Map>

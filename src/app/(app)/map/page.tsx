@@ -9,6 +9,8 @@ import type { Voter, City } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
+type VoterWithColor = Voter & { color?: string };
+
 function generateColorFromString(str: string): string {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -35,10 +37,6 @@ export default function MapPage() {
     useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
   );
 
-  const votersWithLocation = React.useMemo(() => {
-    return voters?.filter(voter => voter.latitude && voter.longitude) || [];
-  }, [voters]);
-
   const voterCountsByCity = React.useMemo(() => {
     if (!voters || !cities) return [];
     
@@ -57,6 +55,17 @@ export default function MapPage() {
       .sort((a, b) => b.voterCount - a.voterCount);
 
   }, [voters, cities]);
+  
+  const votersWithLocation: VoterWithColor[] = React.useMemo(() => {
+    if (!voters) return [];
+    const cityColorMap = new Map(voterCountsByCity.map(c => [c.id, c.color]));
+    return voters
+      .filter(voter => voter.latitude && voter.longitude)
+      .map(voter => ({
+          ...voter,
+          color: cityColorMap.get(voter.cityId)
+      }));
+  }, [voters, voterCountsByCity]);
 
   const isLoading = votersLoading || citiesLoading;
 
