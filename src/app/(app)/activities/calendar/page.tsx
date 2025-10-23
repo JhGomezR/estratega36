@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
-import { isSameDay, parseISO, isWithinInterval, addMonths, subMonths, format } from 'date-fns'
+import { isSameDay, parseISO, isWithinInterval, addMonths, subMonths, format, isToday } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Dialog,
@@ -60,12 +60,17 @@ function DayWithTasks({
   const hiddenTasksCount = dayTasks.length > MAX_VISIBLE_TASKS ? dayTasks.length - MAX_VISIBLE_TASKS : 0;
 
   const isOutsideMonth = date.getMonth() !== month.getMonth();
+  const isCurrentDay = isToday(date);
 
   return (
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start">
-      <time dateTime={format(date, "yyyy-MM-dd")} className={`self-start text-xs mb-1 ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
-        {format(date, "d")}
-      </time>
+      <div className="flex items-center gap-2 self-start mb-1">
+        <time dateTime={format(date, "yyyy-MM-dd")} className={`text-xs ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
+            {format(date, "d")}
+        </time>
+        {isCurrentDay && <Badge variant="secondary" className="px-1.5 py-0 text-xs">Hoy</Badge>}
+      </div>
+
       <div className="w-full flex-grow flex flex-col space-y-px">
         {tasksToShow.map(task => (
           <div 
