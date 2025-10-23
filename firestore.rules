@@ -1,152 +1,151 @@
 /**
- * @fileoverview Firestore Security Rules for the political campaign management application.
+ * @fileoverview Firestore Security Rules for the political campaign application.
  *
  * Core Philosophy:
- * This ruleset prioritizes ease of prototyping. It enforces user authentication for all write operations and allows public read access.
+ * This ruleset prioritizes security and data ownership. Users can only manage their own profiles.
+ * Application settings are read-only for all users and write-only for authenticated users.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles. Accessible only to the authenticated user.
- * - /roles/{roleId}: Stores role definitions. Publicly readable, write access requires authentication.
- * - /campaigns/{campaignId}: Stores campaign information. Publicly readable, write access requires authentication.
- * - /voters/{voterId}: Stores voter information. Publicly readable, write access requires authentication.
- * - /cities/{cityId}: Stores city information. Publicly readable, write access requires authentication.
- * - /tasks/{taskId}: Stores campaign tasks. Publicly readable, write access requires authentication.
- * - /calls/{callId}: Stores call records for voters. Publicly readable, write access requires authentication.
- * - /settings/app: Stores application settings. Publicly readable, write access requires authentication.
+ * - /users/{userId}: Stores individual user profiles.
+ * - /roles/{roleId}: Defines user roles and permissions (e.g., admin, campaign_manager, promoter).
+ * - /campaigns/{campaignId}: Stores campaign-related data.
+ * - /voters/{voterId}: Stores voter information.
+ * - /cities/{cityId}: Stores city information.
+ * - /tasks/{taskId}: Stores tasks related to campaigns.
+ * - /calls/{callId}: Stores call records.
+ * - /settings/app: Stores a single document containing application-wide settings.
  *
  * Key Security Decisions:
- * - All collections are publicly readable to facilitate easy data access during prototyping.
- * - All write operations require authentication.
- * - No schema validation is performed during this prototyping phase.
+ * - Users can only read and write their own user document.
+ * - Listing of users is disallowed.
+ * - Application settings can only be modified by authenticated users.
+ *
+ * Denormalization for Authorization:
+ *  - The application does not have a specific owner field in the settings collection, so all autheticated users will be able to edit the document.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages user profiles, ensuring only the authenticated user can access their own data.
+     * @description Checks if the request is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user ID matches the requested user ID.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the owner and the resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (get, list): Any user can read any user's profile.
-     * @allow (create): Any authenticated user can create a profile for themselves.
-     * @allow (update, delete): Any authenticated user can update or delete their own profile.
-     * @deny (create): If the authenticated user's ID does not match the {userId} in the path.
-     * @deny (update, delete): If the authenticated user is not signed in.
+     * @allow (create) - Authenticated user can create their own profile with matching userId.
+     * @allow (get, update, delete) - Authenticated user can read, update, and delete their own profile.
+     * @deny (create) - If the userId in the path does not match the authenticated user's ID.
+     * @deny (update, delete) - If the userId in the path does not match the authenticated user's ID, or the document does not exist.
+     * @deny (list) - Listing all users is not allowed.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.email == request.auth.token.email;
+      allow update: if isExistingOwner(userId) && request.resource.data.email == resource.data.email;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Manages role definitions, allowing anyone to read but requiring authentication to modify.
+     * @description Rules for roles.
      * @path /roles/{roleId}
-     * @allow (get, list): Any user can read any role.
-     * @allow (create, update, delete): Any authenticated user can create, update, or delete a role.
-     * @deny (create, update, delete): If the user is not authenticated.
-     * @principle Requires authentication for write operations.
+     * @allow (get, list) - Anyone can read roles.
+     * @deny (create, update, delete) - No one can create, update, or delete roles.
+     * @principle Defines read-only access to roles.
      */
     match /roles/{roleId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages campaign information, allowing anyone to read but requiring authentication to modify.
+     * @description Rules for campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get, list): Any user can read any campaign.
-     * @allow (create, update, delete): Any authenticated user can create, update, or delete a campaign.
-     * @deny (create, update, delete): If the user is not authenticated.
-     * @principle Requires authentication for write operations.
+     * @allow (get, list) - Anyone can read campaigns.
+     * @deny (create, update, delete) - No one can create, update, or delete campaigns.
      */
     match /campaigns/{campaignId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages voter information, allowing anyone to read but requiring authentication to modify.
+     * @description Rules for voters.
      * @path /voters/{voterId}
-     * @allow (get, list): Any user can read any voter.
-     * @allow (create, update, delete): Any authenticated user can create, update, or delete a voter.
-     * @deny (create, update, delete): If the user is not authenticated.
-     * @principle Requires authentication for write operations.
+     * @allow (get, list) - Anyone can read voters.
+     * @deny (create, update, delete) - No one can create, update, or delete voters.
      */
     match /voters/{voterId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages city information, allowing anyone to read but requiring authentication to modify.
+     * @description Rules for cities.
      * @path /cities/{cityId}
-     * @allow (get, list): Any user can read any city.
-     * @allow (create, update, delete): Any authenticated user can create, update, or delete a city.
-     * @deny (create, update, delete): If the user is not authenticated.
-     * @principle Requires authentication for write operations.
+     * @allow (get, list) - Anyone can read cities.
+     * @deny (create, update, delete) - No one can create, update, or delete cities.
      */
     match /cities/{cityId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages campaign tasks, allowing anyone to read but requiring authentication to modify.
+     * @description Rules for tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list): Any user can read any task.
-     * @allow (create, update, delete): Any authenticated user can create, update, or delete a task.
-     * @deny (create, update, delete): If the user is not authenticated.
-     * @principle Requires authentication for write operations.
+     * @allow (get, list) - Anyone can read tasks.
+     * @deny (create, update, delete) - No one can create, update, or delete tasks.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages call records for voters, allowing anyone to read but requiring authentication to modify.
+     * @description Rules for calls.
      * @path /calls/{callId}
-     * @allow (get, list): Any user can read any call.
-     * @allow (create, update, delete): Any authenticated user can create, update, or delete a call.
-     * @deny (create, update, delete): If the user is not authenticated.
-     * @principle Requires authentication for write operations.
+     * @allow (get, list) - Anyone can read calls.
+     * @deny (create, update, delete) - No one can create, update, or delete calls.
      */
     match /calls/{callId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages application settings, allowing anyone to read but requiring authentication to modify.
+     * @description Rules for application settings.
      * @path /settings/app
-     * @allow (get): Any user can read the settings.
-     * @allow (create, update, delete): Any authenticated user can create, update, or delete the settings.
-     * @deny (create, update, delete): If the user is not authenticated.
-     * @principle Requires authentication for write operations.
+     * @allow (get) - Anyone can read the settings.
+     * @allow (create, update) - Authenticated users can create and update settings.
+     * @deny (delete) - No one can delete the settings.
      */
     match /settings/app {
       allow get: if true;
+      allow list: if false;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if false;
     }
-  }
-
-  function isSignedIn() {
-    return request.auth != null;
   }
 }
