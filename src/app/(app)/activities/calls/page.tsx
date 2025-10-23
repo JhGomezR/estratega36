@@ -159,11 +159,19 @@ export default function CallsPage() {
 
   const handleStatusChange = (call: Call, newStatus: Call['status']) => {
     if (newStatus === 'atendida') {
-        setSelectedCall(call);
-        setCallDetails("");
-        setIsDetailsOpen(true);
+      if ((localAttempts[call.id] ?? call.attempts) < 1) {
+        toast({
+            variant: "destructive",
+            title: "Acción no permitida",
+            description: "La llamada debe tener al menos 1 intento para ser marcada como atendida.",
+        });
+        return;
+      }
+      setSelectedCall(call);
+      setCallDetails("");
+      setIsDetailsOpen(true);
     } else if (firestore) {
-        setDocumentNonBlocking(doc(firestore, 'calls', call.id), { status: newStatus }, { merge: true });
+      setDocumentNonBlocking(doc(firestore, 'calls', call.id), { status: newStatus }, { merge: true });
     }
   };
 
