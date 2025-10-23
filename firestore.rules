@@ -1,175 +1,121 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a user-ownership model for user profiles and restricts access to other collections based on authentication.
+ * @description This ruleset is for **prototyping only** and provides a basic level of security.
+ * It is crucial to replace these with more restrictive rules before deploying to production.
+ *
+ * Core Philosophy:
+ * This ruleset focuses on allowing all access to all documents, as requested by the user.
+ * It enforces minimal security checks and prioritizes rapid development over strict access control.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles. Accessible only to the authenticated user with matching UID.
- * - /roles/{roleId}: Stores role definitions.  Reads are public. Writes are not explicitly secured and should be protected in the application.
- * - /campaigns/{campaignId}: Stores campaign information. Reads are public, writes are restricted to authenticated users.
- * - /voters/{voterId}: Stores voter information. Reads are public, writes are restricted to authenticated users.
- * - /cities/{cityId}: Stores city information. Reads are public, writes are restricted to authenticated users.
- * - /tasks/{taskId}: Stores campaign tasks. Reads are public, writes are restricted to authenticated users.
- * - /calls/{callId}: Stores call records for voters. Reads are public, writes are restricted to authenticated users.
- * - /settings/app: Stores a single document with application settings. Reads are public, writes are not explicitly secured and should be protected in the application.
+ * The Firestore database is structured with top-level collections for `users`, `roles`, `campaigns`, `voters`, `cities`, `tasks`, `calls`, `settings`, and `lists`.
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - Roles and settings are read-only via rules; writes should be handled server-side.
- * - Public read access is granted to campaigns, voters, cities, tasks, and calls to facilitate data discovery. Writes to these collections require authentication.
+ * - All read and write operations are allowed for all users. This is **highly insecure** and should be changed immediately for production use.
+ * - No data validation is performed. All writes are accepted as-is, regardless of the data's validity.
  *
- * Denormalization for Authorization:
- * - None explicitly needed in this ruleset due to the simple ownership and public-read patterns.
- *
- * Structural Segregation:
- * - No explicit segregation is used. Drafts vs. published content is not implemented.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Allows all read and write access to user profiles.
      * @path /users/{userId}
-     * @allow (create) Authenticated user can create their own profile if the userId matches their auth.uid.
-     * @allow (get, list, update, delete) Authenticated user can get, update and delete their own profile if the userId matches their auth.uid.
-     * @deny (create, update, delete) If the user ID does not match the authenticated user ID.
-     * @principle Enforces document ownership for writes.
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any user profile.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to role documents.
+     * @description Allows all read and write access to role definitions.
      * @path /roles/{roleId}
-     * @allow (get, list) Any user can read role definitions.
-     * @deny (create, update, delete) No rule for writing, should be managed server-side.
-     * @principle Public read access for roles.
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any role definition.
      */
     match /roles/{roleId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Secure write access, likely server-side only
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to campaign documents.
+     * @description Allows all read and write access to campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any user can read campaign information.
-     * @allow (create) Authenticated user can create a new campaign.
-     * @allow (update, delete) Authenticated user can update or delete a campaign.
-     * @deny (create, update, delete) Unauthenticated users cannot create, update, or delete campaigns.
-     * @principle Public read access with authentication required for writes.
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any campaign.
      */
     match /campaigns/{campaignId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to voter documents.
+     * @description Allows all read and write access to voter information.
      * @path /voters/{voterId}
-     * @allow (get, list) Any user can read voter information.
-     * @allow (create) Authenticated user can create a new voter document.
-     * @allow (update, delete) Authenticated user can update or delete a voter document.
-     * @deny (create, update, delete) Unauthenticated users cannot create, update, or delete voters.
-     * @principle Public read access with authentication required for writes.
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any voter.
      */
     match /voters/{voterId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to city documents.
+     * @description Allows all read and write access to city information.
      * @path /cities/{cityId}
-     * @allow (get, list) Any user can read city information.
-     * @allow (create) Authenticated user can create a new city.
-     * @allow (update, delete) Authenticated user can update or delete a city.
-     * @deny (create, update, delete) Unauthenticated users cannot create, update, or delete cities.
-     * @principle Public read access with authentication required for writes.
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any city.
      */
     match /cities/{cityId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to task documents.
+     * @description Allows all read and write access to task information.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any user can read task information.
-     * @allow (create) Authenticated user can create a new task.
-     * @allow (update, delete) Authenticated user can update or delete a task.
-     * @deny (create, update, delete) Unauthenticated users cannot create, update, or delete tasks.
-     * @principle Public read access with authentication required for writes.
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any task.
      */
     match /tasks/{taskId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Controls access to call documents.
+     * @description Allows all read and write access to call information.
      * @path /calls/{callId}
-     * @allow (get, list) Any user can read call information.
-     * @allow (create) Authenticated user can create a new call record.
-     * @allow (update, delete) Authenticated user can update or delete a call record.
-     * @deny (create, update, delete) Unauthenticated users cannot create, update, or delete calls.
-     * @principle Public read access with authentication required for writes.
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any call.
      */
     match /calls/{callId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create, update, delete: if true;
     }
 
-     /**
-      * @description Controls access to settings document.
-      * @path /settings/app
-      * @allow (get) Any user can read application settings.
-      * @deny (create, update, delete) No rule for writing, should be managed server-side.
-      * @principle Public read access for settings.
-      */
-    match /settings/app {
-      allow get: if true;
-      allow create, update, delete: if false; // TODO: Secure write access, likely server-side only
+    /**
+     * @description Allows all read and write access to branding settings.
+     * @path /settings/branding
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify branding settings.
+     */
+    match /settings/branding {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+    
+    /**
+     * @description Allows all read and write access to managed lists.
+     * @path /lists/{listId}
+     * @allow (get, list, create, update, delete)
+     * @principle Allows any user to read or modify any managed list.
+     */
+    match /lists/{listId} {
+        allow get, list: if true;
+        allow create, update, delete: if true;
     }
   }
 }
