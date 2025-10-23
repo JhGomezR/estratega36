@@ -64,12 +64,16 @@ function DayWithTasks({
 
   return (
     <div className="relative h-full w-full p-1 flex flex-col items-start justify-start">
-      <div className="flex justify-between items-center w-full self-start mb-1">
-        <time dateTime={format(date, "yyyy-MM-dd")} className={`text-xs ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
-            {format(date, "d")}
-        </time>
-        {isCurrentDay && <Badge variant="secondary" className="px-1.5 py-0 text-xs">Hoy</Badge>}
-      </div>
+       <div className="relative w-full self-start mb-1 flex items-center">
+            <time dateTime={format(date, "yyyy-MM-dd")} className={`text-xs ${isOutsideMonth ? 'text-muted-foreground' : ''}`}>
+                {format(date, "d")}
+            </time>
+            {isCurrentDay && (
+                 <div className="absolute inset-x-0 flex justify-center">
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">Hoy</Badge>
+                </div>
+            )}
+        </div>
 
       <div className="w-full flex-grow flex flex-col space-y-px">
         {tasksToShow.map(task => (
