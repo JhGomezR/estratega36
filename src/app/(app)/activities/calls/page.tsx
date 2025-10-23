@@ -36,6 +36,7 @@ import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CallStatus } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 const statusLabels: Record<Call['status'], string> = {
   pendiente: "Pendiente",
@@ -231,7 +232,11 @@ export default function CallsPage() {
                             value={call.status}
                             onValueChange={(newStatus: Call['status']) => handleStatusChange(call.id, newStatus)}
                         >
-                            <SelectTrigger className="h-8 w-32 focus:ring-0">
+                            <SelectTrigger className={cn(
+                              "h-8 w-32 focus:ring-0",
+                              call.status === 'pendiente' && 'bg-accent/80 text-accent-foreground',
+                              call.status === 'atendida' && 'bg-secondary text-secondary-foreground'
+                            )}>
                                 <SelectValue placeholder="Selecciona estado" />
                             </SelectTrigger>
                             <SelectContent>
@@ -335,5 +340,3 @@ export default function CallsPage() {
     </div>
   )
 }
-
-    
