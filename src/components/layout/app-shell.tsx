@@ -42,7 +42,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 import { UserNav } from "./user-nav"
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
-import type { Settings as AppSettings } from "@/lib/types"
+import type { BrandingSettings } from "@/lib/types"
 import Image from "next/image"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
@@ -54,8 +54,8 @@ const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const firestore = useFirestore();
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
-  const { data: settings } = useDoc<AppSettings>(settingsRef);
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
+  const { data: settings } = useDoc<BrandingSettings>(settingsRef);
 
   const isActive = (path: string, exact: boolean = false) => {
     return exact ? pathname === path : pathname.startsWith(path)

@@ -95,14 +95,14 @@ export const availablePermissions = [
 
 export type Permission = (typeof availablePermissions)[number];
 
-export type Settings = {
-  primaryColor: string;
-  accentColor: string;
-  sidebarColor: string;
+export type BrandingSettings = {
+  primaryColor?: string;
+  accentColor?: string;
+  sidebarColor?: string;
   logoUrl?: string;
-  identificationTypes: string[];
-  taskPriorities: string[];
-  taskStatuses: string[];
-  campaignTypes: string[];
-  campaignStatuses: string[];
 };
+
+export type ManagedList = WithId<{
+    name: string;
+    items: string[];
+}>;

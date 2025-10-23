@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import type { Voter, City, User, Role, Settings } from "@/lib/types"
+import type { Voter, City, User, Role, ManagedList } from "@/lib/types"
 import { VoterForm } from "@/components/voter-form"
 import {
   Dialog,
@@ -37,8 +37,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { format, parseISO } from "date-fns"
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
+import { format } from "date-fns"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
@@ -57,8 +57,8 @@ export default function VotersPage() {
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
     useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
   );
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
-  const { data: settings, isLoading: settingsLoading } = useDoc<Settings>(settingsRef);
+  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
   
   const promoters = React.useMemo(() => {
     if (!users || !roles) return [];
@@ -75,6 +75,17 @@ export default function VotersPage() {
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [voterToDelete, setVoterToDelete] = React.useState<Voter | null>(null)
+
+  const lists = React.useMemo(() => {
+    const listsMap: Record<string, ManagedList | undefined> = {};
+    if (managedLists) {
+        managedLists.forEach(list => {
+            listsMap[list.id] = list;
+        });
+    }
+    return listsMap;
+  }, [managedLists]);
+
 
   const handleAddNew = () => {
     setSelectedVoter(null)
@@ -118,7 +129,7 @@ export default function VotersPage() {
       return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
   }
 
-  const isLoading = votersLoading || citiesLoading || usersLoading || rolesLoading || settingsLoading;
+  const isLoading = votersLoading || citiesLoading || usersLoading || rolesLoading || listsLoading;
 
 
   return (
@@ -144,7 +155,7 @@ export default function VotersPage() {
                 voter={selectedVoter}
                 cities={cities || []}
                 promoters={promoters}
-                settings={settings}
+                lists={lists}
                 onSubmit={handleFormSubmit}
                 onCancel={() => setIsFormOpen(false)}
               />

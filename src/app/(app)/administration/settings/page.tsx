@@ -11,11 +11,11 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useFirestore, useMemoFirebase, useDoc } from "@/firebase"
-import { doc } from "firebase/firestore"
-import type { Settings } from "@/lib/types"
+import { useFirestore, useMemoFirebase, useDoc, useCollection } from "@/firebase"
+import { doc, collection, writeBatch } from "firebase/firestore"
+import type { BrandingSettings, ManagedList } from "@/lib/types"
 import { Loader2, PlusCircle, Trash2 } from "lucide-react"
-import { saveSettings } from "@/app/(app)/administration/settings/actions"
+import { saveBrandingSettings, updateList } from "@/app/(app)/administration/settings/actions"
 import { useToast } from "@/hooks/use-toast"
 
 function hexToHsl(hex: string): string | null {
@@ -68,7 +68,7 @@ function hslStringToHex(hsl: string): string {
     return hslToHex(h, s, l);
 }
 
-const ListManager = ({ title, items, listKey, onUpdate, defaultItems = [] }: { title: string, items: string[], listKey: keyof Omit<Settings, 'primaryColor' | 'accentColor' | 'sidebarColor' | 'logoUrl'>, onUpdate: (key: any, items: string[]) => void, defaultItems?: readonly string[] }) => {
+const ListManager = ({ title, listKey, items, onUpdate, defaultItems = [] }: { title: string, listKey: string, items: string[], onUpdate: (key: string, items: string[]) => void, defaultItems?: readonly string[] }) => {
     const [newItem, setNewItem] = React.useState("");
 
     const handleAdd = () => {
@@ -114,12 +114,33 @@ const ListManager = ({ title, items, listKey, onUpdate, defaultItems = [] }: { t
     )
 }
 
+const listTitles: Record<string, string> = {
+    identificationTypes: "Tipos de Documento",
+    taskPriorities: "Prioridades de Tareas",
+    taskStatuses: "Estados de Tareas",
+    campaignTypes: "Tipos de Campaña",
+    campaignStatuses: "Estados de Campaña",
+};
+
+const defaultLists: Record<string, string[]> = {
+    campaignStatuses: ['Futura', 'En Campaña', 'Finalizada'],
+    taskPriorities: ['normal', 'alta', 'urgente'],
+    taskStatuses: ['pendiente', 'en_curso', 'finalizada'],
+    identificationTypes: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte'],
+    campaignTypes: ['presidencia', 'alcaldia', 'gobernacion'],
+}
+
+
 export default function SettingsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
-  const { data: settings, isLoading } = useDoc<Settings>(settingsRef);
   
+  const brandingSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
+  const { data: brandingSettings, isLoading: brandingLoading } = useDoc<BrandingSettings>(brandingSettingsRef);
+  
+  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
+
   const [isSaving, setIsSaving] = React.useState(false);
   const [colors, setColors] = React.useState({
     primaryColor: '#1A237E',
@@ -127,36 +148,38 @@ export default function SettingsPage() {
     sidebarColor: '#141E46',
   });
   
-  const [lists, setLists] = React.useState<Omit<Settings, 'primaryColor' | 'accentColor' | 'sidebarColor' | 'logoUrl'>>({
-    identificationTypes: [],
-    taskPriorities: [],
-    taskStatuses: [],
-    campaignTypes: [],
-    campaignStatuses: [],
-  });
+  const lists = React.useMemo(() => {
+    const listsMap: Record<string, string[]> = {};
+    if (managedLists) {
+        managedLists.forEach(list => {
+            listsMap[list.id] = list.items;
+        });
+    }
+    return listsMap;
+  }, [managedLists]);
 
-  const defaultCampaignStatuses = ['Futura', 'En Campaña', 'Finalizada'];
 
   React.useEffect(() => {
-    if (settings) {
-      setColors({
-        primaryColor: hslStringToHex(settings.primaryColor) || '#1A237E',
-        accentColor: hslStringToHex(settings.accentColor) || '#FFC107',
-        sidebarColor: hslStringToHex(settings.sidebarColor) || '#141E46',
-      });
-      setLists({
-        identificationTypes: settings.identificationTypes || [],
-        taskPriorities: settings.taskPriorities || [],
-        taskStatuses: settings.taskStatuses || [],
-        campaignTypes: settings.campaignTypes || [],
-        campaignStatuses: settings.campaignStatuses || defaultCampaignStatuses,
-      });
-
-      updateCssVariables(settings.primaryColor, settings.accentColor, settings.sidebarColor);
-    } else {
-        setLists(prev => ({...prev, campaignStatuses: defaultCampaignStatuses}))
+    if (firestore && !listsLoading && managedLists?.length === 0) {
+        const batch = writeBatch(firestore);
+        Object.entries(defaultLists).forEach(([key, value]) => {
+            const docRef = doc(firestore, 'lists', key);
+            batch.set(docRef, { name: listTitles[key], items: value });
+        })
+        batch.commit().catch(e => console.error("Error initializing lists", e));
     }
-  }, [settings]);
+  }, [firestore, listsLoading, managedLists])
+
+  React.useEffect(() => {
+    if (brandingSettings) {
+      setColors({
+        primaryColor: hslStringToHex(brandingSettings.primaryColor) || '#1A237E',
+        accentColor: hslStringToHex(brandingSettings.accentColor) || '#FFC107',
+        sidebarColor: hslStringToHex(brandingSettings.sidebarColor) || '#141E46',
+      });
+      updateCssVariables(brandingSettings.primaryColor, brandingSettings.accentColor, brandingSettings.sidebarColor);
+    }
+  }, [brandingSettings]);
   
   const updateCssVariables = (primaryHsl?: string, accentHsl?: string, sidebarHsl?: string) => {
     const root = document.documentElement;
@@ -169,11 +192,9 @@ export default function SettingsPage() {
     setColors(prev => ({ ...prev, [colorName]: value }));
   }
   
-  const handleListUpdate = async (listKey: keyof typeof lists, newItems: string[]) => {
-    const oldItems = lists[listKey];
-    setLists(prev => ({...prev, [listKey]: newItems}));
+  const handleListUpdate = async (listKey: string, newItems: string[]) => {
     try {
-        const result = await saveSettings({ [listKey]: newItems });
+        const result = await updateList(listKey, newItems);
         if (!result.success) {
              throw new Error("Server-side list update failed");
         }
@@ -183,8 +204,6 @@ export default function SettingsPage() {
             title: "Error al actualizar la lista",
             description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
         });
-        // Revert UI change on failure
-        setLists(prev => ({...prev, [listKey]: oldItems}))
     }
   }
 
@@ -196,7 +215,7 @@ export default function SettingsPage() {
             accentColor: hexToHsl(colors.accentColor)!,
             sidebarColor: hexToHsl(colors.sidebarColor)!,
         };
-        const result = await saveSettings(colorSettings);
+        const result = await saveBrandingSettings(colorSettings);
 
         if (result.success) {
             updateCssVariables(colorSettings.primaryColor, colorSettings.accentColor, colorSettings.sidebarColor);
@@ -218,6 +237,8 @@ export default function SettingsPage() {
         setIsSaving(false);
     }
   }
+
+  const isLoading = brandingLoading || listsLoading;
 
   if (isLoading) {
       return (
@@ -288,11 +309,15 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <ListManager title="Tipos de Documento" items={lists.identificationTypes} listKey="identificationTypes" onUpdate={handleListUpdate} />
-            <ListManager title="Prioridades de Tareas" items={lists.taskPriorities} listKey="taskPriorities" onUpdate={handleListUpdate} />
-            <ListManager title="Estados de Tareas" items={lists.taskStatuses} listKey="taskStatuses" onUpdate={handleListUpdate} />
-            <ListManager title="Tipos de Campaña" items={lists.campaignTypes} listKey="campaignTypes" onUpdate={handleListUpdate} />
-            <ListManager title="Estados de Campaña" items={lists.campaignStatuses} listKey="campaignStatuses" onUpdate={handleListUpdate} defaultItems={defaultCampaignStatuses} />
+            {Object.keys(listTitles).map(key => (
+                 <ListManager 
+                    key={key}
+                    title={listTitles[key]} 
+                    listKey={key}
+                    items={lists[key] || []} 
+                    onUpdate={handleListUpdate} 
+                    defaultItems={defaultLists[key]} />
+            ))}
         </CardContent>
       </Card>
     </div>

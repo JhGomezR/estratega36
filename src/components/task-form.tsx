@@ -3,7 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Task, User, Settings } from "@/lib/types"
+import type { Task, User, ManagedList } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -38,12 +38,12 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 interface TaskFormProps {
   task?: Task | null;
   users: User[];
-  settings?: Settings | null;
+  lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: Omit<TaskFormValues, 'startDate'>) => void;
   onCancel: () => void;
 }
 
-export function TaskForm({ task, users, settings, onSubmit, onCancel }: TaskFormProps) {
+export function TaskForm({ task, users, lists, onSubmit, onCancel }: TaskFormProps) {
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -164,7 +164,7 @@ export function TaskForm({ task, users, settings, onSubmit, onCancel }: TaskForm
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {settings?.taskPriorities?.map(priority => (
+                    {lists.taskPriorities?.items?.map(priority => (
                       <SelectItem key={priority} value={priority} className="capitalize">
                         {priority}
                       </SelectItem>
@@ -188,7 +188,7 @@ export function TaskForm({ task, users, settings, onSubmit, onCancel }: TaskForm
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {settings?.taskStatuses?.map(status => (
+                    {lists.taskStatuses?.items?.map(status => (
                       <SelectItem key={status} value={status} className="capitalize">
                         {status.replace(/_/g, ' ')}
                       </SelectItem>

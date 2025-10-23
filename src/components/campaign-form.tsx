@@ -3,7 +3,7 @@ import * as React from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Campaign, Investor, Settings } from "@/lib/types"
+import type { Campaign, Investor, ManagedList } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -53,12 +53,12 @@ type CampaignFormValues = z.infer<typeof campaignFormSchema>;
 
 interface CampaignFormProps {
   campaign?: Omit<Campaign, 'id' | 'progress'> | null;
-  settings?: Settings | null;
+  lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: CampaignFormValues) => void;
   onCancel: () => void;
 }
 
-export function CampaignForm({ campaign, settings, onSubmit, onCancel }: CampaignFormProps) {
+export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFormProps) {
   const defaultValues = React.useMemo(() => ({
     name: campaign?.name ?? "",
     description: campaign?.description ?? "",
@@ -117,7 +117,7 @@ export function CampaignForm({ campaign, settings, onSubmit, onCancel }: Campaig
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {settings?.campaignTypes?.map(type => (
+                    {lists.campaignTypes?.items?.map(type => (
                       <SelectItem key={type} value={type} className="capitalize">
                         {type}
                       </SelectItem>
@@ -200,7 +200,7 @@ export function CampaignForm({ campaign, settings, onSubmit, onCancel }: Campaig
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        {settings?.campaignStatuses?.map(status => (
+                        {lists.campaignStatuses?.items?.map(status => (
                         <SelectItem key={status} value={status} className="capitalize">
                             {status}
                         </SelectItem>

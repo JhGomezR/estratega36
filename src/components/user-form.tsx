@@ -3,7 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role, City, Campaign, Settings } from "@/lib/types"
+import type { User, Role, City, Campaign, ManagedList } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -43,12 +43,12 @@ interface UserFormProps {
   roles: Role[];
   cities: City[];
   campaigns: Campaign[];
-  settings?: Settings | null;
+  lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: UserFormValues) => void;
   onCancel: () => void;
 }
 
-export function UserForm({ user, roles, cities, campaigns, settings, onSubmit, onCancel }: UserFormProps) {
+export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCancel }: UserFormProps) {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -110,7 +110,7 @@ export function UserForm({ user, roles, cities, campaigns, settings, onSubmit, o
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {settings?.identificationTypes?.map(type => (
+                    {lists.identificationTypes?.items?.map(type => (
                       <SelectItem key={type} value={type} className="capitalize">
                         {type.replace(/_/g, ' ')}
                       </SelectItem>

@@ -301,22 +301,28 @@
       },
       "required": ["voterId", "status", "attempts"]
     },
-    "Settings": {
+    "BrandingSettings": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Settings",
+      "title": "BrandingSettings",
       "type": "object",
-      "description": "Stores application-wide settings.",
+      "description": "Stores application-wide branding settings.",
       "properties": {
-        "primaryColor": { "type": "string" },
-        "accentColor": { "type": "string" },
-        "sidebarColor": { "type": "string" },
-        "logoUrl": { "type": "string", "format": "uri" },
-        "identificationTypes": { "type": "array", "items": { "type": "string" } },
-        "taskPriorities": { "type": "array", "items": { "type": "string" } },
-        "taskStatuses": { "type": "array", "items": { "type": "string" } },
-        "campaignTypes": { "type": "array", "items": { "type": "string" } },
-        "campaignStatuses": { "type": "array", "items": { "type": "string" } }
+        "primaryColor": { "type": "string", "description": "Primary color for the theme." },
+        "accentColor": { "type": "string", "description": "Accent color for the theme." },
+        "sidebarColor": { "type": "string", "description": "Background color for the sidebar." },
+        "logoUrl": { "type": "string", "format": "uri", "description": "URL for the campaign logo." }
       }
+    },
+    "ManagedList": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "ManagedList",
+        "type": "object",
+        "description": "Represents a list of items managed by the user.",
+        "properties": {
+            "name": { "type": "string", "description": "The name of the list." },
+            "items": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["name", "items"]
     }
   },
   "auth": {
@@ -367,11 +373,17 @@
       },
       "description": "Stores call records for voters."
     },
-    "/settings/app": {
+    "/settings/branding": {
       "schema": {
-        "$ref": "#/entities/Settings"
+        "$ref": "#/entities/BrandingSettings"
       },
-      "description": "Stores a single document with application settings."
+      "description": "Stores the single document for application branding settings."
+    },
+    "/lists/{listId}": {
+      "schema": {
+        "$ref": "#/entities/ManagedList"
+      },
+      "description": "Stores documents for user-managed lists. The document ID is the list name (e.g., 'taskPriorities')."
     }
   }
 }

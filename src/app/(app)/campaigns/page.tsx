@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import type { Campaign, Settings } from "@/lib/types"
+import type { Campaign, ManagedList } from "@/lib/types"
 import { CampaignForm } from "@/components/campaign-form"
 import {
   Dialog,
@@ -28,7 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import {
@@ -48,12 +48,22 @@ export default function CampaignsPage() {
   const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore]);
   const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollection);
 
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
-  const { data: settings, isLoading: settingsLoading } = useDoc<Settings>(settingsRef);
+  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
   
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [campaignToDelete, setCampaignToDelete] = React.useState<Campaign | null>(null);
+
+  const lists = React.useMemo(() => {
+    const listsMap: Record<string, ManagedList | undefined> = {};
+    if (managedLists) {
+        managedLists.forEach(list => {
+            listsMap[list.id] = list;
+        });
+    }
+    return listsMap;
+  }, [managedLists]);
 
   const handleAddNew = () => {
     setSelectedCampaign(null);
@@ -91,10 +101,11 @@ export default function CampaignsPage() {
   }
 
   const getStatusLabel = (statusValue: string) => {
-      return settings?.campaignStatuses?.find(s => s === statusValue) || statusValue;
+      const statusList = lists.campaignStatuses?.items || [];
+      return statusList.find(s => s.toLowerCase().replace(/\s/g, '_') === statusValue) || statusValue;
   }
 
-  const isLoading = campaignsLoading || settingsLoading;
+  const isLoading = campaignsLoading || listsLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -116,7 +127,7 @@ export default function CampaignsPage() {
             </DialogHeader>
             <CampaignForm
               campaign={selectedCampaign}
-              settings={settings}
+              lists={lists}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />

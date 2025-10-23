@@ -1,43 +1,63 @@
 'use server';
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
-const SettingsSchema = z.object({
+const BrandingSettingsSchema = z.object({
   primaryColor: z.string().optional(),
   accentColor: z.string().optional(),
   sidebarColor: z.string().optional(),
   logoUrl: z.string().optional(),
-  identificationTypes: z.array(z.string()).optional(),
-  taskPriorities: z.array(z.string()).optional(),
-  taskStatuses: z.array(z.string()).optional(),
-  campaignTypes: z.array(z.string()).optional(),
-  campaignStatuses: z.array(z.string()).optional(),
 });
 
-type SettingsInput = z.infer<typeof SettingsSchema>;
+type BrandingSettingsInput = z.infer<typeof BrandingSettingsSchema>;
 
+// Initialize Firebase Admin SDK
 let adminApp: App;
 if (!getApps().length) {
-  adminApp = initializeApp();
+    try {
+        // This works in a deployed Firebase environment
+        adminApp = initializeApp();
+    } catch (e) {
+        // Fallback for local development
+        console.warn("Could not initialize Firebase Admin with default credentials. Is GOOGLE_APPLICATION_CREDENTIALS set?");
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+        adminApp = initializeApp({
+            credential: cert(serviceAccount)
+        });
+    }
 } else {
   adminApp = getApps()[0];
 }
 
 const firestore = getFirestore(adminApp);
 
-export async function saveSettings(settings: SettingsInput): Promise<{ success: boolean }> {
+export async function saveBrandingSettings(settings: BrandingSettingsInput): Promise<{ success: boolean }> {
   try {
-    const validatedSettings = SettingsSchema.parse(settings);
-    const settingsRef = firestore.collection('settings').doc('app');
+    const validatedSettings = BrandingSettingsSchema.parse(settings);
+    const settingsRef = firestore.collection('settings').doc('branding');
     await settingsRef.set(validatedSettings, { merge: true });
     return { success: true };
   } catch (error) {
-    console.error("Error saving settings with admin SDK:", error);
+    console.error("Error saving branding settings with admin SDK:", error);
     if (error instanceof z.ZodError) {
         console.error("Validation errors:", error.errors);
     }
     return { success: false };
   }
+}
+
+export async function updateList(listId: string, items: string[]): Promise<{ success: boolean }> {
+    try {
+        if (!listId || !Array.isArray(items)) {
+            throw new Error("Invalid input for updating list.");
+        }
+        const listRef = firestore.collection('lists').doc(listId);
+        await listRef.update({ items });
+        return { success: true };
+    } catch (error) {
+        console.error(`Error updating list ${listId}:`, error);
+        return { success: false };
+    }
 }

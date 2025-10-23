@@ -3,7 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Voter, City, User, Settings } from "@/lib/types"
+import type { Voter, City, User, ManagedList } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -41,12 +41,12 @@ interface VoterFormProps {
   voter?: Voter | null;
   cities: City[];
   promoters: User[];
-  settings?: Settings | null;
+  lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: VoterFormValues) => void;
   onCancel: () => void;
 }
 
-export function VoterForm({ voter, cities, promoters, settings, onSubmit, onCancel }: VoterFormProps) {
+export function VoterForm({ voter, cities, promoters, lists, onSubmit, onCancel }: VoterFormProps) {
   const form = useForm<VoterFormValues>({
     resolver: zodResolver(voterFormSchema),
     defaultValues: {
@@ -109,7 +109,7 @@ export function VoterForm({ voter, cities, promoters, settings, onSubmit, onCanc
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {settings?.identificationTypes?.map(type => (
+                    {lists.identificationTypes?.items?.map(type => (
                       <SelectItem key={type} value={type} className="capitalize">
                         {type.replace(/_/g, ' ')}
                       </SelectItem>

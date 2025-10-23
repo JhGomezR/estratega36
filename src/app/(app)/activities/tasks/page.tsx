@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2, Eye } from "lucide-react"
-import type { Task, User, Settings } from "@/lib/types"
+import type { Task, User, ManagedList } from "@/lib/types"
 import { TaskForm } from "@/components/task-form"
 import {
   Dialog,
@@ -39,11 +39,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 const priorityClasses: Record<string, string> = {
   normal: "bg-blue-500 hover:bg-blue-600",
@@ -60,13 +61,23 @@ export default function TasksPage() {
   const { data: users, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
   );
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
-  const { data: settings, isLoading: settingsLoading } = useDoc<Settings>(settingsRef);
+  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
   
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [taskToDelete, setTaskToDelete] = React.useState<Task | null>(null);
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
+
+  const lists = React.useMemo(() => {
+    const listsMap: Record<string, ManagedList | undefined> = {};
+    if (managedLists) {
+        managedLists.forEach(list => {
+            listsMap[list.id] = list;
+        });
+    }
+    return listsMap;
+  }, [managedLists]);
 
   const handleAddNew = () => {
     setSelectedTask(null);
@@ -112,7 +123,7 @@ export default function TasksPage() {
     return user ? `${user.firstName} ${user.lastName}` : 'N/A';
   };
 
-  const isLoading = tasksLoading || usersLoading || settingsLoading;
+  const isLoading = tasksLoading || usersLoading || listsLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -135,7 +146,7 @@ export default function TasksPage() {
             <TaskForm
               task={selectedTask}
               users={users || []}
-              settings={settings}
+              lists={lists}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />
