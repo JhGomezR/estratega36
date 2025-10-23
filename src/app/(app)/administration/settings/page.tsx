@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button"
 import { useFirestore, useMemoFirebase, useDoc } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { Settings } from "@/lib/types"
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Loader2, PlusCircle, Trash2 } from "lucide-react"
+import { saveSettings } from "@/ai/flows/save-settings"
+import { useToast } from "@/hooks/use-toast"
 
 function hexToHsl(hex: string): string | null {
     if (!hex) return null;
@@ -122,9 +123,11 @@ const ListManager = ({ title, items, onUpdate, defaultItems = [] }: { title: str
 
 export default function SettingsPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
   const { data: settings, isLoading } = useDoc<Settings>(settingsRef);
   
+  const [isSaving, setIsSaving] = React.useState(false);
   const [colors, setColors] = React.useState({
     primaryColor: '#1A237E',
     accentColor: '#FFC107',
@@ -177,16 +180,35 @@ export default function SettingsPage() {
     setLists(prev => ({...prev, [listName]: newItems}));
   }
 
-  const handleSave = () => {
-    if (firestore) {
-      const newSettings: Partial<Settings> = {
-          primaryColor: hexToHsl(colors.primaryColor)!,
-          accentColor: hexToHsl(colors.accentColor)!,
-          sidebarColor: hexToHsl(colors.sidebarColor)!,
-          ...lists
-      };
-      setDocumentNonBlocking(doc(firestore, 'settings', 'app'), newSettings, { merge: true });
-      updateCssVariables(newSettings.primaryColor, newSettings.accentColor, newSettings.sidebarColor);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+        const newSettingsData = {
+            primaryColor: hexToHsl(colors.primaryColor)!,
+            accentColor: hexToHsl(colors.accentColor)!,
+            sidebarColor: hexToHsl(colors.sidebarColor)!,
+            ...lists
+        };
+        const result = await saveSettings(newSettingsData);
+
+        if (result.success) {
+            updateCssVariables(newSettingsData.primaryColor, newSettingsData.accentColor, newSettingsData.sidebarColor);
+            toast({
+                title: "Configuración guardada",
+                description: "Tus cambios se han guardado correctamente.",
+            });
+        } else {
+            throw new Error("Server-side save failed");
+        }
+    } catch (error) {
+        console.error("Failed to save settings:", error);
+        toast({
+            variant: "destructive",
+            title: "Error al guardar",
+            description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+        });
+    } finally {
+        setIsSaving(false);
     }
   }
 
@@ -205,7 +227,10 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Configuración de la Plataforma</h1>
             <p className="text-muted-foreground">Personaliza la apariencia y el comportamiento de la aplicación.</p>
         </div>
-        <Button onClick={handleSave}>Guardar Cambios</Button>
+        <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar Cambios
+        </Button>
       </div>
 
       <Card>
@@ -227,7 +252,7 @@ export default function SettingsPage() {
             <Label htmlFor="accent-color">Color de Acento</Label>
             <div className="flex items-center gap-2 col-span-2">
                  <Input id="accent-color-picker" type="color" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-12 h-10 p-1" />
-                <Input id="accent-color-text" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-40" />
+                <Input id="accent-color-text" value={colors.accentColor} onChange-e => handleColorChange('accentColor', e.target.value)} className="w-40" />
             </div>
           </div>
            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
