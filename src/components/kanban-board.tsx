@@ -15,23 +15,6 @@ import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 
-// Wrapper to solve StrictMode issue with react-beautiful-dnd
-const DroppableStrict = ({ children, ...props }: any) => {
-    const [enabled, setEnabled] = useState(false);
-    useEffect(() => {
-        const animation = requestAnimationFrame(() => setEnabled(true));
-        return () => {
-            cancelAnimationFrame(animation);
-            setEnabled(false);
-        };
-    }, []);
-    if (!enabled) {
-        return null;
-    }
-    return <Droppable {...props}>{children}</Droppable>;
-};
-
-
 interface KanbanBoardProps {
     tasks: Task[];
     users: User[];
@@ -101,6 +84,11 @@ const TaskCard = ({ task, user, onEdit, onDelete, onView }: { task: Task, user?:
 
 export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDeleteTask, onViewTask }: KanbanBoardProps) => {
     const firestore = useFirestore();
+    const [isBrowser, setIsBrowser] = useState(false);
+
+    useEffect(() => {
+        setIsBrowser(true);
+    }, []);
 
     const onDragEnd: OnDragEndResponder = (result) => {
         const { destination, source, draggableId } = result;
@@ -143,6 +131,10 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
             </div>
         )
     }
+    
+    if (!isBrowser) {
+        return null; 
+    }
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
@@ -150,8 +142,8 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
                 {taskStatuses.map(status => {
                     const columnTasks = tasks.filter(task => task.status === status);
                     return (
-                         <DroppableStrict key={status} droppableId={status}>
-                            {(provided: any) => (
+                         <Droppable key={status} droppableId={status}>
+                            {(provided) => (
                                 <div
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
@@ -195,7 +187,7 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
                                     </Card>
                                 </div>
                             )}
-                        </DroppableStrict>
+                        </Droppable>
                     )
                 })}
             </div>
