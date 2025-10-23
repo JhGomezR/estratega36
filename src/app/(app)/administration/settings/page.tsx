@@ -68,27 +68,20 @@ function hslStringToHex(hsl: string): string {
     return hslToHex(h, s, l);
 }
 
-const ListManager = ({ title, items, onUpdate, defaultItems = [] }: { title: string, items: string[], onUpdate: (items: string[]) => void, defaultItems?: readonly string[] }) => {
-    const [localItems, setLocalItems] = React.useState(items);
+const ListManager = ({ title, items, listKey, onUpdate, defaultItems = [] }: { title: string, items: string[], listKey: keyof Omit<Settings, 'primaryColor' | 'accentColor' | 'sidebarColor' | 'logoUrl'>, onUpdate: (key: any, items: string[]) => void, defaultItems?: readonly string[] }) => {
     const [newItem, setNewItem] = React.useState("");
 
-    React.useEffect(() => {
-        setLocalItems(items);
-    }, [items]);
-
     const handleAdd = () => {
-        if (newItem && !localItems.includes(newItem)) {
-            const updated = [...localItems, newItem];
-            setLocalItems(updated);
-            onUpdate(updated);
+        if (newItem && !items.includes(newItem)) {
+            const updated = [...items, newItem];
+            onUpdate(listKey, updated);
             setNewItem("");
         }
     }
 
     const handleRemove = (itemToRemove: string) => {
-        const updated = localItems.filter(item => item !== itemToRemove);
-        setLocalItems(updated);
-        onUpdate(updated);
+        const updated = items.filter(item => item !== itemToRemove);
+        onUpdate(listKey, updated);
     }
     
     const isDefaultItem = (item: string) => defaultItems.includes(item);
@@ -98,7 +91,7 @@ const ListManager = ({ title, items, onUpdate, defaultItems = [] }: { title: str
         <div className="space-y-2">
             <Label>{title}</Label>
             <div className="space-y-2">
-                {localItems.map((item) => (
+                {items.map((item) => (
                     <div key={item} className="flex items-center gap-2">
                         <Input value={item} readOnly className="flex-1" />
                         <Button variant="ghost" size="icon" onClick={() => handleRemove(item)} disabled={isDefaultItem(item)}>
@@ -176,26 +169,41 @@ export default function SettingsPage() {
     setColors(prev => ({ ...prev, [colorName]: value }));
   }
   
-  const handleListUpdate = (listName: keyof typeof lists, newItems: string[]) => {
-    setLists(prev => ({...prev, [listName]: newItems}));
+  const handleListUpdate = async (listKey: keyof typeof lists, newItems: string[]) => {
+    setLists(prev => ({...prev, [listKey]: newItems}));
+    try {
+        const result = await saveSettings({ [listKey]: newItems });
+        if (!result.success) {
+             throw new Error("Server-side list update failed");
+        }
+    } catch(error) {
+         toast({
+            variant: "destructive",
+            title: "Error al actualizar la lista",
+            description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+        });
+        // Revert UI change on failure
+        if (settings) {
+            setLists(prev => ({...prev, [listKey]: settings[listKey] || []}))
+        }
+    }
   }
 
-  const handleSave = async () => {
+  const handleSaveColors = async () => {
     setIsSaving(true);
     try {
-        const newSettingsData = {
+        const colorSettings = {
             primaryColor: hexToHsl(colors.primaryColor)!,
             accentColor: hexToHsl(colors.accentColor)!,
             sidebarColor: hexToHsl(colors.sidebarColor)!,
-            ...lists
         };
-        const result = await saveSettings(newSettingsData);
+        const result = await saveSettings(colorSettings);
 
         if (result.success) {
-            updateCssVariables(newSettingsData.primaryColor, newSettingsData.accentColor, newSettingsData.sidebarColor);
+            updateCssVariables(colorSettings.primaryColor, colorSettings.accentColor, colorSettings.sidebarColor);
             toast({
                 title: "Configuración guardada",
-                description: "Tus cambios se han guardado correctamente.",
+                description: "Tus cambios de color se han guardado correctamente.",
             });
         } else {
             throw new Error("Server-side save failed");
@@ -227,18 +235,20 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Configuración de la Plataforma</h1>
             <p className="text-muted-foreground">Personaliza la apariencia y el comportamiento de la aplicación.</p>
         </div>
-        <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar Cambios
-        </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Personalización de la Marca</CardTitle>
-          <CardDescription>
-            Ajusta los colores, el logo y el fondo para que coincidan con la identidad de tu campaña.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Personalización de la Marca</CardTitle>
+              <CardDescription>
+                Ajusta los colores, el logo y el fondo para que coincidan con la identidad de tu campaña.
+              </CardDescription>
+            </div>
+             <Button onClick={handleSaveColors} disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Guardar Colores
+            </Button>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
@@ -275,15 +285,15 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Gestión de Listas</CardTitle>
           <CardDescription>
-            Administra los valores para los campos de selección en la aplicación.
+            Administra los valores para los campos de selección en la aplicación. Los cambios se guardan automáticamente.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <ListManager title="Tipos de Documento" items={lists.identificationTypes} onUpdate={(items) => handleListUpdate('identificationTypes', items)} />
-            <ListManager title="Prioridades de Tareas" items={lists.taskPriorities} onUpdate={(items) => handleListUpdate('taskPriorities', items)} />
-            <ListManager title="Estados de Tareas" items={lists.taskStatuses} onUpdate={(items) => handleListUpdate('taskStatuses', items)} />
-            <ListManager title="Tipos de Campaña" items={lists.campaignTypes} onUpdate={(items) => handleListUpdate('campaignTypes', items)} />
-            <ListManager title="Estados de Campaña" items={lists.campaignStatuses} onUpdate={(items) => handleListUpdate('campaignStatuses', items)} defaultItems={defaultCampaignStatuses} />
+            <ListManager title="Tipos de Documento" items={lists.identificationTypes} listKey="identificationTypes" onUpdate={handleListUpdate} />
+            <ListManager title="Prioridades de Tareas" items={lists.taskPriorities} listKey="taskPriorities" onUpdate={handleListUpdate} />
+            <ListManager title="Estados de Tareas" items={lists.taskStatuses} listKey="taskStatuses" onUpdate={handleListUpdate} />
+            <ListManager title="Tipos de Campaña" items={lists.campaignTypes} listKey="campaignTypes" onUpdate={handleListUpdate} />
+            <ListManager title="Estados de Campaña" items={lists.campaignStatuses} listKey="campaignStatuses" onUpdate={handleListUpdate} defaultItems={defaultCampaignStatuses} />
         </CardContent>
       </Card>
     </div>

@@ -11,15 +11,15 @@ import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 
 const SettingsSchema = z.object({
-  primaryColor: z.string(),
-  accentColor: z.string(),
-  sidebarColor: z.string(),
+  primaryColor: z.string().optional(),
+  accentColor: z.string().optional(),
+  sidebarColor: z.string().optional(),
   logoUrl: z.string().optional(),
-  identificationTypes: z.array(z.string()),
-  taskPriorities: z.array(z.string()),
-  taskStatuses: z.array(z.string()),
-  campaignTypes: z.array(z.string()),
-  campaignStatuses: z.array(z.string()),
+  identificationTypes: z.array(z.string()).optional(),
+  taskPriorities: z.array(z.string()).optional(),
+  taskStatuses: z.array(z.string()).optional(),
+  campaignTypes: z.array(z.string()).optional(),
+  campaignStatuses: z.array(z.string()).optional(),
 });
 
 export type SettingsInput = z.infer<typeof SettingsSchema>;
@@ -36,12 +36,15 @@ const saveSettingsFlow = ai.defineFlow(
   },
   async (settings) => {
     try {
+      // This flow runs on the server, but we can use the client SDK's initialization
+      // to get a correctly configured Firestore instance.
       const { firestore } = initializeFirebase();
       const settingsRef = doc(firestore, 'settings', 'app');
       await setDoc(settingsRef, settings, { merge: true });
       return { success: true };
     } catch (error) {
       console.error("Error saving settings:", error);
+      // Ensure a structured error is returned for the client to handle.
       return { success: false };
     }
   }
