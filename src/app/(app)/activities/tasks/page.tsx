@@ -177,23 +177,24 @@ export default function TasksPage() {
         </div>
       </div>
       
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por tarea o persona asignada..."
-          className="pl-10"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
      {view === 'list' && (
       <Card>
-        <CardHeader>
-          <CardTitle>Lista de Tareas</CardTitle>
-          <CardDescription>
-            Un listado de todas las tareas asignadas.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>Lista de Tareas</CardTitle>
+                <CardDescription>
+                    Un listado de todas las tareas asignadas.
+                </CardDescription>
+            </div>
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                placeholder="Buscar por tarea o persona..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -257,15 +258,36 @@ export default function TasksPage() {
       )}
 
       {view === 'kanban' && (
-        <KanbanBoard 
-            tasks={filteredTasks}
-            users={users || []}
-            lists={lists}
-            isLoading={isLoading}
-            onEditTask={handleEdit}
-            onDeleteTask={confirmDelete}
-            onViewTask={handleView}
-        />
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Kanban</CardTitle>
+                    <CardDescription>
+                        Visualización de tareas por estado.
+                    </CardDescription>
+                </div>
+                 <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                    placeholder="Buscar por tarea o persona..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+            </CardHeader>
+            <CardContent>
+                <KanbanBoard 
+                    tasks={filteredTasks}
+                    users={users || []}
+                    lists={lists}
+                    isLoading={isLoading}
+                    onEditTask={handleEdit}
+                    onDeleteTask={confirmDelete}
+                    onViewTask={handleView}
+                />
+            </CardContent>
+        </Card>
       )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
