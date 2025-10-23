@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Eye, Edit, Trash2, MoreVertical } from 'lucide-react';
+import { Eye, Edit, Trash2, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, isPast } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
@@ -18,9 +18,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -51,20 +48,37 @@ const statusColors: Record<string, string> = {
 const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusChange }: { task: Task, user?: User, allStatuses: string[], onEdit: () => void, onDelete: () => void, onView: () => void, onStatusChange: (newStatus: string) => void }) => {
     
     const dueDate = new Date(task.dueDate);
-    const now = new Date();
     const isOverdue = isPast(dueDate) && task.status !== 'finalizada';
 
     return (
         <Card className="mb-4 bg-card hover:bg-muted/50 transition-colors duration-200 shadow-sm">
-            <CardContent className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                    <h4 className="font-semibold text-sm pr-2">{task.title}</h4>
-                     {user && (
-                        <Avatar className="h-7 w-7 text-xs">
-                            <AvatarImage src={user.avatar} data-ai-hint="person portrait"/>
-                            <AvatarFallback>{user.firstName.charAt(0)}{user.lastName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    )}
+            <CardContent className="p-4 space-y-3 flex flex-col">
+                <div className="flex justify-between items-start gap-2">
+                    <h4 className="font-semibold text-sm pr-2 flex-1">{task.title}</h4>
+                    <div className="flex items-center gap-2">
+                        {user && (
+                            <Avatar className="h-7 w-7 text-xs">
+                                <AvatarImage src={user.avatar} data-ai-hint="person portrait"/>
+                                <AvatarFallback>{user.firstName.charAt(0)}{user.lastName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                        )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <ChevronsUpDown className="h-4 w-4 text-muted-foreground"/>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Mover a</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {allStatuses.filter(s => s !== task.status).map(status => (
+                                    <DropdownMenuItem key={status} onClick={() => onStatusChange(status)} className="capitalize">
+                                        {status.replace(/_/g, ' ')}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
 
                 <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
@@ -77,35 +91,14 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
                     </Badge>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t mt-auto">
                     <span className={cn("font-medium", isOverdue && "text-red-500")}>
                         {format(dueDate, "dd MMM, yyyy")}
                     </span>
                     <div className="flex items-center">
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <MoreVertical className="h-4 w-4"/>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={onView}><Eye className="mr-2"/>Ver Detalles</DropdownMenuItem>
-                                <DropdownMenuItem onClick={onEdit}><Edit className="mr-2"/>Editar</DropdownMenuItem>
-                                <DropdownMenuItem onClick={onDelete} className="text-red-500 focus:text-red-500"><Trash2 className="mr-2"/>Eliminar</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuSub>
-                                    <DropdownMenuSubTrigger>Mover a</DropdownMenuSubTrigger>
-                                    <DropdownMenuSubContent>
-                                        {allStatuses.filter(s => s !== task.status).map(status => (
-                                            <DropdownMenuItem key={status} onClick={() => onStatusChange(status)} className="capitalize">
-                                                {status.replace(/_/g, ' ')}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onView}><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                 </div>
             </CardContent>
