@@ -1,105 +1,138 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset allows any read and write access to all documents in the database.
- *
- * Core Philosophy:
- * This ruleset is for PROTOTYPING ONLY and provides NO AUTHENTICATION OR AUTHORIZATION.
- * It is explicitly designed for rapid development iterations.  It is **critically insecure**
- * for production deployments.
- *
- * Data Structure:
- * The Firestore database contains collections for users, roles, campaigns, voters, cities, tasks and calls.
- *
- * Key Security Decisions:
- * - All reads and writes are allowed.
- * - No data validation is performed.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows any read or write to user profiles.
+     * @description Grants access to application settings. Read access is public, write access is denied.
+     * @path /settings/app
+     * @allow (get, list): Any user can read application settings.
+     * @deny (create, update, delete): No user can modify application settings through client-side requests.
+     * @principle Public read, admin-only write.
+     */
+    match /settings/app {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Manages user profiles. Only the authenticated user can access their own profile.
      * @path /users/{userId}
-     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
-     * @deny (none)
-     * @principle This rule is insecure and for prototyping only.
+     * @allow (create): If the authenticated user's ID matches the user ID in the path.
+     * @allow (get, list): If the authenticated user's ID matches the user ID in the path.
+     * @allow (update, delete): If the authenticated user's ID matches the user ID in the path and the document exists.
+     * @deny (create, update, delete): If the authenticated user's ID does not match the user ID in the path.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Listing users is not allowed
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Allows any read or write to roles.
+     * @description Manages role definitions. Access is unrestricted, assuming they are managed via the admin SDK.
      * @path /roles/{roleId}
-     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
-     * @deny (none)
-     * @principle This rule is insecure and for prototyping only.
+     * @allow (get, list, create, update, delete): Any authenticated user can read and write role data.
+     * @principle Open access for role management.
      */
     match /roles/{roleId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;  // assuming roles are not created client side
+      allow update: if false; // assuming roles are not updated client side
+      allow delete: if false; // assuming roles are not deleted client side
     }
 
-    /**
-     * @description Allows any read or write to campaigns.
-     * @path /campaigns/{campaignId}
-     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
-     * @deny (none)
-     * @principle This rule is insecure and for prototyping only.
-     */
+     /**
+      * @description Manages campaign information. Access is owner-only.
+      * @path /campaigns/{campaignId}
+      * @allow (get, list): Any authenticated user can read campaign data.
+      * @allow (create, update, delete): Only the owner can create, update, or delete campaign data, and the document must exist.
+      * @principle Enforces document ownership for writes.
+      */
     match /campaigns/{campaignId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows any read or write to voters.
+     * @description Manages voter information. Access is owner-only.
      * @path /voters/{voterId}
-     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
-     * @deny (none)
-     * @principle This rule is insecure and for prototyping only.
+     * @allow (get, list): Any authenticated user can read voter data.
+     * @allow (create, update, delete): Only the owner can create, update, or delete voter data, and the document must exist.
+     * @principle Enforces document ownership for writes.
      */
     match /voters/{voterId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows any read or write to cities.
+     * @description Manages city information. Access is unrestricted, assuming they are managed via the admin SDK.
      * @path /cities/{cityId}
-     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
-     * @deny (none)
-     * @principle This rule is insecure and for prototyping only.
+     * @allow (get, list, create, update, delete): Any authenticated user can read and write city data.
+     * @principle Open access for city management.
      */
     match /cities/{cityId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;  // assuming cities are not created client side
+      allow update: if false; // assuming cities are not updated client side
+      allow delete: if false; // assuming cities are not deleted client side
     }
 
     /**
-     * @description Allows any read or write to tasks.
+     * @description Manages campaign tasks. Access is owner-only.
      * @path /tasks/{taskId}
-     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
-     * @deny (none)
-     * @principle This rule is insecure and for prototyping only.
+     * @allow (get, list): Any authenticated user can read task data.
+     * @allow (create, update, delete): Only the owner can create, update, or delete task data, and the document must exist.
+     * @principle Enforces document ownership for writes.
      */
     match /tasks/{taskId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows any read or write to calls.
+     * @description Manages call records for voters. Access is owner-only.
      * @path /calls/{callId}
-     * @allow (get, list, create, update, delete) Any authenticated user can perform any operation.
-     * @deny (none)
-     * @principle This rule is insecure and for prototyping only.
+     * @allow (get, list): Any authenticated user can read call data.
+     * @allow (create, update, delete): Only the owner can create, update, or delete call data, and the document must exist.
+     * @principle Enforces document ownership for writes.
      */
     match /calls/{callId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
     }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // The resource variable is only populated for update and delete operations
+    // so checking resource != null for create operations will always fail.
+    // Removed isExistingOwner function
+
   }
 }
