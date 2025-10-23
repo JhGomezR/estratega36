@@ -33,6 +33,7 @@ import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
 
 const statusLabels: Record<Call['status'], string> = {
   pendiente: "Pendiente",
@@ -57,6 +58,17 @@ export default function CallsPage() {
   const [isViewOpen, setIsViewOpen] = React.useState(false);
   const [selectedCall, setSelectedCall] = React.useState<Call | null>(null);
   const [isSyncing, setIsSyncing] = React.useState(false);
+  const [localAttempts, setLocalAttempts] = React.useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    if (calls) {
+      const initialAttempts = calls.reduce((acc, call) => {
+        acc[call.id] = call.attempts;
+        return acc;
+      }, {} as Record<string, number>);
+      setLocalAttempts(initialAttempts);
+    }
+  }, [calls]);
 
   React.useEffect(() => {
     const syncCallList = async () => {
@@ -119,6 +131,22 @@ export default function CallsPage() {
     }
     setIsFormOpen(false);
   };
+
+  const handleAttemptsChange = (callId: string, value: string) => {
+    const newAttempts = parseInt(value, 10);
+    if (!isNaN(newAttempts)) {
+        setLocalAttempts(prev => ({ ...prev, [callId]: newAttempts }));
+    }
+  }
+
+  const handleAttemptsBlur = (callId: string) => {
+    if (firestore && localAttempts[callId] !== undefined) {
+      const originalCall = calls?.find(c => c.id === callId);
+      if (originalCall && originalCall.attempts !== localAttempts[callId]) {
+        setDocumentNonBlocking(doc(firestore, 'calls', callId), { attempts: localAttempts[callId] }, { merge: true });
+      }
+    }
+  }
   
   const getVoterInfo = (voterId: string) => {
     return voters?.find(v => v.id === voterId);
@@ -188,7 +216,15 @@ export default function CallsPage() {
                           {statusLabels[call.status]}
                         </Badge>
                       </TableCell>
-                      <TableCell>{call.attempts}</TableCell>
+                      <TableCell>
+                         <Input
+                          type="number"
+                          value={localAttempts[call.id] ?? 0}
+                          onChange={(e) => handleAttemptsChange(call.id, e.target.value)}
+                          onBlur={() => handleAttemptsBlur(call.id)}
+                          className="h-8 w-20 p-1 text-center"
+                         />
+                      </TableCell>
                       <TableCell>{call.callDate ? format(new Date(call.callDate), 'dd/MM/yyyy HH:mm') : 'N/A'}</TableCell>
                       <TableCell>{getUserName(call.userId)}</TableCell>
                       <TableCell className="text-right">
