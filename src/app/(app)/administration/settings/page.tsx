@@ -15,7 +15,7 @@ import { useFirestore, useMemoFirebase, useDoc } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { Settings } from "@/lib/types"
 import { Loader2, PlusCircle, Trash2 } from "lucide-react"
-import { saveSettings } from "@/ai/flows/save-settings"
+import { saveSettings } from "@/app/(app)/administration/settings/actions"
 import { useToast } from "@/hooks/use-toast"
 
 function hexToHsl(hex: string): string | null {
@@ -170,6 +170,7 @@ export default function SettingsPage() {
   }
   
   const handleListUpdate = async (listKey: keyof typeof lists, newItems: string[]) => {
+    const oldItems = lists[listKey];
     setLists(prev => ({...prev, [listKey]: newItems}));
     try {
         const result = await saveSettings({ [listKey]: newItems });
@@ -183,9 +184,7 @@ export default function SettingsPage() {
             description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
         });
         // Revert UI change on failure
-        if (settings) {
-            setLists(prev => ({...prev, [listKey]: settings[listKey] || []}))
-        }
+        setLists(prev => ({...prev, [listKey]: oldItems}))
     }
   }
 
