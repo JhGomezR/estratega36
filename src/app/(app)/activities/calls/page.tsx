@@ -46,6 +46,11 @@ const statusLabels: Record<Call['status'], string> = {
   atendida: "Atendida",
 };
 
+const statusColors: Record<Call['status'], string> = {
+  pendiente: 'bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30',
+  atendida: 'bg-green-500/20 text-green-700 hover:bg-green-500/30'
+}
+
 export default function CallsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -238,48 +243,30 @@ export default function CallsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Llamadas</h1>
           <p className="text-muted-foreground">Coordina y registra las llamadas a los votantes.</p>
         </div>
-         {isSyncing && (
-            <div className="flex items-center text-sm text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sincronizando...
-            </div>
-        )}
-      </div>
-
-       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Llamadas Pendientes
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{callStats.pending}</div>
-            <p className="text-xs text-muted-foreground">
-              Llamadas por realizar.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Llamadas Atendidas
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{callStats.attended}</div>
-            <p className="text-xs text-muted-foreground">
-              Llamadas que ya fueron contactadas.
-            </p>
-          </CardContent>
-        </Card>
+         <div className="flex items-center gap-2">
+            {isSyncing ? (
+              <div className="flex items-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sincronizando...
+              </div>
+            ) : (
+              <>
+                <Badge className={cn("gap-2", statusColors.pendiente)}>
+                  <Clock className="h-3 w-3"/>
+                  <span>Pendientes: {callStats.pending}</span>
+                </Badge>
+                <Badge className={cn("gap-2", statusColors.atendida)}>
+                  <CheckCircle className="h-3 w-3"/>
+                  <span>Atendidas: {callStats.attended}</span>
+                </Badge>
+              </>
+            )}
+        </div>
       </div>
 
       <div className="relative">
@@ -337,8 +324,7 @@ export default function CallsPage() {
                         >
                             <SelectTrigger className={cn(
                               "h-8 w-32 focus:ring-0 border-0 font-semibold",
-                              call.status === 'pendiente' && 'bg-yellow-500/20 text-yellow-700',
-                              call.status === 'atendida' && 'bg-green-500/20 text-green-700'
+                              statusColors[call.status]
                             )}>
                                 <SelectValue placeholder="Selecciona estado" />
                             </SelectTrigger>
@@ -499,3 +485,5 @@ export default function CallsPage() {
     </div>
   )
 }
+
+    
