@@ -61,14 +61,15 @@ export type Task = WithId<{
   priority: (typeof TaskPriority)[number];
 }>;
 
-export type Call = {
-  id: string;
-  voterName: string;
-  phoneNumber: string;
-  scheduledTime: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
-  notes: string;
-};
+export const CallStatus = ['pendiente', 'atendida'] as const;
+
+export type Call = WithId<{
+  voterId: string;
+  userId?: string;
+  status: (typeof CallStatus)[number];
+  callDate?: string;
+  attempts: number;
+}>;
 
 export const IdentificationType = [
   'cedula',

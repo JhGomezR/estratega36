@@ -269,6 +269,37 @@
         "latitude",
         "longitude"
       ]
+    },
+    "Call": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Call",
+      "type": "object",
+      "description": "Represents a call to a voter.",
+      "properties": {
+        "voterId": {
+          "type": "string",
+          "description": "The ID of the voter to be called."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who made the call."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pendiente", "atendida"],
+          "description": "The status of the call."
+        },
+        "callDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the call was attended."
+        },
+        "attempts": {
+          "type": "number",
+          "description": "Number of attempts made to call the voter."
+        }
+      },
+      "required": ["voterId", "status", "attempts"]
     }
   },
   "auth": {
@@ -312,6 +343,12 @@
         "$ref": "#/entities/Task"
       },
       "description": "Stores campaign tasks."
+    },
+     "/calls/{callId}": {
+      "schema": {
+        "$ref": "#/entities/Call"
+      },
+      "description": "Stores call records for voters."
     }
   }
 }

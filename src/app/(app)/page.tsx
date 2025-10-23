@@ -70,7 +70,7 @@ export default function Dashboard() {
         id: activity.id,
         description: `Llamada a votante`,
         type: 'Call',
-        date: activity.scheduledTime.split(' ')[0],
+        date: activity.callDate || new Date().toISOString(),
     }
 }).sort((a, b) => {
     try {
