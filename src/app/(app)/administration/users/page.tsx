@@ -139,7 +139,7 @@ export default function UsersPage() {
               user={selectedUser}
               roles={roles || []}
               cities={cities || []}
-              campaigns={campaigns?.filter(c => c.status === 'active') || []}
+              campaigns={campaigns?.filter(c => c.status === 'En Campaña') || []}
               lists={lists}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
