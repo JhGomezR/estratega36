@@ -275,27 +275,27 @@ export default function CallsPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-            <div>
-                <CardTitle>Llamadas Programadas</CardTitle>
-                <CardDescription>Listado de llamadas a realizar y su estado actual.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex-1">
+            <CardTitle>Llamadas Programadas</CardTitle>
+            <CardDescription>Listado de llamadas a realizar y su estado actual.</CardDescription>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                className="pl-10 h-9 w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-            <div className="flex items-center gap-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Buscar..."
-                        className="pl-10 h-9 w-64"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-                {searchQuery && (
-                    <div className="text-sm text-muted-foreground">
-                        {processedCalls.length} resultado(s)
-                    </div>
-                )}
-            </div>
+            {searchQuery && (
+              <div className="text-sm text-muted-foreground">
+                {processedCalls.length} resultado(s)
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
