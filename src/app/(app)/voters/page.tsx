@@ -116,8 +116,16 @@ export default function VotersPage() {
 
     try {
         const city = cities?.find(c => c.id === data.cityId);
-        const fullAddress = `${data.address}, ${data.vereda}, ${city?.name}, ${city?.department}, ${city?.country}`;
+        const addressParts = [
+            data.address,
+            data.vereda,
+            city?.name,
+            city?.department,
+            city?.country
+        ].filter(Boolean); // Filtra partes vacías
         
+        const fullAddress = addressParts.join(', ');
+
         const geocodeResult = await geocodeAddress({ address: fullAddress });
 
         let voterData: Partial<Voter> = { ...data };
