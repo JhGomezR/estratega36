@@ -16,8 +16,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -53,7 +51,7 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
     return (
         <Card className="mb-4 bg-card hover:bg-muted/50 transition-colors duration-200 shadow-sm">
             <CardContent className="p-4 space-y-3 flex flex-col">
-                <div className="flex justify-between items-start gap-2">
+                 <div className="flex justify-between items-start gap-2">
                     <h4 className="font-semibold text-sm pr-2 flex-1">{task.title}</h4>
                      {user && (
                         <Avatar className="h-7 w-7 text-xs">
@@ -73,11 +71,12 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
                     </Badge>
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="text-xs h-7">Mover a</Button>
+                            <Button variant="outline" size="sm" className="text-xs h-7">
+                                <ChevronsUpDown className="mr-2 h-3 w-3"/>
+                                Mover a
+                            </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Mover tarea a...</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
                             {allStatuses.filter(s => s !== task.status).map(status => (
                                 <DropdownMenuItem key={status} onClick={() => onStatusChange(status)} className="capitalize">
                                     {status.replace(/_/g, ' ')}
