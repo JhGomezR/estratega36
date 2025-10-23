@@ -34,6 +34,8 @@ import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CallStatus } from "@/lib/types"
 
 const statusLabels: Record<Call['status'], string> = {
   pendiente: "Pendiente",
@@ -147,6 +149,19 @@ export default function CallsPage() {
       }
     }
   }
+
+  const handleStatusChange = (callId: string, newStatus: Call['status']) => {
+    if (firestore) {
+      const originalCall = calls?.find(c => c.id === callId);
+      if(originalCall && originalCall.status !== newStatus) {
+        let callData: Partial<Call> = { status: newStatus };
+        if (newStatus === 'atendida') {
+          callData.callDate = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'");
+        }
+        setDocumentNonBlocking(doc(firestore, 'calls', callId), callData, { merge: true });
+      }
+    }
+  };
   
   const getVoterInfo = (voterId: string) => {
     return voters?.find(v => v.id === voterId);
@@ -212,9 +227,21 @@ export default function CallsPage() {
                       <TableCell className="font-medium">{voter ? `${voter.firstName} ${voter.lastName}` : 'Votante no encontrado'}</TableCell>
                       <TableCell>{voter?.phone || 'N/A'}</TableCell>
                       <TableCell>
-                        <Badge variant={call.status === "atendida" ? "default" : "secondary"}>
-                          {statusLabels[call.status]}
-                        </Badge>
+                        <Select
+                            value={call.status}
+                            onValueChange={(newStatus: Call['status']) => handleStatusChange(call.id, newStatus)}
+                        >
+                            <SelectTrigger className="h-8 w-32 focus:ring-0">
+                                <SelectValue placeholder="Selecciona estado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CallStatus.map(status => (
+                                <SelectItem key={status} value={status}>
+                                    {statusLabels[status]}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                          <Input
@@ -308,3 +335,5 @@ export default function CallsPage() {
     </div>
   )
 }
+
+    
