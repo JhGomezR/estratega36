@@ -129,6 +129,13 @@ export default function CallsPage() {
   const getVoterInfo = React.useCallback((voterId: string) => {
     return voters?.find(v => v.id === voterId);
   }, [voters]);
+  
+  const getUserName = React.useCallback((userId?: string) => {
+    if (!userId) return '';
+    const user = users?.find(u => u.id === userId);
+    return user ? `${user.firstName} ${user.lastName}` : 'Desconocido';
+  }, [users]);
+
 
   const processedCalls = React.useMemo(() => {
     if (!calls) return [];
@@ -141,8 +148,10 @@ export default function CallsPage() {
       const nameMatch = voter ? `${voter.firstName} ${voter.lastName}`.toLowerCase().includes(lowercasedQuery) : false;
       const phoneMatch = voter?.phone ? voter.phone.toLowerCase().includes(lowercasedQuery) : false;
       const statusMatch = statusLabels[call.status].toLowerCase().includes(lowercasedQuery);
+      const userMatch = getUserName(call.userId).toLowerCase().includes(lowercasedQuery);
 
-      return nameMatch || phoneMatch || statusMatch;
+
+      return nameMatch || phoneMatch || statusMatch || userMatch;
     });
 
     return filtered.sort((a, b) => {
@@ -153,7 +162,7 @@ export default function CallsPage() {
       if (b.callDate) return 1;
       return 0;
     });
-  }, [calls, searchQuery, getVoterInfo]);
+  }, [calls, searchQuery, getVoterInfo, getUserName]);
 
   const callStats = React.useMemo(() => {
     if (!calls) return { pending: 0, attended: 0 };
@@ -237,12 +246,6 @@ export default function CallsPage() {
       setSelectedCall(null);
     }
   };
-
-  const getUserName = (userId?: string) => {
-    if (!userId) return 'N/A';
-    const user = users?.find(u => u.id === userId);
-    return user ? `${user.firstName} ${user.lastName}` : 'Desconocido';
-  }
 
   const isLoading = callsLoading || votersLoading || usersLoading;
 
@@ -498,3 +501,5 @@ export default function CallsPage() {
     </div>
   )
 }
+
+    
