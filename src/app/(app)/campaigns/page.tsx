@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import type { Campaign } from "@/lib/types"
+import type { Campaign, Settings } from "@/lib/types"
 import { CampaignForm } from "@/components/campaign-form"
 import {
   Dialog,
@@ -28,7 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import {
@@ -42,18 +42,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { CampaignStatus } from "@/lib/types"
-
-const statusLabels: Record<(typeof CampaignStatus)[number], string> = {
-  planned: 'Futura',
-  active: 'En Campaña',
-  completed: 'Finalizada'
-};
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
   const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore]);
-  const { data: campaigns, isLoading } = useCollection<Campaign>(campaignsCollection);
+  const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollection);
+
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
+  const { data: settings, isLoading: settingsLoading } = useDoc<Settings>(settingsRef);
   
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -94,6 +90,12 @@ export default function CampaignsPage() {
     setIsFormOpen(false);
   }
 
+  const getStatusLabel = (statusValue: string) => {
+      return settings?.campaignStatuses?.find(s => s === statusValue) || statusValue;
+  }
+
+  const isLoading = campaignsLoading || settingsLoading;
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
@@ -114,6 +116,7 @@ export default function CampaignsPage() {
             </DialogHeader>
             <CampaignForm
               campaign={selectedCampaign}
+              settings={settings}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />
@@ -161,7 +164,7 @@ export default function CampaignsPage() {
                       }
                       className="capitalize"
                     >
-                      {statusLabels[campaign.status]}
+                      {getStatusLabel(campaign.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>

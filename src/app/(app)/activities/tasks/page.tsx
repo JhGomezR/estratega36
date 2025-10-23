@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2, Eye } from "lucide-react"
-import type { Task, User } from "@/lib/types"
+import type { Task, User, Settings } from "@/lib/types"
 import { TaskForm } from "@/components/task-form"
 import {
   Dialog,
@@ -39,30 +39,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 
-const priorityClasses: Record<Task['priority'], string> = {
+const priorityClasses: Record<string, string> = {
   normal: "bg-blue-500 hover:bg-blue-600",
   alta: "bg-orange-500 hover:bg-orange-600",
   urgente: "bg-red-500 hover:bg-red-600",
 };
-
-const priorityLabels: Record<Task['priority'], string> = {
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
-};
-
-const statusLabels: Record<Task['status'], string> = {
-  pendiente: "Pendiente",
-  en_curso: "En Curso",
-  finalizada: "Finalizada",
-};
-
 
 export default function TasksPage() {
   const firestore = useFirestore();
@@ -73,6 +60,8 @@ export default function TasksPage() {
   const { data: users, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
   );
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
+  const { data: settings, isLoading: settingsLoading } = useDoc<Settings>(settingsRef);
   
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -123,7 +112,7 @@ export default function TasksPage() {
     return user ? `${user.firstName} ${user.lastName}` : 'N/A';
   };
 
-  const isLoading = tasksLoading || usersLoading;
+  const isLoading = tasksLoading || usersLoading || settingsLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -146,6 +135,7 @@ export default function TasksPage() {
             <TaskForm
               task={selectedTask}
               users={users || []}
+              settings={settings}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />
@@ -182,8 +172,8 @@ export default function TasksPage() {
                 <TableRow key={task.id}>
                   <TableCell className="font-medium">{task.title}</TableCell>
                   <TableCell>
-                    <Badge className={priorityClasses[task.priority]}>
-                      {priorityLabels[task.priority]}
+                    <Badge className={cn("capitalize", priorityClasses[task.priority] || "bg-gray-500")}>
+                      {task.priority}
                     </Badge>
                   </TableCell>
                   <TableCell>{getUserName(task.assignedToId)}</TableCell>
@@ -197,8 +187,9 @@ export default function TasksPage() {
                           ? "secondary"
                           : "outline"
                       }
+                      className="capitalize"
                     >
-                      {statusLabels[task.status]}
+                      {task.status.replace(/_/g, ' ')}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -233,16 +224,16 @@ export default function TasksPage() {
                             </div>
                              <div className="grid grid-cols-3 items-center gap-4">
                                 <span className="font-semibold text-sm">Prioridad:</span>
-                                <Badge className={`col-span-2 w-fit ${priorityClasses[taskToView?.priority || 'normal']}`}>
-                                  {priorityLabels[taskToView?.priority || 'normal']}
+                                <Badge className={cn("col-span-2 w-fit capitalize", priorityClasses[taskToView?.priority || 'normal'])}>
+                                  {taskToView?.priority}
                                 </Badge>
                             </div>
                              <div className="grid grid-cols-3 items-center gap-4">
                                 <span className="font-semibold text-sm">Estado:</span>
                                 <Badge variant={
                                         taskToView?.status === "finalizada" ? "default" : taskToView?.status === "en_curso" ? "secondary" : "outline"
-                                      } className="col-span-2 w-fit">
-                                  {statusLabels[taskToView?.status || 'pendiente']}
+                                      } className="col-span-2 w-fit capitalize">
+                                  {taskToView?.status.replace(/_/g, ' ')}
                                 </Badge>
                             </div>
                         </div>

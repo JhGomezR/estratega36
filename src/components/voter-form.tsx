@@ -3,8 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Voter, City, User } from "@/lib/types"
-import { IdentificationType } from "@/lib/types"
+import type { Voter, City, User, Settings } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -26,7 +25,7 @@ import {
 const voterFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
   lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres."),
-  idType: z.enum(IdentificationType),
+  idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
   idNumber: z.string().min(5, "El número de documento es requerido."),
   email: z.string().email("El correo electrónico no es válido.").optional().or(z.literal('')),
   phone: z.string().min(7, "El celular no es válido.").optional().or(z.literal('')),
@@ -42,17 +41,18 @@ interface VoterFormProps {
   voter?: Voter | null;
   cities: City[];
   promoters: User[];
+  settings?: Settings | null;
   onSubmit: (data: VoterFormValues) => void;
   onCancel: () => void;
 }
 
-export function VoterForm({ voter, cities, promoters, onSubmit, onCancel }: VoterFormProps) {
+export function VoterForm({ voter, cities, promoters, settings, onSubmit, onCancel }: VoterFormProps) {
   const form = useForm<VoterFormValues>({
     resolver: zodResolver(voterFormSchema),
     defaultValues: {
       firstName: voter?.firstName ?? "",
       lastName: voter?.lastName ?? "",
-      idType: voter?.idType ?? "cedula",
+      idType: voter?.idType,
       idNumber: voter?.idNumber ?? "",
       email: voter?.email ?? "",
       phone: voter?.phone ?? "",
@@ -109,9 +109,9 @@ export function VoterForm({ voter, cities, promoters, onSubmit, onCancel }: Vote
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {IdentificationType.map(type => (
+                    {settings?.identificationTypes?.map(type => (
                       <SelectItem key={type} value={type} className="capitalize">
-                        {type.replace('_', ' ')}
+                        {type.replace(/_/g, ' ')}
                       </SelectItem>
                     ))}
                   </SelectContent>

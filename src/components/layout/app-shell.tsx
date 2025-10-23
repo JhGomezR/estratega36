@@ -40,6 +40,10 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { UserNav } from "./user-nav"
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
+import { doc } from "firebase/firestore"
+import type { Settings as AppSettings } from "@/lib/types"
+import Image from "next/image"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -49,17 +53,33 @@ const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const firestore = useFirestore();
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
+  const { data: settings } = useDoc<AppSettings>(settingsRef);
 
   const isActive = (path: string, exact: boolean = false) => {
     return exact ? pathname === path : pathname.startsWith(path)
   }
+  
+  React.useEffect(() => {
+    if (settings) {
+      const root = document.documentElement;
+      if (settings.primaryColor) root.style.setProperty('--primary', settings.primaryColor);
+      if (settings.accentColor) root.style.setProperty('--accent', settings.accentColor);
+      if (settings.sidebarColor) root.style.setProperty('--sidebar-background', settings.sidebarColor);
+    }
+  }, [settings]);
 
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon" className="border-r border-sidebar-border">
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
-            <IconEstratega className="size-8 text-sidebar-primary" />
+            {settings?.logoUrl ? (
+                <Image src={settings.logoUrl} alt="Logo" width={32} height={32} className="size-8"/>
+            ) : (
+                <IconEstratega className="size-8 text-sidebar-primary" />
+            )}
             <span className="text-lg font-semibold text-sidebar-foreground">EstrategaCRM</span>
           </div>
         </SidebarHeader>

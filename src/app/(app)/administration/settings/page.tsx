@@ -1,3 +1,6 @@
+"use client"
+
+import * as React from "react"
 import {
   Card,
   CardContent,
@@ -8,13 +11,195 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { useFirestore, useMemoFirebase, useDoc } from "@/firebase"
+import { doc } from "firebase/firestore"
+import type { Settings } from "@/lib/types"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { Loader2, PlusCircle, Trash2 } from "lucide-react"
+
+function hexToHsl(hex: string): string | null {
+    if (!hex) return null;
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return null;
+    
+    let r = parseInt(result[1], 16);
+    let g = parseInt(result[2], 16);
+    let b = parseInt(result[3], 16);
+
+    r /= 255; 
+    g /= 255; 
+    b /= 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+    
+    return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+    l /= 100;
+    const a = s * Math.min(l, 1 - l) / 100;
+    const f = (n: number) => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function hslStringToHex(hsl: string): string {
+    if (!hsl) return "#000000";
+    const [h, s, l] = hsl.split(' ').map(val => parseFloat(val.replace('%', '')));
+    return hslToHex(h, s, l);
+}
+
+const ListManager = ({ title, items, onUpdate }: { title: string, items: string[], onUpdate: (items: string[]) => void }) => {
+    const [localItems, setLocalItems] = React.useState(items);
+    const [newItem, setNewItem] = React.useState("");
+
+    React.useEffect(() => {
+        setLocalItems(items);
+    }, [items]);
+
+    const handleAdd = () => {
+        if (newItem && !localItems.includes(newItem)) {
+            const updated = [...localItems, newItem];
+            setLocalItems(updated);
+            onUpdate(updated);
+            setNewItem("");
+        }
+    }
+
+    const handleRemove = (itemToRemove: string) => {
+        const updated = localItems.filter(item => item !== itemToRemove);
+        setLocalItems(updated);
+        onUpdate(updated);
+    }
+    
+    const isDefaultItem = (item: string) => ['Futura', 'En Campaña', 'Finalizada'].includes(item);
+
+
+    return (
+        <div className="space-y-2">
+            <Label>{title}</Label>
+            <div className="space-y-2">
+                {localItems.map((item) => (
+                    <div key={item} className="flex items-center gap-2">
+                        <Input value={item} readOnly className="flex-1" />
+                        <Button variant="ghost" size="icon" onClick={() => handleRemove(item)} disabled={isDefaultItem(item)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ))}
+            </div>
+            <div className="flex items-center gap-2">
+                <Input
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    placeholder="Nuevo valor"
+                />
+                <Button variant="outline" size="icon" onClick={handleAdd}>
+                    <PlusCircle className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    )
+}
 
 export default function SettingsPage() {
+  const firestore = useFirestore();
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
+  const { data: settings, isLoading } = useDoc<Settings>(settingsRef);
+  
+  const [colors, setColors] = React.useState({
+    primaryColor: '#1A237E',
+    accentColor: '#FFC107',
+    sidebarColor: '#141E46',
+  });
+  
+  const [lists, setLists] = React.useState({
+    identificationTypes: [],
+    taskPriorities: [],
+    taskStatuses: [],
+    campaignTypes: [],
+    campaignStatuses: [],
+  });
+
+  React.useEffect(() => {
+    if (settings) {
+      setColors({
+        primaryColor: hslStringToHex(settings.primaryColor) || '#1A237E',
+        accentColor: hslStringToHex(settings.accentColor) || '#FFC107',
+        sidebarColor: hslStringToHex(settings.sidebarColor) || '#141E46',
+      });
+      setLists({
+        identificationTypes: settings.identificationTypes || [],
+        taskPriorities: settings.taskPriorities || [],
+        taskStatuses: settings.taskStatuses || [],
+        campaignTypes: settings.campaignTypes || [],
+        campaignStatuses: settings.campaignStatuses || [],
+      });
+
+      updateCssVariables(settings.primaryColor, settings.accentColor, settings.sidebarColor);
+    }
+  }, [settings]);
+  
+  const updateCssVariables = (primaryHsl?: string, accentHsl?: string, sidebarHsl?: string) => {
+    const root = document.documentElement;
+    if (primaryHsl) root.style.setProperty('--primary', primaryHsl);
+    if (accentHsl) root.style.setProperty('--accent', accentHsl);
+    if (sidebarHsl) root.style.setProperty('--sidebar-background', sidebarHsl);
+  }
+
+  const handleColorChange = (colorName: keyof typeof colors, value: string) => {
+    setColors(prev => ({ ...prev, [colorName]: value }));
+  }
+  
+  const handleListUpdate = (listName: keyof typeof lists, newItems: string[]) => {
+    setLists(prev => ({...prev, [listName]: newItems}));
+  }
+
+  const handleSave = () => {
+    if (firestore) {
+      const newSettings: Partial<Settings> = {
+          primaryColor: hexToHsl(colors.primaryColor)!,
+          accentColor: hexToHsl(colors.accentColor)!,
+          sidebarColor: hexToHsl(colors.sidebarColor)!,
+          ...lists
+      };
+      setDocumentNonBlocking(doc(firestore, 'settings', 'app'), newSettings, { merge: true });
+      updateCssVariables(newSettings.primaryColor, newSettings.accentColor, newSettings.sidebarColor);
+    }
+  }
+
+  if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      )
+  }
+
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Configuración de la Plataforma</h1>
-        <p className="text-muted-foreground">Personaliza la apariencia y el comportamiento de la aplicación.</p>
+      <div className="flex items-center justify-between">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Configuración de la Plataforma</h1>
+            <p className="text-muted-foreground">Personaliza la apariencia y el comportamiento de la aplicación.</p>
+        </div>
+        <Button onClick={handleSave}>Guardar Cambios</Button>
       </div>
 
       <Card>
@@ -28,15 +213,22 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
             <Label htmlFor="primary-color">Color Primario</Label>
             <div className="flex items-center gap-2 col-span-2">
-                <div className="w-8 h-8 rounded-md border" style={{ backgroundColor: 'hsl(232 65% 30%)' }}></div>
-                <Input id="primary-color" defaultValue="#1A237E" className="w-40" />
+                <Input id="primary-color-picker" type="color" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-12 h-10 p-1" />
+                <Input id="primary-color-text" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-40" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
             <Label htmlFor="accent-color">Color de Acento</Label>
             <div className="flex items-center gap-2 col-span-2">
-                 <div className="w-8 h-8 rounded-md border" style={{ backgroundColor: 'hsl(45 100% 51%)' }}></div>
-                <Input id="accent-color" defaultValue="#FFC107" className="w-40" />
+                 <Input id="accent-color-picker" type="color" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-12 h-10 p-1" />
+                <Input id="accent-color-text" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-40" />
+            </div>
+          </div>
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+            <Label htmlFor="sidebar-color">Color de Barra Lateral</Label>
+            <div className="flex items-center gap-2 col-span-2">
+                 <Input id="sidebar-color-picker" type="color" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-12 h-10 p-1" />
+                <Input id="sidebar-color-text" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-40" />
             </div>
           </div>
            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
@@ -45,9 +237,22 @@ export default function SettingsPage() {
                 <Input id="logo" type="file" />
             </div>
           </div>
-           <div className="flex justify-end">
-            <Button>Guardar Cambios</Button>
-           </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestión de Listas</CardTitle>
+          <CardDescription>
+            Administra los valores para los campos de selección en la aplicación.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <ListManager title="Tipos de Documento" items={lists.identificationTypes} onUpdate={(items) => handleListUpdate('identificationTypes', items)} />
+            <ListManager title="Prioridades de Tareas" items={lists.taskPriorities} onUpdate={(items) => handleListUpdate('taskPriorities', items)} />
+            <ListManager title="Estados de Tareas" items={lists.taskStatuses} onUpdate={(items) => handleListUpdate('taskStatuses', items)} />
+            <ListManager title="Tipos de Campaña" items={lists.campaignTypes} onUpdate={(items) => handleListUpdate('campaignTypes', items)} />
+            <ListManager title="Estados de Campaña" items={lists.campaignStatuses} onUpdate={(items) => handleListUpdate('campaignStatuses', items)} />
         </CardContent>
       </Card>
     </div>

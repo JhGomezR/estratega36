@@ -3,8 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role, City, Campaign } from "@/lib/types"
-import { IdentificationType } from "@/lib/types"
+import type { User, Role, City, Campaign, Settings } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -28,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 const userFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
   lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres."),
-  idType: z.enum(IdentificationType),
+  idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
   idNumber: z.string().min(5, "El número de documento es requerido."),
   email: z.string().email("El correo electrónico no es válido."),
   phone: z.string().min(7, "El celular no es válido."),
@@ -44,17 +43,18 @@ interface UserFormProps {
   roles: Role[];
   cities: City[];
   campaigns: Campaign[];
+  settings?: Settings | null;
   onSubmit: (data: UserFormValues) => void;
   onCancel: () => void;
 }
 
-export function UserForm({ user, roles, cities, campaigns, onSubmit, onCancel }: UserFormProps) {
+export function UserForm({ user, roles, cities, campaigns, settings, onSubmit, onCancel }: UserFormProps) {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       firstName: user?.firstName ?? "",
       lastName: user?.lastName ?? "",
-      idType: user?.idType ?? "cedula",
+      idType: user?.idType,
       idNumber: user?.idNumber ?? "",
       email: user?.email ?? "",
       phone: user?.phone ?? "",
@@ -110,9 +110,9 @@ export function UserForm({ user, roles, cities, campaigns, onSubmit, onCancel }:
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {IdentificationType.map(type => (
+                    {settings?.identificationTypes?.map(type => (
                       <SelectItem key={type} value={type} className="capitalize">
-                        {type.replace('_', ' ')}
+                        {type.replace(/_/g, ' ')}
                       </SelectItem>
                     ))}
                   </SelectContent>

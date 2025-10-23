@@ -3,8 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Task, User } from "@/lib/types"
-import { TaskPriority, TaskStatus } from "@/lib/types"
+import type { Task, User, Settings } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -30,8 +29,8 @@ const taskFormSchema = z.object({
   assignedToId: z.string({ required_error: "Debes asignar la tarea a un usuario." }),
   startDate: z.string().optional(),
   dueDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "La fecha límite es inválida." }),
-  priority: z.enum(TaskPriority),
-  status: z.enum(TaskStatus),
+  priority: z.string({ required_error: "Debes seleccionar una prioridad." }),
+  status: z.string({ required_error: "Debes seleccionar un estado." }),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -39,23 +38,12 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 interface TaskFormProps {
   task?: Task | null;
   users: User[];
+  settings?: Settings | null;
   onSubmit: (data: Omit<TaskFormValues, 'startDate'>) => void;
   onCancel: () => void;
 }
 
-const priorityLabels: Record<(typeof TaskPriority)[number], string> = {
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
-};
-
-const statusLabels: Record<(typeof TaskStatus)[number], string> = {
-  pendiente: "Pendiente",
-  en_curso: "En Curso",
-  finalizada: "Finalizada",
-};
-
-export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
+export function TaskForm({ task, users, settings, onSubmit, onCancel }: TaskFormProps) {
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -64,8 +52,8 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
       assignedToId: task?.assignedToId ?? undefined,
       startDate: task?.startDate ?? "",
       dueDate: task?.dueDate ?? "",
-      priority: task?.priority ?? "normal",
-      status: task?.status ?? "pendiente",
+      priority: task?.priority,
+      status: task?.status,
     },
   });
 
@@ -176,9 +164,9 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {TaskPriority.map(priority => (
+                    {settings?.taskPriorities?.map(priority => (
                       <SelectItem key={priority} value={priority} className="capitalize">
-                        {priorityLabels[priority]}
+                        {priority}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -200,9 +188,9 @@ export function TaskForm({ task, users, onSubmit, onCancel }: TaskFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {TaskStatus.map(status => (
+                    {settings?.taskStatuses?.map(status => (
                       <SelectItem key={status} value={status} className="capitalize">
-                        {statusLabels[status]}
+                        {status.replace(/_/g, ' ')}
                       </SelectItem>
                     ))}
                   </SelectContent>

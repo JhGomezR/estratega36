@@ -3,8 +3,7 @@ import * as React from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Campaign, Investor } from "@/lib/types"
-import { CampaignType, CampaignStatus } from "@/lib/types"
+import type { Campaign, Investor, Settings } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -41,11 +40,11 @@ const investorSchema = z.object({
 const campaignFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
   description: z.string().min(10, "La descripción debe tener al menos 10 caracteres."),
-  campaignType: z.enum(CampaignType),
+  campaignType: z.string({ required_error: "Debe seleccionar un tipo de campaña." }),
   goal: z.string().min(5, "El objetivo debe tener al menos 5 caracteres."),
   startDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Fecha de inicio inválida." }),
   endDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Fecha de fin inválida." }),
-  status: z.enum(CampaignStatus),
+  status: z.string({ required_error: "Debe seleccionar un estado." }),
   hasInvestors: z.boolean(),
   investors: z.array(investorSchema).optional(),
 });
@@ -54,19 +53,20 @@ type CampaignFormValues = z.infer<typeof campaignFormSchema>;
 
 interface CampaignFormProps {
   campaign?: Omit<Campaign, 'id' | 'progress'> | null;
+  settings?: Settings | null;
   onSubmit: (data: CampaignFormValues) => void;
   onCancel: () => void;
 }
 
-export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps) {
+export function CampaignForm({ campaign, settings, onSubmit, onCancel }: CampaignFormProps) {
   const defaultValues = React.useMemo(() => ({
     name: campaign?.name ?? "",
     description: campaign?.description ?? "",
-    campaignType: campaign?.campaignType ?? "localidad",
+    campaignType: campaign?.campaignType,
     goal: campaign?.goal ?? "",
     startDate: campaign?.startDate ?? "",
     endDate: campaign?.endDate ?? "",
-    status: campaign?.status ?? "planned",
+    status: campaign?.status,
     hasInvestors: campaign?.hasInvestors ?? false,
     investors: campaign?.investors ?? [],
   }), [campaign]);
@@ -82,12 +82,6 @@ export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps
   });
 
   const hasInvestors = form.watch("hasInvestors");
-
-  const statusLabels: Record<(typeof CampaignStatus)[number], string> = {
-    planned: 'Futura',
-    active: 'En Campaña',
-    completed: 'Finalizada'
-  };
 
   function handleFormSubmit(data: CampaignFormValues) {
     onSubmit(data);
@@ -123,7 +117,7 @@ export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {CampaignType.map(type => (
+                    {settings?.campaignTypes?.map(type => (
                       <SelectItem key={type} value={type} className="capitalize">
                         {type}
                       </SelectItem>
@@ -206,9 +200,9 @@ export function CampaignForm({ campaign, onSubmit, onCancel }: CampaignFormProps
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        {CampaignStatus.map(status => (
+                        {settings?.campaignStatuses?.map(status => (
                         <SelectItem key={status} value={status} className="capitalize">
-                            {statusLabels[status]}
+                            {status}
                         </SelectItem>
                         ))}
                     </SelectContent>

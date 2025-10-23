@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import type { User, Role, City, Campaign } from "@/lib/types"
+import type { User, Role, City, Campaign, Settings } from "@/lib/types"
 import { UserForm } from "@/components/user-form"
 import {
   Dialog,
@@ -39,7 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
@@ -58,6 +58,8 @@ export default function UsersPage() {
   const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(
     useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
   );
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
+  const { data: settings, isLoading: settingsLoading } = useDoc<Settings>(settingsRef);
 
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -103,7 +105,7 @@ export default function UsersPage() {
     return roles?.find(r => r.id === roleId)?.name ?? 'N/A'
   }
   
-  const isLoading = usersLoading || rolesLoading || citiesLoading || campaignsLoading;
+  const isLoading = usersLoading || rolesLoading || citiesLoading || campaignsLoading || settingsLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -128,6 +130,7 @@ export default function UsersPage() {
               roles={roles || []}
               cities={cities || []}
               campaigns={campaigns?.filter(c => c.status === 'active') || []}
+              settings={settings}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />

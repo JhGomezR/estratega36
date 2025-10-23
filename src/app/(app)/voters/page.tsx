@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
-import type { Voter, City, User, Role } from "@/lib/types"
+import type { Voter, City, User, Role, Settings } from "@/lib/types"
 import { VoterForm } from "@/components/voter-form"
 import {
   Dialog,
@@ -38,7 +38,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format, parseISO } from "date-fns"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
@@ -57,6 +57,8 @@ export default function VotersPage() {
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
     useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
   );
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "app") : null, [firestore]);
+  const { data: settings, isLoading: settingsLoading } = useDoc<Settings>(settingsRef);
   
   const promoters = React.useMemo(() => {
     if (!users || !roles) return [];
@@ -116,7 +118,7 @@ export default function VotersPage() {
       return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
   }
 
-  const isLoading = votersLoading || citiesLoading || usersLoading || rolesLoading;
+  const isLoading = votersLoading || citiesLoading || usersLoading || rolesLoading || settingsLoading;
 
 
   return (
@@ -142,6 +144,7 @@ export default function VotersPage() {
                 voter={selectedVoter}
                 cities={cities || []}
                 promoters={promoters}
+                settings={settings}
                 onSubmit={handleFormSubmit}
                 onCancel={() => setIsFormOpen(false)}
               />

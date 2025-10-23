@@ -3,7 +3,7 @@ export type WithId<T> = T & { id: string };
 export type Voter = WithId<{
   firstName: string;
   lastName: string;
-  idType: (typeof IdentificationType)[number];
+  idType: string;
   idNumber: string;
   email?: string;
   phone?: string;
@@ -22,34 +22,18 @@ export type Investor = {
   investmentAmount: number;
 }
 
-export const CampaignType = [
-  'localidad', 
-  'municipal', 
-  'edil', 
-  'gobernacion', 
-  'alcaldia', 
-  'presidencia', 
-  'senado', 
-  'camara'
-] as const;
-
-export const CampaignStatus = ['planned', 'active', 'completed'] as const;
-
 export type Campaign = WithId<{
   name: string;
   description: string;
-  campaignType: (typeof CampaignType)[number];
+  campaignType: string;
   hasInvestors: boolean;
   investors?: Investor[];
   goal: string;
   startDate: string;
   endDate: string;
-  status: (typeof CampaignStatus)[number];
+  status: string;
   progress: number;
 }>;
-
-export const TaskPriority = ['normal', 'alta', 'urgente'] as const;
-export const TaskStatus = ['pendiente', 'en_curso', 'finalizada'] as const;
 
 export type Task = WithId<{
   title: string;
@@ -57,8 +41,8 @@ export type Task = WithId<{
   assignedToId: string;
   startDate: string;
   dueDate: string;
-  status: (typeof TaskStatus)[number];
-  priority: (typeof TaskPriority)[number];
+  status: string;
+  priority: string;
 }>;
 
 export const CallStatus = ['pendiente', 'atendida'] as const;
@@ -72,17 +56,10 @@ export type Call = WithId<{
   details?: string;
 }>;
 
-export const IdentificationType = [
-  'cedula',
-  'dni',
-  'pasaporte',
-  'cedula_extrangeria',
-] as const;
-
 export type User = WithId<{
   firstName: string;
   lastName: string;
-  idType: (typeof IdentificationType)[number];
+  idType: string;
   idNumber: string;
   email: string;
   phone: string;
@@ -117,3 +94,15 @@ export const availablePermissions = [
 ] as const;
 
 export type Permission = (typeof availablePermissions)[number];
+
+export type Settings = {
+  primaryColor: string;
+  accentColor: string;
+  sidebarColor: string;
+  logoUrl?: string;
+  identificationTypes: string[];
+  taskPriorities: string[];
+  taskStatuses: string[];
+  campaignTypes: string[];
+  campaignStatuses: string[];
+};

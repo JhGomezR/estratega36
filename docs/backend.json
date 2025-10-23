@@ -42,8 +42,7 @@
           }
         },
         "status": {
-          "type": "string",
-          "enum": ["active", "completed", "planned"]
+          "type": "string"
         },
         "progress": {
             "type": "number"
@@ -149,12 +148,10 @@
           "format": "date"
         },
         "priority": {
-          "type": "string",
-          "enum": ["normal", "alta", "urgente"]
+          "type": "string"
         },
         "status": {
-          "type": "string",
-          "enum": ["pendiente", "en_curso", "finalizada"]
+          "type": "string"
         }
       },
       "required": ["title", "assignedToId", "startDate", "dueDate", "priority", "status"]
@@ -286,7 +283,6 @@
         },
         "status": {
           "type": "string",
-          "enum": ["pendiente", "atendida"],
           "description": "The status of the call."
         },
         "callDate": {
@@ -304,6 +300,23 @@
         }
       },
       "required": ["voterId", "status", "attempts"]
+    },
+    "Settings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Settings",
+      "type": "object",
+      "description": "Stores application-wide settings.",
+      "properties": {
+        "primaryColor": { "type": "string" },
+        "accentColor": { "type": "string" },
+        "sidebarColor": { "type": "string" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "identificationTypes": { "type": "array", "items": { "type": "string" } },
+        "taskPriorities": { "type": "array", "items": { "type": "string" } },
+        "taskStatuses": { "type": "array", "items": { "type": "string" } },
+        "campaignTypes": { "type": "array", "items": { "type": "string" } },
+        "campaignStatuses": { "type": "array", "items": { "type": "string" } }
+      }
     }
   },
   "auth": {
@@ -353,6 +366,12 @@
         "$ref": "#/entities/Call"
       },
       "description": "Stores call records for voters."
+    },
+    "/settings/app": {
+      "schema": {
+        "$ref": "#/entities/Settings"
+      },
+      "description": "Stores a single document with application settings."
     }
   }
 }
