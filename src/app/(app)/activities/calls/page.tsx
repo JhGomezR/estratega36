@@ -175,7 +175,7 @@ export default function CallsPage() {
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">Cargando...</TableCell>
                 </TableRow>
-              ) : calls?.length === 0 ? (
+              ) : !calls || calls.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
                     No hay llamadas. Crea una lista de llamadas para empezar.
