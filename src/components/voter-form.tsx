@@ -35,7 +35,7 @@ const voterFormSchema = z.object({
   promoterId: z.string({ required_error: "Debe seleccionar un promotor." }),
 });
 
-type VoterFormValues = z.infer<typeof voterFormSchema>;
+export type VoterFormValues = z.infer<typeof voterFormSchema>;
 
 interface VoterFormProps {
   voter?: Voter | null;

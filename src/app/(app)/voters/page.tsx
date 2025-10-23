@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import type { Voter, City, User, Role, ManagedList } from "@/lib/types"
-import { VoterForm } from "@/components/voter-form"
+import { VoterForm, type VoterFormValues } from "@/components/voter-form"
 import {
   Dialog,
   DialogContent,
@@ -41,9 +41,12 @@ import { format } from "date-fns"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { useToast } from "@/hooks/use-toast"
+import { geocodeAddress } from "@/ai/flows/geocode-address"
 
 export default function VotersPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
     useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
@@ -108,20 +111,55 @@ export default function VotersPage() {
     }
   }
 
-  const handleFormSubmit = (data: Omit<Voter, 'id' | 'registrationDate'>) => {
-    if (firestore) {
-      if (selectedVoter) {
-        setDocumentNonBlocking(doc(firestore, 'voters', selectedVoter.id), data, { merge: true });
-      } else {
-        const newVoter = {
-          ...data,
-          registrationDate: format(new Date(), "yyyy-MM-dd"),
-        };
-        addDocumentNonBlocking(collection(firestore, 'voters'), newVoter);
-      }
+  const handleFormSubmit = async (data: VoterFormValues) => {
+    if (!firestore) return;
+
+    try {
+        const city = cities?.find(c => c.id === data.cityId);
+        const fullAddress = `${data.address}, ${data.vereda}, ${city?.name}, ${city?.department}, ${city?.country}`;
+        
+        const geocodeResult = await geocodeAddress({ address: fullAddress });
+
+        let voterData: Partial<Voter> = { ...data };
+
+        if (geocodeResult && geocodeResult.latitude && geocodeResult.longitude) {
+            voterData.latitude = geocodeResult.latitude;
+            voterData.longitude = geocodeResult.longitude;
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Error de Geocodificación",
+                description: "No se pudo obtener la ubicación para la dirección proporcionada. El votante se guardará sin coordenadas.",
+            });
+        }
+        
+        if (selectedVoter) {
+            setDocumentNonBlocking(doc(firestore, 'voters', selectedVoter.id), voterData, { merge: true });
+        } else {
+            const newVoter = {
+                ...voterData,
+                registrationDate: format(new Date(), "yyyy-MM-dd"),
+            };
+            addDocumentNonBlocking(collection(firestore, 'voters'), newVoter);
+        }
+
+        toast({
+            title: selectedVoter ? "Votante Actualizado" : "Votante Registrado",
+            description: `El votante ${data.firstName} ${data.lastName} ha sido guardado exitosamente.`,
+        });
+
+    } catch (error) {
+        console.error("Error saving voter:", error);
+        toast({
+            variant: "destructive",
+            title: "Error al Guardar",
+            description: "No se pudo guardar la información del votante. Por favor, intenta de nuevo.",
+        });
+    } finally {
+        setIsFormOpen(false);
     }
-    setIsFormOpen(false);
   };
+
 
   const getCityName = (cityId: string) => cities?.find(c => c.id === cityId)?.name ?? 'N/A'
   const getPromoterName = (promoterId: string) => {
