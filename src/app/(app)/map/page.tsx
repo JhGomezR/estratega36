@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { VotersMap } from '@/components/voters-map';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import type { Voter } from '@/lib/types';
+import type { Voter, City } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function MapPage() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -16,12 +17,33 @@ export default function MapPage() {
     useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
   );
   
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+  );
+
   const votersWithLocation = React.useMemo(() => {
     return voters?.filter(voter => voter.latitude && voter.longitude) || [];
   }, [voters]);
 
+  const voterCountsByCity = React.useMemo(() => {
+    if (!voters || !cities) return [];
+    
+    const counts = new Map<string, number>();
+    voters.forEach(voter => {
+      counts.set(voter.cityId, (counts.get(voter.cityId) || 0) + 1);
+    });
 
-  const isLoading = votersLoading;
+    return cities
+      .map(city => ({
+        ...city,
+        voterCount: counts.get(city.id) || 0,
+      }))
+      .filter(city => city.voterCount > 0)
+      .sort((a, b) => b.voterCount - a.voterCount);
+
+  }, [voters, cities]);
+
+  const isLoading = votersLoading || citiesLoading;
 
   if (!apiKey || apiKey === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
     return (
@@ -59,25 +81,56 @@ export default function MapPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Mapa de Votantes</h1>
-        <p className="text-muted-foreground">Visualiza la ubicación individual de cada votante registrado en el mapa.</p>
+        <p className="text-muted-foreground">Visualiza la ubicación de tus votantes y el conteo por ciudad.</p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Ubicación de Votantes</CardTitle>
-          <CardDescription>
-            Cada punto en el mapa representa la ubicación de un votante.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[70vh] w-full p-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full w-full bg-muted">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <VotersMap apiKey={apiKey} voters={votersWithLocation} />
-            )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+            <Card className="h-full">
+                <CardContent className="h-[75vh] w-full p-0">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center h-full w-full bg-muted">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <VotersMap apiKey={apiKey} voters={votersWithLocation} />
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+        <div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Votantes por Ciudad</CardTitle>
+                    <CardDescription>Conteo total de votantes registrados en cada ciudad.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[65vh]">
+                    <div className="space-y-4">
+                      {isLoading ? (
+                          <div className="flex items-center justify-center h-full">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                          </div>
+                      ) : voterCountsByCity.length > 0 ? (
+                        voterCountsByCity.map(city => (
+                            <div key={city.id} className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-medium">{city.name}</p>
+                                    <p className="text-sm text-muted-foreground">{city.department}</p>
+                                </div>
+                                <div className="text-lg font-bold text-primary">
+                                    {city.voterCount}
+                                </div>
+                            </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-10">No hay votantes con ubicación para mostrar.</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
     </div>
   );
 }
