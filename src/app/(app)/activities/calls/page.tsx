@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Eye, Loader2, Save } from "lucide-react"
+import { Edit, Eye, Loader2, Save, Search, Clock, CheckCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -68,6 +68,7 @@ export default function CallsPage() {
   const [callDetails, setCallDetails] = React.useState("");
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [localAttempts, setLocalAttempts] = React.useState<Record<string, number>>({});
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   React.useEffect(() => {
     if (calls) {
@@ -119,6 +120,40 @@ export default function CallsPage() {
 
     syncCallList();
   }, [voters, calls, firestore, toast]);
+
+  const getVoterInfo = React.useCallback((voterId: string) => {
+    return voters?.find(v => v.id === voterId);
+  }, [voters]);
+
+  const processedCalls = React.useMemo(() => {
+    if (!calls) return [];
+
+    const filtered = calls.filter(call => {
+      if (!searchQuery) return true;
+      const voter = getVoterInfo(call.voterId);
+      const lowercasedQuery = searchQuery.toLowerCase();
+      return voter ? `${voter.firstName} ${voter.lastName}`.toLowerCase().includes(lowercasedQuery) : false;
+    });
+
+    return filtered.sort((a, b) => {
+      if (a.status === 'pendiente' && b.status !== 'pendiente') return -1;
+      if (a.status !== 'pendiente' && b.status === 'pendiente') return 1;
+      if (a.callDate && b.callDate) return new Date(b.callDate).getTime() - new Date(a.callDate).getTime();
+      if (a.callDate) return -1;
+      if (b.callDate) return 1;
+      return 0;
+    });
+  }, [calls, searchQuery, getVoterInfo]);
+
+  const callStats = React.useMemo(() => {
+    if (!calls) return { pending: 0, attended: 0 };
+    return calls.reduce((acc, call) => {
+      if (call.status === 'pendiente') acc.pending++;
+      else if (call.status === 'atendida') acc.attended++;
+      return acc;
+    }, { pending: 0, attended: 0 });
+  }, [calls]);
+
 
   const handleEdit = (call: Call) => {
     setSelectedCall(call);
@@ -192,10 +227,6 @@ export default function CallsPage() {
       setSelectedCall(null);
     }
   };
-  
-  const getVoterInfo = (voterId: string) => {
-    return voters?.find(v => v.id === voterId);
-  }
 
   const getUserName = (userId?: string) => {
     if (!userId) return 'N/A';
@@ -218,6 +249,47 @@ export default function CallsPage() {
                 Sincronizando...
             </div>
         )}
+      </div>
+
+       <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Llamadas Pendientes
+            </CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{callStats.pending}</div>
+            <p className="text-xs text-muted-foreground">
+              Llamadas por realizar.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Llamadas Atendidas
+            </CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{callStats.attended}</div>
+            <p className="text-xs text-muted-foreground">
+              Llamadas que ya fueron contactadas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nombre de votante..."
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       <Card>
@@ -243,14 +315,14 @@ export default function CallsPage() {
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">Cargando...</TableCell>
                 </TableRow>
-              ) : !calls || calls.length === 0 ? (
+              ) : !processedCalls || processedCalls.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
-                    No hay llamadas pendientes. Agrega un votante para empezar.
+                    {searchQuery ? "No se encontraron resultados." : "No hay llamadas pendientes. Agrega un votante para empezar."}
                   </TableCell>
                 </TableRow>
               ) : (
-                calls.map((call) => {
+                processedCalls.map((call) => {
                   const voter = getVoterInfo(call.voterId);
                   const isLocked = !!call.details;
                   return (
