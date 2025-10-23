@@ -233,9 +233,9 @@ export default function CallsPage() {
                             onValueChange={(newStatus: Call['status']) => handleStatusChange(call.id, newStatus)}
                         >
                             <SelectTrigger className={cn(
-                              "h-8 w-32 focus:ring-0",
-                              call.status === 'pendiente' && 'bg-accent/80 text-accent-foreground',
-                              call.status === 'atendida' && 'bg-secondary text-secondary-foreground'
+                              "h-8 w-32 focus:ring-0 border-0 font-semibold",
+                              call.status === 'pendiente' && 'bg-yellow-500/20 text-yellow-700',
+                              call.status === 'atendida' && 'bg-green-500/20 text-green-700'
                             )}>
                                 <SelectValue placeholder="Selecciona estado" />
                             </SelectTrigger>
@@ -340,3 +340,5 @@ export default function CallsPage() {
     </div>
   )
 }
+
+    
