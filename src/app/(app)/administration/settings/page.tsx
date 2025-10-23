@@ -61,11 +61,13 @@ function hslToHex(h: number, s: number, l: number): string {
 
 function hslStringToHex(hsl: string): string {
     if (!hsl) return "#000000";
-    const [h, s, l] = hsl.split(' ').map(val => parseFloat(val.replace('%', '')));
+    const match = hsl.match(/(\d+)\s*(\d+)%\s*(\d+)%/);
+    if (!match) return "#000000";
+    const [h, s, l] = match.slice(1).map(Number);
     return hslToHex(h, s, l);
 }
 
-const ListManager = ({ title, items, onUpdate }: { title: string, items: string[], onUpdate: (items: string[]) => void }) => {
+const ListManager = ({ title, items, onUpdate, defaultItems = [] }: { title: string, items: string[], onUpdate: (items: string[]) => void, defaultItems?: readonly string[] }) => {
     const [localItems, setLocalItems] = React.useState(items);
     const [newItem, setNewItem] = React.useState("");
 
@@ -88,7 +90,7 @@ const ListManager = ({ title, items, onUpdate }: { title: string, items: string[
         onUpdate(updated);
     }
     
-    const isDefaultItem = (item: string) => ['Futura', 'En Campaña', 'Finalizada'].includes(item);
+    const isDefaultItem = (item: string) => defaultItems.includes(item);
 
 
     return (
@@ -129,13 +131,15 @@ export default function SettingsPage() {
     sidebarColor: '#141E46',
   });
   
-  const [lists, setLists] = React.useState({
+  const [lists, setLists] = React.useState<Omit<Settings, 'primaryColor' | 'accentColor' | 'sidebarColor' | 'logoUrl'>>({
     identificationTypes: [],
     taskPriorities: [],
     taskStatuses: [],
     campaignTypes: [],
     campaignStatuses: [],
   });
+
+  const defaultCampaignStatuses = ['Futura', 'En Campaña', 'Finalizada'];
 
   React.useEffect(() => {
     if (settings) {
@@ -149,10 +153,12 @@ export default function SettingsPage() {
         taskPriorities: settings.taskPriorities || [],
         taskStatuses: settings.taskStatuses || [],
         campaignTypes: settings.campaignTypes || [],
-        campaignStatuses: settings.campaignStatuses || [],
+        campaignStatuses: settings.campaignStatuses || defaultCampaignStatuses,
       });
 
       updateCssVariables(settings.primaryColor, settings.accentColor, settings.sidebarColor);
+    } else {
+        setLists(prev => ({...prev, campaignStatuses: defaultCampaignStatuses}))
     }
   }, [settings]);
   
@@ -199,7 +205,7 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Configuración de la Plataforma</h1>
             <p className="text-muted-foreground">Personaliza la apariencia y el comportamiento de la aplicación.</p>
         </div>
-        <Button onClick={handleSave} disabled={true}>Guardar Cambios</Button>
+        <Button onClick={handleSave}>Guardar Cambios</Button>
       </div>
 
       <Card>
@@ -252,7 +258,7 @@ export default function SettingsPage() {
             <ListManager title="Prioridades de Tareas" items={lists.taskPriorities} onUpdate={(items) => handleListUpdate('taskPriorities', items)} />
             <ListManager title="Estados de Tareas" items={lists.taskStatuses} onUpdate={(items) => handleListUpdate('taskStatuses', items)} />
             <ListManager title="Tipos de Campaña" items={lists.campaignTypes} onUpdate={(items) => handleListUpdate('campaignTypes', items)} />
-            <ListManager title="Estados de Campaña" items={lists.campaignStatuses} onUpdate={(items) => handleListUpdate('campaignStatuses', items)} />
+            <ListManager title="Estados de Campaña" items={lists.campaignStatuses} onUpdate={(items) => handleListUpdate('campaignStatuses', items)} defaultItems={defaultCampaignStatuses} />
         </CardContent>
       </Card>
     </div>
