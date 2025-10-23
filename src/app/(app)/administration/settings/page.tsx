@@ -252,7 +252,7 @@ export default function SettingsPage() {
             <Label htmlFor="accent-color">Color de Acento</Label>
             <div className="flex items-center gap-2 col-span-2">
                  <Input id="accent-color-picker" type="color" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-12 h-10 p-1" />
-                <Input id="accent-color-text" value={colors.accentColor} onChange-e => handleColorChange('accentColor', e.target.value)} className="w-40" />
+                <Input id="accent-color-text" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-40" />
             </div>
           </div>
            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
