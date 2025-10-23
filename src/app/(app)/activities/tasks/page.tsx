@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, Eye } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List } from "lucide-react"
 import type { Task, User, ManagedList } from "@/lib/types"
 import { TaskForm } from "@/components/task-form"
 import {
@@ -45,6 +46,8 @@ import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocki
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { KanbanBoard } from "@/components/kanban-board"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 const priorityClasses: Record<string, string> = {
   normal: "bg-blue-500 hover:bg-blue-600",
@@ -68,6 +71,7 @@ export default function TasksPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [taskToDelete, setTaskToDelete] = React.useState<Task | null>(null);
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
+  const [view, setView] = React.useState<'kanban' | 'list'>('kanban');
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -118,10 +122,19 @@ export default function TasksPage() {
     setIsFormOpen(false);
   };
 
+  const getUser = (userId: string) => {
+    return users?.find(u => u.id === userId);
+  };
+  
   const getUserName = (userId: string) => {
-    const user = users?.find(u => u.id === userId);
+    const user = getUser(userId);
     return user ? `${user.firstName} ${user.lastName}` : 'N/A';
   };
+  
+  const getUserInitials = (user?: User) => {
+    if (!user) return 'NN'
+    return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+  }
 
   const isLoading = tasksLoading || usersLoading || listsLoading;
 
@@ -132,28 +145,41 @@ export default function TasksPage() {
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Tareas</h1>
           <p className="text-muted-foreground">Organiza las tareas del equipo de campaña.</p>
         </div>
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleAddNew}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nueva Tarea
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>{selectedTask ? "Editar Tarea" : "Nueva Tarea"}</DialogTitle>
-            </DialogHeader>
-            <TaskForm
-              task={selectedTask}
-              users={users || []}
-              lists={lists}
-              onSubmit={handleFormSubmit}
-              onCancel={() => setIsFormOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-4">
+             <div className="flex items-center gap-2 rounded-md bg-muted p-1">
+                <Button variant={view === 'kanban' ? 'secondary' : 'ghost'} size="sm" onClick={() => setView('kanban')} className="gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    Kanban
+                </Button>
+                <Button variant={view === 'list' ? 'secondary' : 'ghost'} size="sm" onClick={() => setView('list')} className="gap-2">
+                    <List className="h-4 w-4" />
+                    Lista
+                </Button>
+            </div>
+            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={handleAddNew}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nueva Tarea
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>{selectedTask ? "Editar Tarea" : "Nueva Tarea"}</DialogTitle>
+                </DialogHeader>
+                <TaskForm
+                  task={selectedTask}
+                  users={users || []}
+                  lists={lists}
+                  onSubmit={handleFormSubmit}
+                  onCancel={() => setIsFormOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+        </div>
       </div>
 
+     {view === 'list' && (
       <Card>
         <CardHeader>
           <CardTitle>Lista de Tareas</CardTitle>
@@ -279,6 +305,83 @@ export default function TasksPage() {
           </Table>
         </CardContent>
       </Card>
+      )}
+
+      {view === 'kanban' && (
+        <KanbanBoard 
+            tasks={tasks || []}
+            users={users || []}
+            lists={lists}
+            isLoading={isLoading}
+            onEditTask={handleEdit}
+            onDeleteTask={confirmDelete}
+            onViewTask={handleView}
+        />
+      )}
+
+      <Dialog open={!!taskToView} onOpenChange={(open) => !open && setTaskToView(null)}>
+        <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+                <DialogTitle>{taskToView?.title}</DialogTitle>
+                <DialogDescription>Detalles de la tarea</DialogDescription>
+            </DialogHeader>
+            {taskToView && (
+                <div className="space-y-4 py-4">
+                    <div className="space-y-1">
+                        <span className="font-semibold text-sm">Descripción:</span>
+                        <p className="text-sm text-muted-foreground">{taskToView.description || 'No hay descripción.'}</p>
+                    </div>
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <span className="font-semibold text-sm">Asignado a:</span>
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6 text-xs">
+                                    <AvatarFallback>{getUserInitials(getUser(taskToView.assignedToId))}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm">{getUserName(taskToView.assignedToId)}</span>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="font-semibold text-sm">Prioridad:</span>
+                            <div>
+                                <Badge className={cn("capitalize", priorityClasses[taskToView.priority] || "bg-gray-500")}>
+                                    {taskToView.priority}
+                                </Badge>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="font-semibold text-sm">Fecha Límite:</span>
+                            <p className="text-sm">{format(new Date(taskToView.dueDate), "PPP")}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="font-semibold text-sm">Estado:</span>
+                            <div>
+                                <Badge variant={taskToView.status === "finalizada" ? "default" : taskToView.status === "en_curso" ? "secondary" : "outline"} className="capitalize">
+                                    {taskToView.status.replace(/_/g, ' ')}
+                                </Badge>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </DialogContent>
+      </Dialog>
+      
+       <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Esto eliminará permanentemente la tarea.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   )
 }
