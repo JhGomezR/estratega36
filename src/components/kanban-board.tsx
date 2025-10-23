@@ -1,5 +1,5 @@
 "use client"
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { OnDragEndResponder } from 'react-beautiful-dnd';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import type { Task, User, ManagedList } from '@/lib/types';
@@ -9,12 +9,29 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow, isPast } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { format } from 'date-fns';
+import { isPast } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
+
+// Wrapper to solve StrictMode issue with react-beautiful-dnd
+const DroppableStrict = ({ children, ...props }: any) => {
+    const [enabled, setEnabled] = useState(false);
+    useEffect(() => {
+        const animation = requestAnimationFrame(() => setEnabled(true));
+        return () => {
+            cancelAnimationFrame(animation);
+            setEnabled(false);
+        };
+    }, []);
+    if (!enabled) {
+        return null;
+    }
+    return <Droppable {...props}>{children}</Droppable>;
+};
+
 
 interface KanbanBoardProps {
     tasks: Task[];
@@ -52,7 +69,7 @@ const TaskCard = ({ task, user, onEdit, onDelete, onView }: { task: Task, user?:
                     <h4 className="font-semibold text-sm">{task.title}</h4>
                      {user && (
                         <Avatar className="h-7 w-7 text-xs">
-                            <AvatarImage src={user.avatar} />
+                            <AvatarImage src={user.avatar} data-ai-hint="person portrait"/>
                             <AvatarFallback>{user.firstName.charAt(0)}{user.lastName.charAt(0)}</AvatarFallback>
                         </Avatar>
                     )}
@@ -134,8 +151,8 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
                 {taskStatuses.map(status => {
                     const columnTasks = tasks.filter(task => task.status === status);
                     return (
-                         <Droppable key={status} droppableId={status}>
-                            {(provided) => (
+                         <DroppableStrict key={status} droppableId={status}>
+                            {(provided: any) => (
                                 <div
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
@@ -179,7 +196,7 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
                                     </Card>
                                 </div>
                             )}
-                        </Droppable>
+                        </DroppableStrict>
                     )
                 })}
             </div>
