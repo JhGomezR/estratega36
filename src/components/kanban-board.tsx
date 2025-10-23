@@ -55,40 +55,36 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
             <CardContent className="p-4 space-y-3 flex flex-col">
                 <div className="flex justify-between items-start gap-2">
                     <h4 className="font-semibold text-sm pr-2 flex-1">{task.title}</h4>
-                    <div className="flex items-center gap-2">
-                        {user && (
-                            <Avatar className="h-7 w-7 text-xs">
-                                <AvatarImage src={user.avatar} data-ai-hint="person portrait"/>
-                                <AvatarFallback>{user.firstName.charAt(0)}{user.lastName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                        )}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <ChevronsUpDown className="h-4 w-4 text-muted-foreground"/>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Mover a</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {allStatuses.filter(s => s !== task.status).map(status => (
-                                    <DropdownMenuItem key={status} onClick={() => onStatusChange(status)} className="capitalize">
-                                        {status.replace(/_/g, ' ')}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                     {user && (
+                        <Avatar className="h-7 w-7 text-xs">
+                            <AvatarImage src={user.avatar} data-ai-hint="person portrait"/>
+                            <AvatarFallback>{user.firstName.charAt(0)}{user.lastName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                    )}
                 </div>
 
                 <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
                     {task.description}
                 </p>
 
-                <div>
+                <div className="flex justify-between items-center">
                      <Badge className={cn("capitalize text-xs", priorityClasses[task.priority] || "bg-gray-500")}>
                         {task.priority}
                     </Badge>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="text-xs h-7">Mover a</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Mover tarea a...</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {allStatuses.filter(s => s !== task.status).map(status => (
+                                <DropdownMenuItem key={status} onClick={() => onStatusChange(status)} className="capitalize">
+                                    {status.replace(/_/g, ' ')}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t mt-auto">
