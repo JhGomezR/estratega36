@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -162,7 +163,7 @@ const generateRisksTool = ai.defineTool(
 - Apatía del Votante / Fatiga
 - Competencia con Líderes Locales`,
     inputSchema: z.object({
-      campaignData: zstring(),
+      campaignData: z.string(),
       lugar: z.string(),
     }),
     outputSchema: z.string(),
