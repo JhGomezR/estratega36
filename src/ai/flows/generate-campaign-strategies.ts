@@ -50,7 +50,7 @@ Lugar: {{{lugar}}}
 Objetivos Principales: {{{objectives}}}
 Restricciones de Recursos (Opcional): {{{resourceConstraints}}}
 
-y con base en esos datos tu vas a generar un modelo de campaña que cumpla con los siguientes requisitos en ese debido orden, debe ser extremadamente detallada, debe tener entre 4000 y 5000 palabras:
+y con base en esos datos tu vas a generar un modelo de campaña que cumpla con los siguientes requisitos en ese debido orden, debe ser extremadamente detallada:
 
 I. Diagnóstico y Contexto
 Tipo de Campaña: Personal, Corporativa, o Política. Define el tono, los canales y la Autenticidad Posicionada.
