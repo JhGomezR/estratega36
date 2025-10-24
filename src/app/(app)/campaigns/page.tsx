@@ -73,7 +73,7 @@ export default function CampaignsPage() {
             const endDate = parseISO(campaign.endDate);
             // Check if endDate is in the past (but not today)
             if (isPast(endDate) && !isToday(endDate)) {
-              setDocumentNonBlocking(doc(firestore, 'campaigns', campaign.id), { status: 'Finalizada' }, { merge: true });
+              setDocumentNonBlocking(doc(firestore, 'campaigns', campaign.id), { status: 'Finalizada', progress: 100 }, { merge: true });
             }
           } catch (e) {
             console.error(`Invalid date for campaign ${campaign.id}: ${campaign.endDate}`);
@@ -151,12 +151,17 @@ export default function CampaignsPage() {
 
   const handleFormSubmit = (data: Omit<Campaign, 'id' | 'progress'>) => {
     if (firestore) {
+      const campaignData: Partial<Campaign> = { ...data };
+      if (campaignData.status === 'Finalizada') {
+          campaignData.progress = 100;
+      }
+      
       if (selectedCampaign) {
-        setDocumentNonBlocking(doc(firestore, 'campaigns', selectedCampaign.id), data, { merge: true });
+        setDocumentNonBlocking(doc(firestore, 'campaigns', selectedCampaign.id), campaignData, { merge: true });
       } else {
         addDocumentNonBlocking(collection(firestore, 'campaigns'), {
-          ...data,
-          progress: 0,
+          ...campaignData,
+          progress: campaignData.status === 'Finalizada' ? 100 : 0,
         });
       }
     }

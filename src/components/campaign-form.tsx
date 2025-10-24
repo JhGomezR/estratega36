@@ -26,7 +26,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, Trash2 } from "lucide-react"
-import { isFuture, isPast, parseISO, startOfToday } from "date-fns"
+import { format, isFuture, isPast, parseISO, startOfToday } from "date-fns"
 
 const investorSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido."),
@@ -101,7 +101,7 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
           form.setValue('status', 'Futura', { shouldValidate: true });
         } else if (isPast(parsedEndDate)) {
           form.setValue('status', 'Finalizada', { shouldValidate: true });
-        } else if (!isFuture(parsedStartDate) && isFuture(parsedEndDate) || parsedEndDate >= today) {
+        } else if (!isFuture(parsedStartDate) && (isFuture(parsedEndDate) || parsedEndDate >= today)) {
            form.setValue('status', 'En Campaña', { shouldValidate: true });
         }
       } catch (e) {
@@ -112,7 +112,18 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
 
 
   function handleFormSubmit(data: CampaignFormValues) {
-    onSubmit(data);
+    let finalData = { ...data };
+    
+    // If the campaign is being manually set to "Finalizada"
+    if (finalData.status === 'Finalizada' && campaign?.status !== 'Finalizada') {
+        const todayString = format(new Date(), 'yyyy-MM-dd');
+        // Only update endDate if it's in the future, to not alter past dates.
+        if (isFuture(parseISO(finalData.endDate))) {
+          finalData.endDate = todayString;
+        }
+    }
+    
+    onSubmit(finalData);
   }
 
   return (
