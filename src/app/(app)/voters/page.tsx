@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card"
 import {
   Table,
@@ -17,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2 } from "lucide-react"
+import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import type { Voter, City, User, Role, ManagedList } from "@/lib/types"
 import { VoterForm, type VoterFormValues } from "@/components/voter-form"
 import {
@@ -44,6 +45,9 @@ import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { geocodeAddress } from "@/ai/flows/geocode-address"
+import { Input } from "@/components/ui/input"
+
+const VOTERS_PER_PAGE = 15;
 
 export default function VotersPage() {
   const firestore = useFirestore();
@@ -64,6 +68,12 @@ export default function VotersPage() {
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
+  const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
+  const [isFormOpen, setIsFormOpen] = React.useState(false)
+  const [voterToDelete, setVoterToDelete] = React.useState<Voter | null>(null)
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState(1);
+
   const voters = React.useMemo(() => {
     return votersData?.filter(v => v.status !== 'inactivo');
   }, [votersData]);
@@ -80,10 +90,6 @@ export default function VotersPage() {
     return users.filter(u => promoterRoleIds.includes(u.roleId));
   }, [users, roles]);
 
-  const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [voterToDelete, setVoterToDelete] = React.useState<Voter | null>(null)
-
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
     if (managedLists) {
@@ -93,7 +99,31 @@ export default function VotersPage() {
     }
     return listsMap;
   }, [managedLists]);
+  
+  const getCityName = (cityId: string) => cities?.find(c => c.id === cityId)?.name ?? 'N/A'
+  const getPromoterName = (promoterId: string) => {
+      const promoter = users?.find(p => p.id === promoterId);
+      return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
+  }
 
+  const filteredVoters = React.useMemo(() => {
+    if (!voters) return [];
+    if (!searchQuery) return voters;
+    const lowercasedQuery = searchQuery.toLowerCase();
+    return voters.filter(voter => 
+      `${voter.firstName} ${voter.lastName}`.toLowerCase().includes(lowercasedQuery) ||
+      voter.idNumber.toLowerCase().includes(lowercasedQuery) ||
+      getCityName(voter.cityId).toLowerCase().includes(lowercasedQuery) ||
+      getPromoterName(voter.promoterId).toLowerCase().includes(lowercasedQuery)
+    );
+  }, [voters, searchQuery, cities, users]);
+  
+  const paginatedVoters = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * VOTERS_PER_PAGE;
+    return filteredVoters.slice(startIndex, startIndex + VOTERS_PER_PAGE);
+  }, [filteredVoters, currentPage]);
+
+  const totalPages = Math.ceil(filteredVoters.length / VOTERS_PER_PAGE);
 
   const handleAddNew = () => {
     setSelectedVoter(null)
@@ -174,13 +204,6 @@ export default function VotersPage() {
     }
   };
 
-
-  const getCityName = (cityId: string) => cities?.find(c => c.id === cityId)?.name ?? 'N/A'
-  const getPromoterName = (promoterId: string) => {
-      const promoter = users?.find(p => p.id === promoterId);
-      return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
-  }
-
   const isLoading = votersLoading || citiesLoading || usersLoading || rolesLoading || listsLoading;
 
 
@@ -224,11 +247,25 @@ export default function VotersPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Lista de Votantes</CardTitle>
-          <CardDescription>
-            Un listado de todos los votantes registrados en el sistema.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>Lista de Votantes</CardTitle>
+                <CardDescription>
+                    Un listado de todos los votantes registrados en el sistema.
+                </CardDescription>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar votante..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -244,16 +281,18 @@ export default function VotersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
-              {!isLoading && voters?.length === 0 && (
+              {isLoading && <TableRow><TableCell colSpan={7} className="text-center h-24">Cargando...</TableCell></TableRow>}
+              {!isLoading && paginatedVoters.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-10">
-                    <p className="font-medium">No hay votantes registrados.</p>
-                    <p className="text-sm text-muted-foreground">Comienza registrando un nuevo votante.</p>
+                    <p className="font-medium">No hay votantes para mostrar.</p>
+                    <p className="text-sm text-muted-foreground">
+                        {searchQuery ? "Intenta con otra búsqueda." : "Comienza registrando un nuevo votante."}
+                    </p>
                   </TableCell>
                 </TableRow>
               )}
-              {voters?.map((voter) => (
+              {paginatedVoters.map((voter) => (
                 <TableRow key={voter.id}>
                   <TableCell className="font-medium">{`${voter.firstName} ${voter.lastName}`}</TableCell>
                   <TableCell>{`${voter.idType}: ${voter.idNumber}`}</TableCell>
@@ -290,6 +329,31 @@ export default function VotersPage() {
             </TableBody>
           </Table>
         </CardContent>
+        <CardFooter className="flex items-center justify-between pt-4">
+          <div className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages > 0 ? totalPages : 1}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   )
