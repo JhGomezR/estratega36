@@ -140,7 +140,6 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[200px]">Módulo</TableHead>
-                                {actions.map(action => <TableHead key={action}>{actionLabels[action]}</TableHead>)}
                                 <TableHead className="text-center">
                                     <div className="flex items-center gap-3 justify-center">
                                        <span>Todos</span>
@@ -151,6 +150,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                                         />
                                     </div>
                                 </TableHead>
+                                {actions.map(action => <TableHead key={action}>{actionLabels[action]}</TableHead>)}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -164,6 +164,13 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                                         <TableCell className="font-medium capitalize flex items-center gap-3">
                                             {Icon && <Icon className="h-5 w-5 text-muted-foreground"/>}
                                             {module.replace(/_/g, ' ')}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Checkbox
+                                                checked={allModuleActionsExist}
+                                                indeterminate={someModuleActionsExist && !allModuleActionsExist}
+                                                onCheckedChange={(checked) => handleRowToggle(module, !!checked)}
+                                            />
                                         </TableCell>
                                         {actions.map(action => {
                                             const permission = `${module}:${action}`;
@@ -180,13 +187,6 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                                                 </TableCell>
                                             )
                                         })}
-                                         <TableCell className="text-center">
-                                            <Checkbox
-                                                checked={allModuleActionsExist}
-                                                indeterminate={someModuleActionsExist && !allModuleActionsExist}
-                                                onCheckedChange={(checked) => handleRowToggle(module, !!checked)}
-                                            />
-                                        </TableCell>
                                     </TableRow>
                                 )
                             })}
