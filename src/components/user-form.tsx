@@ -55,6 +55,7 @@ interface UserFormProps {
 
 export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCancel }: UserFormProps) {
   const { user: currentUser } = useUser();
+  const isAdmin = currentUser?.email === 'axdrcys@gmail.com';
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -70,7 +71,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
       roleId: user?.roleId ?? undefined,
       cityIds: user?.cityIds ?? [],
       campaignIds: user?.campaignIds ?? [],
-      parentId: user?.parentId ?? currentUser?.uid,
+      parentId: user?.parentId ?? (isAdmin ? undefined : currentUser?.uid),
     },
   });
 
@@ -88,13 +89,15 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="parentId"
-          render={({ field }) => (
-            <Input type="hidden" {...field} />
-          )}
-        />
+        {!isAdmin && (
+            <FormField
+            control={form.control}
+            name="parentId"
+            render={({ field }) => (
+                <Input type="hidden" {...field} />
+            )}
+            />
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -247,6 +250,35 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
                 )}
             />
         </div>
+
+        {isAdmin && (
+             <FormField
+                control={form.control}
+                name="parentId"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Registrado por (Parent)</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Asignar un padre jerárquico" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="">Ninguno (Nivel Superior)</SelectItem>
+                        {roles.map(role => (
+                        <SelectItem key={role.id} value={role.id} className="capitalize">
+                            {role.name}
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormDescription>Asigna qué usuario aparecerá como el creador de este. Si se deja en blanco, será un usuario de nivel superior.</FormDescription>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField

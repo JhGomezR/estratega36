@@ -21,7 +21,8 @@ export default function NetworkPage() {
     );
 
     const activeUsers = React.useMemo(() => {
-        return usersData?.filter(user => user.status === 'activo');
+        // Filter out inactive users and the main admin user
+        return usersData?.filter(user => user.status === 'activo' && user.email !== 'axdrcys@gmail.com');
     }, [usersData]);
 
     const isLoading = usersLoading || rolesLoading || campaignsLoading;
