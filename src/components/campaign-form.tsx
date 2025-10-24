@@ -67,11 +67,11 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
   const defaultValues = React.useMemo(() => ({
     name: campaign?.name ?? "",
     description: campaign?.description ?? "",
-    campaignType: campaign?.campaignType,
+    campaignType: campaign?.campaignType ?? "",
     goal: campaign?.goal ?? "",
     startDate: campaign?.startDate ?? "",
     endDate: campaign?.endDate ?? "",
-    status: campaign?.status,
+    status: campaign?.status ?? "",
     hasInvestors: campaign?.hasInvestors ?? false,
     investors: campaign?.investors ?? [],
   }), [campaign]);
@@ -80,12 +80,11 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
     resolver: zodResolver(campaignFormSchema),
     defaultValues,
   });
-
+  
   React.useEffect(() => {
-    if (campaign) {
-      form.reset(campaign);
-    }
-  }, [campaign, form]);
+    form.reset(defaultValues);
+  }, [defaultValues, form]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
