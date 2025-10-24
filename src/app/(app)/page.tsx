@@ -161,8 +161,8 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>Votantes Semana a Semana</CardTitle>
-            <CardDescription>Visión general de los votantes registrados por semana.</CardDescription>
+            <CardTitle>Registros Diarios de Votantes</CardTitle>
+            <CardDescription>Semana actual vs. semana anterior.</CardDescription>
           </CardHeader>
           <CardContent>
             <WeeklyVoterChart voters={voters} isLoading={isLoading}/>

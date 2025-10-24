@@ -14,56 +14,52 @@ import {
   YAxis,
 } from "recharts"
 import { type Voter } from '@/lib/types';
-import { format, parseISO, startOfWeek, endOfWeek, eachWeekOfInterval, subWeeks } from 'date-fns';
+import { startOfWeek, endOfWeek, eachDayOfInterval, format, subWeeks, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Skeleton } from './ui/skeleton';
 
-const processWeeklyVoterData = (voters: Voter[] | null) => {
-  if (!voters || voters.length === 0) {
+const processDailyVoterData = (voters: Voter[] | null) => {
+  if (!voters) {
     return [];
   }
-  
-  const weeklyCounts: { [weekStart: string]: number } = {};
 
   const today = new Date();
-  const weeks = eachWeekOfInterval({
-    start: subWeeks(today, 11), // 12 weeks including current
-    end: today
-  }, { weekStartsOn: 1 });
+  const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 });
+  const endOfCurrentWeek = endOfWeek(today, { weekStartsOn: 1 });
+  const startOfPreviousWeek = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
+  const endOfPreviousWeek = endOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
 
+  const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-  const weekLabels = weeks.map(weekStart => {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-    return `${format(weekStart, 'dd')}-${format(weekEnd, 'dd MMM')}`;
-  });
-
-  const chartData = weekLabels.map(label => ({ week: label, Votantes: 0 }));
+  const chartData = daysOfWeek.map(day => ({
+    day,
+    "Semana Actual": 0,
+    "Semana Anterior": 0,
+  }));
 
   voters.forEach(voter => {
     try {
-      const date = parseISO(voter.registrationDate);
-      const startOfVoterWeek = startOfWeek(date, { weekStartsOn: 1 });
+      const registrationDate = new Date(voter.registrationDate);
+      const dayIndex = (getDay(registrationDate) + 6) % 7; // Monday = 0, Sunday = 6
       
-      const weekStartDateFormatted = `${format(startOfVoterWeek, 'dd')}-${format(endOfWeek(startOfVoterWeek, {weekStartsOn: 1}), 'dd MMM')}`;
-
-      const weekIndex = chartData.findIndex(d => d.week === weekStartDateFormatted);
-
-      if (weekIndex !== -1) {
-          chartData[weekIndex].Votantes++;
+      if (registrationDate >= startOfCurrentWeek && registrationDate <= endOfCurrentWeek) {
+        chartData[dayIndex]["Semana Actual"]++;
+      } else if (registrationDate >= startOfPreviousWeek && registrationDate <= endOfPreviousWeek) {
+        chartData[dayIndex]["Semana Anterior"]++;
       }
 
     } catch (e) {
-        console.error("Invalid date format for voter", voter)
+      console.error("Invalid date format for voter", voter);
     }
   });
 
   return chartData;
-}
+};
 
 
 export function WeeklyVoterChart({ voters, isLoading }: { voters: Voter[] | null, isLoading: boolean }) {
   
-  const chartData = React.useMemo(() => processWeeklyVoterData(voters), [voters]);
+  const chartData = React.useMemo(() => processDailyVoterData(voters), [voters]);
 
   if(isLoading) {
       return <Skeleton className="h-[300px] w-full" />
@@ -71,22 +67,28 @@ export function WeeklyVoterChart({ voters, isLoading }: { voters: Voter[] | null
 
   return (
     <ChartContainer config={{
-      Votantes: {
-        label: "Votantes",
+      "Semana Actual": {
+        label: "Semana Actual",
+        color: "hsl(var(--chart-1))",
+      },
+      "Semana Anterior": {
+        label: "Semana Anterior",
         color: "hsl(var(--chart-2))",
       },
     }} className="h-[300px] w-full">
-      <AreaChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+      <AreaChart 
+        data={chartData} 
+        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+      >
           <CartesianGrid vertical={false} />
           <XAxis
-              dataKey="week"
+              dataKey="day"
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              tickFormatter={(value) => value.split('-')[0]}
-              
           />
           <YAxis
+             allowDecimals={false}
              tickLine={false}
              axisLine={false}
              tickMargin={10}
@@ -94,30 +96,34 @@ export function WeeklyVoterChart({ voters, isLoading }: { voters: Voter[] | null
           <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent 
-                labelClassName="font-bold"
-                formatter={(value, name, props) => (
-                    <div className="flex flex-col">
-                        <span>{props.payload.week}</span>
-                        <span className="font-semibold mt-1">{name}: {value}</span>
-                    </div>
-                )}
+                indicator="dot"
               />}
           />
           <defs>
-            <linearGradient id="fillVotantes" x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="5%"
-                stopColor="var(--color-Votantes)"
-                stopOpacity={0.8}
-              />
-              <stop
-                offset="95%"
-                stopColor="var(--color-Votantes)"
-                stopOpacity={0.1}
-              />
+            <linearGradient id="fillSemanaActual" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--color-Semana Actual)" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="var(--color-Semana Actual)" stopOpacity={0.1} />
+            </linearGradient>
+            <linearGradient id="fillSemanaAnterior" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--color-Semana Anterior)" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="var(--color-Semana Anterior)" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <Area dataKey="Votantes" type="natural" fill="url(#fillVotantes)" stroke="var(--color-Votantes)" stackId="a" />
+          <Area 
+            dataKey="Semana Anterior" 
+            type="monotone" 
+            fill="url(#fillSemanaAnterior)" 
+            stroke="var(--color-Semana Anterior)" 
+            stackId="a" 
+            strokeDasharray="3 3"
+          />
+          <Area 
+            dataKey="Semana Actual" 
+            type="monotone" 
+            fill="url(#fillSemanaActual)" 
+            stroke="var(--color-Semana Actual)" 
+            stackId="b" 
+          />
       </AreaChart>
     </ChartContainer>
   )
