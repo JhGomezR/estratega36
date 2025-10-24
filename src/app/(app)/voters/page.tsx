@@ -36,6 +36,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
