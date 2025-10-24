@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm, useFieldArray } from "react-hook-form"
@@ -58,7 +59,7 @@ type CampaignFormValues = z.infer<typeof campaignFormSchema>;
 interface CampaignFormProps {
   campaign?: Campaign | null;
   lists: Record<string, ManagedList | undefined>;
-  onSubmit: (data: CampaignFormValues) => void;
+  onSubmit: (data: Omit<CampaignFormValues, 'progress'>) => void;
   onCancel: () => void;
 }
 
@@ -79,6 +80,12 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
     resolver: zodResolver(campaignFormSchema),
     defaultValues,
   });
+
+  React.useEffect(() => {
+    if (campaign) {
+      form.reset(campaign);
+    }
+  }, [campaign, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,

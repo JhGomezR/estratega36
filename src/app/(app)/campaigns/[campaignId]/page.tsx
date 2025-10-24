@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
-import type { Campaign, Campaign as CampaignType, ManagedList } from "@/lib/types"
+import type { Campaign, ManagedList, Campaign as CampaignType } from "@/lib/types"
 import { format, parseISO, isToday } from "date-fns"
 import { es } from 'date-fns/locale'
 import { ArrowLeft, Edit, Loader2 } from "lucide-react"
