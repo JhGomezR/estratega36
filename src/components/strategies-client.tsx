@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,6 +15,7 @@ import { Lightbulb, Loader2, Info } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
+import { readStreamableValue } from 'ai/rsc'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
@@ -48,12 +49,10 @@ export function StrategiesClient() {
     setIsLoading(true)
     setStrategy('')
     try {
-      // The flow now returns a stream
       const stream = await generateCampaignStrategy(values);
 
-      // Read from the stream and update the state
-      for await (const chunk of stream) {
-        setStrategy((prev) => prev + chunk);
+      for await (const chunk of readStreamableValue(stream)) {
+        setStrategy((prev) => prev + (chunk ?? ''));
       }
 
     } catch (e) {
@@ -158,7 +157,16 @@ export function StrategiesClient() {
       </Card>
       
       <div className="space-y-4">
-        {(!isLoading && !strategy) && (
+        {isLoading && !strategy && (
+             <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
+                <Loader2 className="h-16 w-16 text-muted-foreground/50 mb-4 animate-spin" />
+                <h3 className="text-lg font-semibold">Generando tu modelo de estrategia...</h3>
+                <p className="text-muted-foreground text-sm mt-2">
+                    Esto puede tomar hasta 2 minutos. Gracias por tu paciencia.
+                </p>
+            </Card>
+        )}
+        {!isLoading && !strategy && (
              <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
                 <Lightbulb className="h-16 w-16 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-semibold">Estrategia de Campaña</h3>
@@ -167,7 +175,7 @@ export function StrategiesClient() {
                 </p>
             </Card>
         )}
-        {(isLoading || strategy) && (
+        {strategy && (
           <>
             <Card className="bg-card/80 border-primary/50 shadow-lg">
               <CardHeader className="space-y-4">
