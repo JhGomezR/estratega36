@@ -141,8 +141,8 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                             <TableRow>
                                 <TableHead className="w-[200px]">Módulo</TableHead>
                                 {actions.map(action => <TableHead key={action}>{actionLabels[action]}</TableHead>)}
-                                <TableHead className="text-right">
-                                    <div className="flex items-center gap-3 justify-end">
+                                <TableHead className="text-center">
+                                    <div className="flex items-center gap-3 justify-center">
                                        <span>Todos</span>
                                         <Checkbox
                                             checked={allPermissionsSelected}
@@ -180,7 +180,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                                                 </TableCell>
                                             )
                                         })}
-                                         <TableCell className="text-right">
+                                         <TableCell className="text-center">
                                             <Checkbox
                                                 checked={allModuleActionsExist}
                                                 indeterminate={someModuleActionsExist && !allModuleActionsExist}
