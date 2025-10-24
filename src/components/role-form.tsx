@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { ScrollArea } from "./ui/scroll-area"
 
 const roleFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
@@ -102,48 +103,50 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                 </FormDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[200px]">Módulo</TableHead>
-                            {actions.map(action => <TableHead key={action}>{actionLabels[action]}</TableHead>)}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {Object.entries(permissionGroups).map(([module, moduleActions]) => {
-                             const allModuleActionsExist = moduleActions.every(action => currentPermissions.includes(`${module}:${action}`));
-                             const someModuleActionsExist = moduleActions.some(action => currentPermissions.includes(`${module}:${action}`));
+                <ScrollArea className="h-72 w-full">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[200px]">Módulo</TableHead>
+                                {actions.map(action => <TableHead key={action}>{actionLabels[action]}</TableHead>)}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.entries(permissionGroups).map(([module, moduleActions]) => {
+                                const allModuleActionsExist = moduleActions.every(action => currentPermissions.includes(`${module}:${action}`));
+                                const someModuleActionsExist = moduleActions.some(action => currentPermissions.includes(`${module}:${action}`));
 
-                            return (
-                                <TableRow key={module}>
-                                    <TableCell className="font-medium capitalize flex items-center gap-3">
-                                         <Checkbox
-                                            checked={allModuleActionsExist}
-                                            indeterminate={someModuleActionsExist && !allModuleActionsExist}
-                                            onCheckedChange={(checked) => handleRowToggle(module, !!checked)}
-                                        />
-                                        {module.replace(/_/g, ' ')}
-                                    </TableCell>
-                                    {actions.map(action => {
-                                        const permission = `${module}:${action}`;
-                                        const hasPermission = moduleActions.includes(action as any);
+                                return (
+                                    <TableRow key={module}>
+                                        <TableCell className="font-medium capitalize flex items-center gap-3">
+                                            <Checkbox
+                                                checked={allModuleActionsExist}
+                                                indeterminate={someModuleActionsExist && !allModuleActionsExist}
+                                                onCheckedChange={(checked) => handleRowToggle(module, !!checked)}
+                                            />
+                                            {module.replace(/_/g, ' ')}
+                                        </TableCell>
+                                        {actions.map(action => {
+                                            const permission = `${module}:${action}`;
+                                            const hasPermission = moduleActions.includes(action as any);
 
-                                        return (
-                                            <TableCell key={action}>
-                                                {hasPermission && (
-                                                    <Checkbox
-                                                        checked={currentPermissions.includes(permission)}
-                                                        onCheckedChange={(checked) => handlePermissionChange(permission, !!checked)}
-                                                    />
-                                                )}
-                                            </TableCell>
-                                        )
-                                    })}
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
+                                            return (
+                                                <TableCell key={action}>
+                                                    {hasPermission ? (
+                                                        <Checkbox
+                                                            checked={currentPermissions.includes(permission)}
+                                                            onCheckedChange={(checked) => handlePermissionChange(permission, !!checked)}
+                                                        />
+                                                    ) : null}
+                                                </TableCell>
+                                            )
+                                        })}
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
                 <FormField
                     control={control}
                     name="permissions"

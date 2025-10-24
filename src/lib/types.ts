@@ -90,13 +90,13 @@ export type Role = WithId<{
 }>;
 
 export const permissionGroups: Record<string, readonly string[]> = {
-  campaign: ["create", "read", "update", "delete"],
-  voter: ["create", "read", "update", "delete"],
-  user: ["create", "read", "update", "delete"],
-  role: ["create", "read", "update", "delete"],
-  city: ["create", "read", "update", "delete"],
-  task: ["create", "read", "update", "delete"],
-  call: ["create", "read", "update", "delete"],
+  campaign: ["read", "create", "update", "delete"],
+  voter: ["read", "create", "update", "delete"],
+  user: ["read", "create", "update", "delete"],
+  role: ["read", "create", "update", "delete"],
+  city: ["read", "create", "update", "delete"],
+  task: ["read", "create", "update", "delete"],
+  call: ["read", "create", "update", "delete"],
   report: ["read"],
   setting: ["update"],
 };
