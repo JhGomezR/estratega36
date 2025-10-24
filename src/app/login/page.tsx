@@ -21,11 +21,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/firebase";
+import { useAuth, useFirestore, useMemoFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import type { Role, User } from "@/lib/types";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -43,6 +45,7 @@ const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function LoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -50,7 +53,7 @@ export default function LoginPage() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
-      email: "admin@axcys.com",
+      email: "axdrcys@gmail.com",
       password: "KratoS_67*23",
     },
   });
@@ -58,6 +61,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     try {
+      // Try to sign in first
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({
         title: "Inicio de Sesión Exitoso",
@@ -65,16 +69,56 @@ export default function LoginPage() {
       });
       router.push("/");
     } catch (error: any) {
-      console.error(error);
-      let description = "Ocurrió un error inesperado.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
+      if (error.code === 'auth/user-not-found' && data.email === 'axdrcys@gmail.com') {
+        // If the admin user does not exist, create it
+        try {
+          if (!firestore) throw new Error("Firestore not available");
+          
+          const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+          const newAuthUser = userCredential.user;
+
+          const adminProfile: Omit<User, 'id'> = {
+            firstName: 'AXCYS',
+            lastName: 'Admin',
+            email: newAuthUser.email!,
+            roleId: 'admin',
+            idType: 'admin',
+            idNumber: '00000000',
+            phone: '0000000000',
+            cityIds: [],
+            campaignIds: [],
+            avatar: `https://picsum.photos/seed/admin/100/100`,
+            status: 'activo',
+          };
+          
+          await setDoc(doc(firestore, 'users', newAuthUser.uid), adminProfile);
+
+          toast({
+            title: "Cuenta de Administrador Creada",
+            description: "Se ha creado la cuenta de super-gestión y has iniciado sesión.",
+          });
+          router.push("/");
+
+        } catch (creationError: any) {
+          console.error("Admin creation error:", creationError);
+          toast({
+            variant: "destructive",
+            title: "Error Crítico",
+            description: "No se pudo crear la cuenta de administrador.",
+          });
+        }
+      } else {
+        console.error(error);
+        let description = "Ocurrió un error inesperado.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
+        }
+        toast({
+          variant: "destructive",
+          title: "Error de Autenticación",
+          description,
+        });
       }
-      toast({
-        variant: "destructive",
-        title: "Error de Autenticación",
-        description,
-      });
     } finally {
       setIsSubmitting(false);
     }
