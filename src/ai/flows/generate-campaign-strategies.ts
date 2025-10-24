@@ -38,13 +38,29 @@ const generateCampaignStrategyPrompt = ai.definePrompt({
   name: 'generateCampaignStrategyPrompt',
   input: {schema: GenerateCampaignStrategyInputSchema},
   output: {schema: GenerateCampaignStrategyOutputSchema},
+  
+  // AÑADIMOS CONFIGURACIÓN DE SEGURIDAD
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_ONLY_HIGH', // Bloquea si la probabilidad es alta
+      },
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE', // Bloquea si la probabilidad es media o alta
+      },
+    ],
+  },
+  
+  // MODIFICAMOS EL PROMPT CON INSTRUCCIONES
   prompt: `You are an AI-powered campaign strategist. Your task is to generate a comprehensive campaign strategy based on the provided campaign data, objectives, and resource constraints.
 
 Campaign Data: {{{campaignData}}}
 Objectives: {{{objectives}}}
 Resource Constraints: {{{resourceConstraints}}}
 
-Generate a detailed campaign strategy, including key recommendations and potential risks.
+IMPORTANT: Generate a detailed but concise campaign strategy. The key recommendations should be limited to the top 3 most impactful actions.
 
 Ensure the strategy is actionable and aligned with the objectives, taking into account any resource limitations.
 
