@@ -26,82 +26,154 @@ const GenerateCampaignStrategyOutputSchema = z.object({
 });
 export type GenerateCampaignStrategyOutput = z.infer<typeof GenerateCampaignStrategyOutputSchema>;
 
-// Tool for Section I: Diagnosis and Context
-const generateDiagnosisSectionTool = ai.defineTool(
+// Tool for Step 1: Estrategia de Autenticidad Posicionada
+const generateAuthenticityStrategyTool = ai.defineTool(
   {
-    name: 'generateDiagnosisSection',
-    description: `Genera la sección 'I. Diagnóstico y Contexto' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
-- Tipo de Campaña: Personal, Corporativa, o Política. Define el tono, los canales y la Autenticidad Posicionada.
-- Objetivo Principal: ¿Ganar una elección? ¿Lanzar un producto? ¿Mejorar la reputación? (Debe ser medible). Establece el "norte estratégico" y el foco de la Planeación.
-- Entorno/Contexto: Situación política/social actual; temas clave de la agenda mediática y los intereses de los electores. Permite la Lectura Constante del Contexto y evita errores costosos.
-- Oponente/Competencia: ¿Quiénes son los principales oponentes/competidores? (Fortalezas y debilidades). Base para el Análisis estratégico y la diferenciación del mensaje.`,
+    name: 'generateAuthenticityStrategy',
+    description: `Genera la sección 'Paso 1: Estrategia de Autenticidad Posicionada'. El objetivo es definir el ADN Único que conecte la visión global del candidato con las necesidades locales. Debe cubrir los subpuntos:
+- Definición del ADN Único: Detalla los valores, la historia y la visión del candidato.
+- Alineación con la Oferta: Explica cómo este ADN se traduce en propuestas concretas y relevantes para el 'lugar' especificado.`,
     inputSchema: GenerateCampaignStrategyInputSchema,
     outputSchema: z.string(),
   },
   async (input) => {
       const { text } = await ai.generate({
-        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Lugar: ${input.lugar}\n- Objetivos: ${input.objectives}\n- Restricciones: ${input.resourceConstraints}\n\nGenera un análisis extremadamente detallado para la sección "I. Diagnóstico y Contexto". Expande sobre cada uno de los puntos: Tipo de Campaña, Objetivo Principal, Entorno/Contexto y Oponente/Competencia. Sé exhaustivo y proporciona un análisis profundo.`,
+        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Lugar: ${input.lugar}\n- Objetivos: ${input.objectives}\n\nGenera un análisis extremadamente detallado para la sección "Paso 1: Estrategia de Autenticidad Posicionada". Explica el paso a paso.`,
       });
       return text;
   }
 );
 
-// Tool for Section II: Brand and Message
-const generateBrandSectionTool = ai.defineTool(
+// Tool for Step 2: Estrategia de Narrativa Emocional Segmentada
+const generateNarrativeStrategyTool = ai.defineTool(
   {
-    name: 'generateBrandSection',
-    description: `Genera la sección 'II. Marca y Mensaje' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
-- Valores Fundamentales: 3 a 5 valores esenciales de la marca/candidato (el ADN único). Define la Coherencia de Marca Total y la Autenticidad Posicionada.
-- Propuesta de Valor Central: ¿Qué solución concreta ofrece o qué causa defiende? ¿Qué lo hace único? Define el Mensaje Central y el eje de la campaña.
-- Tono Deseado: ¿Serio y técnico, o cercano y emocional? (Para el Storytelling). Guía la Narrativa Emocional Segmentada y la Construcción de imagen.`,
+    name: 'generateNarrativeStrategy',
+    description: `Genera la sección 'Paso 2: Estrategia de Narrativa Emocional Segmentada'. El objetivo es crear mensajes que movilicen a las personas, adaptados a cada subgrupo. Debe cubrir:
+- Creación de la Narrativa: Desarrolla la historia principal de la campaña.
+- Segmentación y Adaptación: Detalla cómo se adaptará esta narrativa para diferentes audiencias identificadas en los datos.`,
     inputSchema: GenerateCampaignStrategyInputSchema,
     outputSchema: z.string(),
   },
   async (input) => {
       const { text } = await ai.generate({
-        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Objetivos: ${input.objectives}\n\nGenera un análisis extremadamente detallado para la sección "II. Marca y Mensaje". Expande sobre cada uno de los puntos: Valores Fundamentales, Propuesta de Valor Central y Tono Deseado. Sé exhaustivo y proporciona un análisis profundo.`,
+        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Objetivos: ${input.objectives}\n\nGenera un análisis extremadamente detallado para la sección "Paso 2: Estrategia de Narrativa Emocional Segmentada". Explica el paso a paso.`,
       });
       return text;
   }
 );
 
-// Tool for Section III: Audience and Segmentation
-const generateAudienceSectionTool = ai.defineTool(
+// Tool for Step 3: Estrategia de Gestión Profesional y Data-Driven
+const generateManagementStrategyTool = ai.defineTool(
   {
-    name: 'generateAudienceSection',
-    description: `Genera la sección 'III. Audiencia y Segmentación' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
-- Audiencia Primaria: Demografía principal (Edad, ubicación, nivel socioeconómico) de la audiencia clave. Base para la Segmentación de mensajes y el Uso Estratégico de Microtargeting.
-- Motivaciones de la Audiencia: ¿Qué les preocupa, qué necesitan, o qué sentimiento busca movilizar? Impulsa el Uso emocional de los mensajes y el Análisis del voto.`,
+    name: 'generateManagementStrategy',
+    description: `Genera la sección 'Paso 3: Estrategia de Gestión Profesional y Data-Driven'. El objetivo es asegurar una ejecución eficiente y basada en datos. Debe cubrir:
+- Estructura y Gerenciamiento: Propone una estructura de equipo y un modelo de gestión.
+- Medición y Decisión: Define los KPIs clave y cómo se usarán para tomar decisiones.`,
     inputSchema: GenerateCampaignStrategyInputSchema,
     outputSchema: z.string(),
   },
   async (input) => {
       const { text } = await ai.generate({
-        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Lugar: ${input.lugar}\n\nGenera un análisis extremadamente detallado para la sección "III. Audiencia y Segmentación". Expande sobre cada uno de los puntos: Audiencia Primaria y Motivaciones de la Audiencia. Sé exhaustivo y proporciona un análisis profundo y recomendaciones de microtargeting.`,
+        prompt: `Basado en las restricciones de recursos: ${input.resourceConstraints}\n\nGenera un análisis extremadamente detallado para la sección "Paso 3: Estrategia de Gestión Profesional y Data-Driven". Explica el paso a paso.`,
       });
       return text;
   }
 );
 
-// Tool for Section IV: Operation and Measurement
-const generateOperationSectionTool = ai.defineTool(
+// Tool for Step 4: Estrategia de Lectura Constante del Contexto
+const generateContextStrategyTool = ai.defineTool(
   {
-    name: 'generateOperationSection',
-    description: `Genera la sección 'IV. Operación y Medición' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
-- Recursos y Equipo: ¿El comando es centralizado o descentralizado? ¿Se cuenta con consultores/equipo multidisciplinario? Determina la viabilidad de la Gestión Profesional y la logística.
-- Canales Actuales: ¿En qué redes sociales/medios ya tiene presencia y cuál es su alcance? Define la estrategia de Doble Presencia (Terreno y Redes) y el plan de Visibilidad.
-- Indicadores Clave de Éxito: ¿Qué se va a medir para saber si se tiene éxito? (Ej. Conocimiento de marca, favorabilidad, ventas, % de voto). Fundamento para el Monitoreo electoral y la Gestión Data-Driven.`,
+    name: 'generateContextStrategy',
+    description: `Genera la sección 'Paso 4: Estrategia de Lectura Constante del Contexto'. El objetivo es mantener la campaña relevante, reaccionando a la agenda. Debe cubrir:
+- Monitoreo de la Agenda: Describe cómo se seguirán los medios y la opinión pública.
+- Reacción y Relevancia: Detalla el proceso para responder rápidamente y ajustar el mensaje.`,
     inputSchema: GenerateCampaignStrategyInputSchema,
     outputSchema: z.string(),
   },
   async (input) => {
-       const { text } = await ai.generate({
-        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Restricciones: ${input.resourceConstraints}\n\nGenera un análisis extremadamente detallado para la sección "IV. Operación y Medición". Expande sobre cada uno de los puntos: Recursos y Equipo, Canales Actuales e Indicadores Clave de Éxito. Sé exhaustivo y proporciona un análisis profundo y un plan de acción claro.`,
+      const { text } = await ai.generate({
+        prompt: `Basado en el lugar: ${input.lugar} y los oponentes mencionados en los datos: ${input.campaignData}\n\nGenera un análisis extremadamente detallado para la sección "Paso 4: Estrategia de Lectura Constante del Contexto". Explica el paso a paso.`,
       });
       return text;
   }
 );
 
+// Tool for Step 5: Estrategia de Constancia y Consistencia
+const generateConsistencyStrategyTool = ai.defineTool(
+  {
+    name: 'generateConsistencyStrategy',
+    description: `Genera la sección 'Paso 5: Estrategia de Constancia y Consistencia'. El objetivo es construir una reputación duradera y mantener la energía de la campaña. Debe cubrir:
+- Frecuencia y Ritmo: Define la cadencia de comunicación y eventos.
+- Unidad y Coherencia: Asegura que todos los mensajes y acciones estén alineados.`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+      const { text } = await ai.generate({
+        prompt: `Genera un análisis extremadamente detallado para la sección "Paso 5: Estrategia de Constancia y Consistencia". Explica el paso a paso.`,
+      });
+      return text;
+  }
+);
+
+// Tool for Step 6: Estrategia de Uso Estratégico de Microtargeting
+const generateMicrotargetingStrategyTool = ai.defineTool(
+  {
+    name: 'generateMicrotargetingStrategy',
+    description: `Genera la sección 'Paso 6: Estrategia de Uso Estratégico de Microtargeting'. El objetivo es optimizar la estrategia de cada cosa. Debe cubrir:
+- Implementación de Data y Adaptación Fina: Cómo usar los datos para personalizar la comunicación a nivel micro.
+- Eficiencia: Cómo medir el ROI de las acciones de microtargeting.`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+async (input) => {
+      const { text } = await ai.generate({
+        prompt: `Basado en los datos de campaña: ${input.campaignData}\n\nGenera un análisis extremadamente detallado para la sección "Paso 6: Estrategia de Uso Estratégico de Microtargeting". Explica el paso a paso.`,
+      });
+      return text;
+  }
+);
+
+// Tool for Step 7: Recomendaciones Clave
+const generateRecommendationsTool = ai.defineTool(
+  {
+    name: 'generateRecommendations',
+    description: `Genera la sección 'Paso 7: Recomendaciones Clave'. Debe detallar la implementación específica para:
+- Priorizar el Personal Local
+- Sensibilidad Cultural Inquebrantable
+- Inversión en Logística de Infraestructura
+- Enfoque en Promesas Tangibles
+- Mecanismo de GOTV Robusto`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+      const { text } = await ai.generate({
+        prompt: `Considerando el lugar: ${input.lugar} y las restricciones: ${input.resourceConstraints}\n\nGenera un análisis extremadamente detallado para la sección "Paso 7: Recomendaciones Clave". Explica el paso a paso.`,
+      });
+      return text;
+  }
+);
+
+// Tool for Step 8: Riesgos Potenciales
+const generateRisksTool = ai.defineTool(
+  {
+    name: 'generateRisks',
+    description: `Genera la sección 'Paso 8: Riesgos Potenciales'. Debe identificar riesgos basados en el diagnóstico y proponer estrategias de mitigación. Cubre:
+- Riesgo Logístico y de Seguridad
+- Errores Culturales / Desconfianza Externa
+- Apatía del Votante / Fatiga
+- Competencia con Líderes Locales`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+      const { text } = await ai.generate({
+        prompt: `Basado en el contexto y los oponentes: ${input.campaignData} y el lugar: ${input.lugar}\n\nGenera un análisis extremadamente detallado para la sección "Paso 8: Riesgos Potenciales". Explica el paso a paso.`,
+      });
+      return text;
+  }
+);
 
 export async function generateCampaignStrategy(
   input: GenerateCampaignStrategyInput
@@ -114,21 +186,29 @@ const generateCampaignStrategyPrompt = ai.definePrompt({
   input: {schema: GenerateCampaignStrategyInputSchema},
   output: {schema: GenerateCampaignStrategyOutputSchema},
   tools: [
-    generateDiagnosisSectionTool,
-    generateBrandSectionTool,
-    generateAudienceSectionTool,
-    generateOperationSectionTool,
+    generateAuthenticityStrategyTool,
+    generateNarrativeStrategyTool,
+    generateManagementStrategyTool,
+    generateContextStrategyTool,
+    generateConsistencyStrategyTool,
+    generateMicrotargetingStrategyTool,
+    generateRecommendationsTool,
+    generateRisksTool,
   ],
-  prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed campaign strategy document based on the user's input. 
+  prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed eight-part campaign strategy document based on the user's input. The final document must be well over 2500 words.
 
-You must call the tools for each section in the correct order to build the document. Each section must be clearly titled and formatted. The final document should be comprehensive, well-structured, and provide deep insights.
+You must call the tools for each section in the correct order to build the document. Each section must be clearly titled and formatted. The final document should be comprehensive, well-structured, and provide deep insights, explaining the step-by-step process.
 
-1. Call 'generateDiagnosisSection'
-2. Call 'generateBrandSection'
-3. Call 'generateAudienceSection'
-4. Call 'generateOperationSection'
+1. Call 'generateAuthenticityStrategy'
+2. Call 'generateNarrativeStrategy'
+3. Call 'generateManagementStrategy'
+4. Call 'generateContextStrategy'
+5. Call 'generateConsistencyStrategy'
+6. Call 'generateMicrotargetingStrategy'
+7. Call 'generateRecommendations'
+8. Call 'generateRisks'
 
-Combine the outputs of all tools into a single, cohesive, and extremely detailed strategy document. Ensure the final text is well over 2500 words and formatted with clear headings for each of the four main sections.`,
+Combine the outputs of all tools into a single, cohesive, and extremely detailed strategy document. Ensure the final text is formatted with clear headings for each of the eight main sections.`,
 });
 
 const generateCampaignStrategyFlow = ai.defineFlow(
