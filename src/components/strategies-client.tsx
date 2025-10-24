@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from 'react'
@@ -152,9 +153,13 @@ export function StrategiesClient() {
       
       <div className="space-y-4">
         {isLoading && (
-          <>
-            <Card><CardHeader><Skeleton className="h-8 w-3/4" /></CardHeader><CardContent><Skeleton className="h-96 w-full" /></CardContent></Card>
-          </>
+          <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
+            <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
+            <h3 className="text-lg font-semibold">Generando tu modelo de estrategia...</h3>
+            <p className="text-muted-foreground text-sm mt-2">
+              Esto puede tardar uno o dos minutos. Por favor, no cierres esta ventana.
+            </p>
+          </Card>
         )}
         {result && (
           <>
