@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Sidebar,
   SidebarContent,
@@ -35,15 +35,18 @@ import {
   Building,
   Palette,
   ChevronsRight,
+  LogOut,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { UserNav } from "./user-nav"
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
+import { useAuth, useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { BrandingSettings } from "@/lib/types"
 import Image from "next/image"
+import { signOut } from "firebase/auth"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -53,9 +56,20 @@ const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
   const { data: settings } = useDoc<BrandingSettings>(settingsRef);
+
+  React.useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [isUserLoading, user, router]);
+
 
   const isActive = (path: string, exact: boolean = false) => {
     return exact ? pathname === path : pathname.startsWith(path)
@@ -69,6 +83,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (settings.sidebarColor) root.style.setProperty('--sidebar-background', settings.sidebarColor);
     }
   }, [settings]);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  }
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -189,6 +216,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </AppShellCollapsibleGroup>
+             <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout} tooltip="Cerrar Sesión">
+                    <LogOut />
+                    <span>Cerrar Sesión</span>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

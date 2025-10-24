@@ -1,3 +1,4 @@
+
 "use client"
 import React from 'react'
 import {
@@ -81,7 +82,7 @@ export default function Dashboard() {
         promoterCounts[voter.promoterId] = (promoterCounts[voter.promoterId] || 0) + 1;
     });
 
-    const leaders = users.filter(u => u.roleId === 'lider' || u.roleId === 'promotor');
+    const leaders = users.filter(u => u.roleId === 'lider' || u.roleId === 'promotor' || u.roleId === 'admin');
 
     return leaders
         .map(leader => ({

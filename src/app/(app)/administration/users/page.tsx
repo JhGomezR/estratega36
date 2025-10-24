@@ -120,7 +120,7 @@ export default function UsersPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
         const newAuthUser = userCredential.user;
         
-        const { password, username, ...restOfData } = data;
+        const { password, ...restOfData } = data;
 
         const newUserProfile: Omit<User, 'id'> = {
           ...restOfData,

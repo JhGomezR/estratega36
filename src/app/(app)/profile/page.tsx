@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -22,7 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useAuth, useDoc, useFirebase, useFirestore, useMemoFirebase } from "@/firebase"
+import { useAuth, useDoc, useFirebase, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { Loader2, Save } from "lucide-react"
 import { doc } from "firebase/firestore"
 import type { User } from "@/lib/types"
@@ -52,7 +53,7 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 
 export default function ProfilePage() {
-  const { user: authUser, isUserLoading } = useAuth();
+  const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
