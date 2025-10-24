@@ -72,6 +72,7 @@ export type User = WithId<{
   campaignIds: string[];
   avatar: string;
   status: 'activo' | 'inactivo';
+  parentId?: string;
 }>;
 
 export type City = WithId<{

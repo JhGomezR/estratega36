@@ -38,6 +38,7 @@ import {
   ChevronsRight,
   LogOut,
   Loader2,
+  GitFork,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -134,10 +135,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/map")} tooltip="Mapa">
+              <SidebarMenuButton asChild isActive={isActive("/map")} tooltip="Mapa de Votantes">
                 <Link href="/map">
                   <Map />
                   <span>Mapa de Votantes</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/network")} tooltip="Mapa de Red">
+                <Link href="/network">
+                  <GitFork />
+                  <span>Mapa de Red</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

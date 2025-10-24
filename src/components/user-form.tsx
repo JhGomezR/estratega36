@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useUser } from "@/firebase"
 
 const userFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -37,6 +38,7 @@ const userFormSchema = z.object({
   roleId: z.string({ required_error: "Debe seleccionar un rol." }),
   cityIds: z.array(z.string()).min(1, "Debe seleccionar al menos una ciudad."),
   campaignIds: z.array(z.string()).min(1, "Debe seleccionar al menos una campaña."),
+  parentId: z.string().optional(),
 });
 
 export type UserFormValues = z.infer<typeof userFormSchema>;
@@ -52,6 +54,8 @@ interface UserFormProps {
 }
 
 export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCancel }: UserFormProps) {
+  const { user: currentUser } = useUser();
+
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -66,6 +70,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
       roleId: user?.roleId ?? undefined,
       cityIds: user?.cityIds ?? [],
       campaignIds: user?.campaignIds ?? [],
+      parentId: user?.parentId ?? currentUser?.uid,
     },
   });
 

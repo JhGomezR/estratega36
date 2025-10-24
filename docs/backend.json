@@ -221,6 +221,10 @@
           "type": "string",
           "description": "The status of the user, e.g., 'activo', 'inactivo'.",
           "default": "activo"
+        },
+        "parentId": {
+            "type": "string",
+            "description": "The ID of the user who registered this user, establishing the hierarchy."
         }
       },
       "required": [
