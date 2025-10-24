@@ -37,6 +37,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
@@ -140,7 +141,7 @@ export default function RolesPage() {
                   <TableCell className="font-medium capitalize">{role.name}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {role.permissions.map(p => <Badge variant="outline" key={p}>{p.replace(/_/g, ' ')}</Badge>)}
+                      {role.permissions.map(p => <Badge variant="outline" key={p}>{p.replace(/:/g, ': ').replace(/_/g, ' ')}</Badge>)}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
