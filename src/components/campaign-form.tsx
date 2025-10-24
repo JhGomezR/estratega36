@@ -26,6 +26,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, Trash2 } from "lucide-react"
+import { isFuture, parseISO } from "date-fns"
 
 const investorSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido."),
@@ -82,6 +83,22 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
   });
 
   const hasInvestors = form.watch("hasInvestors");
+  const endDate = form.watch("endDate");
+  const currentStatus = form.watch("status");
+
+  React.useEffect(() => {
+    if (endDate && currentStatus === 'Finalizada') {
+      try {
+        const parsedEndDate = parseISO(endDate);
+        if (isFuture(parsedEndDate)) {
+          form.setValue('status', 'En Campaña');
+        }
+      } catch (e) {
+        console.error("Invalid end date format");
+      }
+    }
+  }, [endDate, currentStatus, form]);
+
 
   function handleFormSubmit(data: CampaignFormValues) {
     onSubmit(data);
@@ -193,7 +210,7 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Estado</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                     <FormControl>
                         <SelectTrigger>
                         <SelectValue placeholder="Selecciona un estado" />
