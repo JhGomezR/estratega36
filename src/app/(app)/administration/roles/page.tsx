@@ -167,10 +167,10 @@ export default function RolesPage() {
                   <TableRow key={role.id}>
                     <TableCell className="font-medium capitalize">{role.name}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <div className="flex flex-col gap-2">
                         {getGroupedPermissions(role.permissions).map(([module, actions]) => (
                           <div key={module} className="flex items-center gap-2">
-                              <span className="text-sm font-medium capitalize">{module.replace(/_/g, ' ')}:</span>
+                              <span className="text-sm font-medium capitalize w-24">{module.replace(/_/g, ' ')}:</span>
                               <div className="flex items-center gap-1.5">
                                 {actions.map(action => {
                                   const Icon = actionIcons[action];
