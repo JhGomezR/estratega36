@@ -5,14 +5,13 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { generateCampaignStrategy, type GenerateCampaignStrategyOutput } from '@/ai/flows/generate-campaign-strategies'
+import { generateCampaignStrategy } from '@/ai/flows/generate-campaign-strategies'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Lightbulb, Loader2, Info } from 'lucide-react'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
@@ -31,7 +30,7 @@ const formSchema = z.object({
 })
 
 export function StrategiesClient() {
-  const [result, setResult] = useState<GenerateCampaignStrategyOutput | null>(null)
+  const [strategy, setStrategy] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
@@ -47,10 +46,16 @@ export function StrategiesClient() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    setResult(null)
+    setStrategy('')
     try {
-      const aiResult = await generateCampaignStrategy(values)
-      setResult(aiResult)
+      // The flow now returns a stream
+      const stream = await generateCampaignStrategy(values);
+
+      // Read from the stream and update the state
+      for await (const chunk of stream) {
+        setStrategy((prev) => prev + chunk);
+      }
+
     } catch (e) {
       console.error(e)
       toast({
@@ -153,16 +158,16 @@ export function StrategiesClient() {
       </Card>
       
       <div className="space-y-4">
-        {isLoading && (
-          <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
-            <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
-            <h3 className="text-lg font-semibold">Generando tu modelo de estrategia...</h3>
-            <p className="text-muted-foreground text-sm mt-2">
-              Esto puede tardar uno o dos minutos. Por favor, no cierres esta ventana.
-            </p>
-          </Card>
+        {(!isLoading && !strategy) && (
+             <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
+                <Lightbulb className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold">Estrategia de Campaña</h3>
+                <p className="text-muted-foreground text-sm">
+                    La estrategia generada por la IA aparecerá aquí en tiempo real.
+                </p>
+            </Card>
         )}
-        {result && (
+        {(isLoading || strategy) && (
           <>
             <Card className="bg-card/80 border-primary/50 shadow-lg">
               <CardHeader className="space-y-4">
@@ -177,20 +182,11 @@ export function StrategiesClient() {
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[60vh] w-full">
-                  <p className="text-sm whitespace-pre-wrap pr-4">{result.strategy}</p>
+                  <p className="text-sm whitespace-pre-wrap pr-4">{strategy}{isLoading && '...'}</p>
                 </ScrollArea>
               </CardContent>
             </Card>
           </>
-        )}
-        {!isLoading && !result && (
-             <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
-                <Lightbulb className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-semibold">Estrategia de Campaña</h3>
-                <p className="text-muted-foreground text-sm">
-                    La estrategia generada por la IA aparecerá aquí.
-                </p>
-            </Card>
         )}
       </div>
     </div>
