@@ -89,17 +89,29 @@ export type Role = WithId<{
   status: 'activo' | 'inactivo';
 }>;
 
-export const availablePermissions = [
-  "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
-  "voter:create", "voter:read", "voter:update", "voter:delete",
-  "user:create", "user:read", "user:update", "user:delete",
-  "role:create", "role:read", "role:update", "role:delete",
-  "city:create", "city:read", "city:update", "city:delete",
-  "task:create", "task:read", "task:update", "task:delete",
-  "call:create", "call:read", "call:update", "call:delete",
-  "report:read",
-  "setting:update"
-] as const;
+export const permissionGroups: Record<string, readonly string[]> = {
+  campaign: ["create", "read", "update", "delete"],
+  voter: ["create", "read", "update", "delete"],
+  user: ["create", "read", "update", "delete"],
+  role: ["create", "read", "update", "delete"],
+  city: ["create", "read", "update", "delete"],
+  task: ["create", "read", "update", "delete"],
+  call: ["create", "read", "update", "delete"],
+  report: ["read"],
+  setting: ["update"],
+};
+
+const generatePermissions = (): readonly string[] => {
+  const allPermissions: string[] = [];
+  for (const module in permissionGroups) {
+    permissionGroups[module].forEach(action => {
+      allPermissions.push(`${module}:${action}`);
+    });
+  }
+  return allPermissions as readonly string[];
+}
+
+export const availablePermissions = generatePermissions();
 
 export type Permission = (typeof availablePermissions)[number];
 
@@ -114,4 +126,3 @@ export type ManagedList = WithId<{
     name: string;
     items: string[];
 }>;
-
