@@ -1,5 +1,6 @@
 "use client"
 import * as React from "react"
+import Link from "next/link"
 import {
   Card,
   CardContent,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2 } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import type { Campaign, ManagedList } from "@/lib/types"
 import { CampaignForm } from "@/components/campaign-form"
@@ -250,6 +251,11 @@ export default function CampaignsPage() {
                   </TableCell>
                   <TableCell className={cn(isEndingToday && campaign.status !== 'Finalizada' && "text-red-500 font-bold")}>{campaign.endDate}</TableCell>
                   <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/campaigns/${campaign.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(campaign)}>
                       <Edit className="h-4 w-4" />
                     </Button>
