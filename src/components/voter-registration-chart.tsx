@@ -13,9 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import { Voter } from '@/lib/types';
+import { type Voter } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
 
@@ -23,34 +21,30 @@ const processVoterData = (voters: Voter[] | null) => {
   if (!voters) {
     return [];
   }
-  const monthlyCounts: { [key: string]: number } = {};
 
   const currentYear = new Date().getFullYear();
 
   const chartData = [
-    { month: 'Jan', registrations: 0 },
+    { month: 'Ene', registrations: 0 },
     { month: 'Feb', registrations: 0 },
     { month: 'Mar', registrations: 0 },
-    { month: 'Apr', registrations: 0 },
+    { month: 'Abr', registrations: 0 },
     { month: 'May', registrations: 0 },
     { month: 'Jun', registrations: 0 },
     { month: 'Jul', registrations: 0 },
-    { month: 'Aug', registrations: 0 },
+    { month: 'Ago', registrations: 0 },
     { month: 'Sep', registrations: 0 },
     { month: 'Oct', registrations: 0 },
     { month: 'Nov', registrations: 0 },
-    { month: 'Dec', registrations: 0 },
+    { month: 'Dic', registrations: 0 },
   ];
 
   voters.forEach(voter => {
     try {
       const date = parseISO(voter.registrationDate);
       if (date.getFullYear() === currentYear) {
-        const month = format(date, 'MMM');
-        const entry = chartData.find(d => d.month === month);
-        if (entry) {
-          entry.registrations++;
-        }
+        const monthIndex = date.getMonth();
+        chartData[monthIndex].registrations++;
       }
     } catch (e) {
         console.error("Invalid date format for voter", voter)
@@ -61,17 +55,11 @@ const processVoterData = (voters: Voter[] | null) => {
 }
 
 
-export function VoterRegistrationChart({ isLoading }: { isLoading: boolean }) {
-  const firestore = useFirestore();
-  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
-  );
+export function VoterRegistrationChart({ voters, isLoading }: { voters: Voter[] | null, isLoading: boolean }) {
   
   const voterRegistrationChartData = processVoterData(voters);
   
-  const anyLoading = isLoading || votersLoading;
-
-  if (anyLoading) {
+  if (isLoading) {
     return <Skeleton className="h-[300px] w-full" />
   }
 

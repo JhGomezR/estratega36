@@ -17,17 +17,18 @@ import {
 } from "@/components/ui/table"
 import {
   UserCheck,
-  UserPlus,
+  Building2,
   Users,
   CalendarDays,
-  CalendarClock
+  PhoneForwarded
 } from "lucide-react"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
-import { type Campaign, type Voter, type User, type Task, type Call } from '@/lib/types'
+import { type Campaign, type Voter, type User, type Task, type Call, type City } from '@/lib/types'
 import { subDays, parseISO, isToday, isWithinInterval, startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns'
 import { WeeklyVoterChart } from '@/components/weekly-voter-chart'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { VoterRegistrationChart } from '@/components/voter-registration-chart'
 
 export default function Dashboard() {
   const firestore = useFirestore();
@@ -38,18 +39,19 @@ export default function Dashboard() {
   const { data: users, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
   );
+  const { data: calls, isLoading: callsLoading } = useCollection<Call>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'calls') : null, [firestore])
+  );
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+  );
   
   const promoters = users?.filter(u => u.roleId === 'promoter' || u.roleId === 'lider');
 
-  const { newVotersToday, newVotersThisWeek } = React.useMemo(() => {
-    if (!voters) return { newVotersToday: 0, newVotersThisWeek: 0 };
+  const { newVotersToday } = React.useMemo(() => {
+    if (!voters) return { newVotersToday: 0 };
     
-    const today = new Date();
-    const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
-    const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
-
     let newVotersToday = 0;
-    let newVotersThisWeek = 0;
 
     voters.forEach(voter => {
       try {
@@ -57,16 +59,19 @@ export default function Dashboard() {
         if (isToday(registrationDate)) {
           newVotersToday++;
         }
-        if (isWithinInterval(registrationDate, { start: startOfThisWeek, end: endOfThisWeek })) {
-          newVotersThisWeek++;
-        }
       } catch {
         // Ignore invalid dates
       }
     });
     
-    return { newVotersToday, newVotersThisWeek };
+    return { newVotersToday };
   }, [voters]);
+
+  const callStats = React.useMemo(() => {
+    if (!calls) return { attended: 0, total: 0 };
+    const attended = calls.filter(c => c.status === 'atendida').length;
+    return { attended, total: calls.length };
+  }, [calls]);
 
   const topLeaders = React.useMemo(() => {
     if (!voters || !users) return [];
@@ -90,7 +95,7 @@ export default function Dashboard() {
   }, [voters, users]);
 
 
-  const isLoading = votersLoading || usersLoading;
+  const isLoading = votersLoading || usersLoading || callsLoading || citiesLoading;
 
 
   return (
@@ -128,26 +133,26 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Votantes (Últimos 7 días)
+              Municipios Registrados
             </CardTitle>
-            <CalendarClock className="h-4 w-4 text-muted-foreground" />
+            <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{isLoading ? '...' : newVotersThisWeek}</div>
+            <div className="text-2xl font-bold">{isLoading ? '...' : cities?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
-              Registrados esta semana
+              Total de municipios en el sistema
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Promotores Activos</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Progreso de Llamadas</CardTitle>
+            <PhoneForwarded className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? '...' : promoters?.length ?? 0}</div>
+            <div className="text-2xl font-bold">{isLoading ? '...' : `${callStats.attended} / ${callStats.total}`}</div>
             <p className="text-xs text-muted-foreground">
-              Miembros del equipo registrando votantes
+              Llamadas atendidas del total
             </p>
           </CardContent>
         </Card>
@@ -208,6 +213,20 @@ export default function Dashboard() {
                     )}
                 </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 grid-cols-1">
+        <Card>
+          <CardHeader>
+            <CardTitle>Registros Mensuales</CardTitle>
+            <CardDescription>
+              Conteo de nuevos votantes registrados cada mes durante el año actual.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VoterRegistrationChart isLoading={isLoading} />
           </CardContent>
         </Card>
       </div>
