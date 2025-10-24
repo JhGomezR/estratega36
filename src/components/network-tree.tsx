@@ -1,9 +1,11 @@
 "use client"
 import * as React from 'react';
-import type { User, Role } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import type { User, Role, Campaign } from '@/lib/types';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface TreeNode extends User {
     children: TreeNode[];
@@ -30,54 +32,74 @@ const buildTree = (users: User[], roles: Role[]): TreeNode[] => {
     return tree;
 };
 
-const Node = ({ node }: { node: TreeNode }) => {
-    const [isCollapsed, setIsCollapsed] = React.useState(false);
+const Node = ({ node, campaigns }: { node: TreeNode; campaigns: Campaign[] }) => {
+    const userCampaigns = campaigns.filter(c => node.campaignIds.includes(c.id) && c.status === 'En Campaña');
 
     return (
-        <div className="relative pl-8">
-            {/* Vertical connector from parent */}
-            <div className="absolute left-4 top-0 w-px h-full bg-border" />
-            
-            <div className="relative flex items-center">
-                {/* Horizontal connector */}
-                <div className="absolute left-0 top-1/2 w-4 h-px bg-border" />
-
-                <Card className="min-w-[280px] w-fit max-w-sm z-10 bg-card shadow-md my-2">
-                    <CardContent className="p-3 flex items-center gap-4">
-                         <Avatar className="h-12 w-12 border">
-                            <AvatarImage src={node.avatar} alt={`${node.firstName} avatar`} data-ai-hint="person portrait"/>
+        <div className="flex flex-col items-center relative">
+            {/* User Card */}
+            <Card className="min-w-[280px] w-fit max-w-sm z-10 bg-card shadow-md my-2 border-2 border-primary/20">
+                <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12 border">
+                            <AvatarImage src={node.avatar} alt={`${node.firstName} avatar`} data-ai-hint="person portrait" />
                             <AvatarFallback>{node.firstName[0]}{node.lastName[0]}</AvatarFallback>
                         </Avatar>
                         <div className="flex-grow">
-                            <p className="font-semibold text-sm">{node.firstName} {node.lastName}</p>
-                            <p className="text-xs text-muted-foreground">{node.email}</p>
+                            <p className="font-semibold">{node.firstName} {node.lastName}</p>
                             <Badge variant="secondary" className="capitalize mt-1 text-xs">{node.roleName}</Badge>
                         </div>
-                        {node.children.length > 0 && (
-                             <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-muted-foreground hover:text-foreground ml-auto p-1">
-                                {isCollapsed ? '+' : '−'}
-                            </button>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-            
-            {!isCollapsed && node.children.length > 0 && (
-                <div className="relative">
-                    {node.children.map((child, index) => (
-                        <div key={child.id} className="relative">
-                            {/* Final vertical line for last child */}
-                            {index === node.children.length - 1 && <div className="absolute left-4 top-0 w-px h-1/2 bg-card z-0" />}
-                            <Node node={child} />
+                    </div>
+                    {userCampaigns.length > 0 && (
+                        <div className="pt-2 border-t">
+                            <p className="text-xs font-semibold mb-1.5 text-muted-foreground">Campañas Activas:</p>
+                            <div className="flex flex-wrap gap-1">
+                                {userCampaigns.map(campaign => (
+                                     <TooltipProvider key={campaign.id}>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Badge variant="outline">{campaign.name}</Badge>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{campaign.name}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                ))}
+                            </div>
                         </div>
-                    ))}
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Children container */}
+            {node.children.length > 0 && (
+                <div className="flex justify-center relative">
+                    {/* Vertical line from parent */}
+                    <div className="absolute top-0 h-8 w-px bg-border -translate-y-2" />
+                    
+                    <div className="flex gap-x-8 pt-8">
+                        {node.children.map((child, index) => (
+                            <div key={child.id} className="flex flex-col items-center relative">
+                                {/* Horizontal line */}
+                                <div className={cn(
+                                    "absolute top-0 h-px bg-border",
+                                    index === 0 ? 'left-1/2 w-1/2' : 'right-1/2 w-1/2',
+                                    node.children.length === 1 && 'w-0'
+                                )} />
+                                {/* Vertical line to child */}
+                                <div className="absolute top-0 h-8 w-px bg-border" />
+                                <Node node={child} campaigns={campaigns} />
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
     );
 };
 
-export const NetworkTree = ({ users, roles }: { users: User[], roles: Role[] }) => {
+export const NetworkTree = ({ users, roles, campaigns }: { users: User[], roles: Role[], campaigns: Campaign[] }) => {
     const tree = React.useMemo(() => buildTree(users, roles), [users, roles]);
 
     if (tree.length === 0) {
@@ -85,12 +107,12 @@ export const NetworkTree = ({ users, roles }: { users: User[], roles: Role[] }) 
     }
 
     return (
-        <div className="flex flex-col items-start space-y-4">
-            {tree.map(rootNode => (
-                <div key={rootNode.id} className="relative">
-                    <Node node={rootNode} />
-                </div>
-            ))}
+        <div className="flex justify-center">
+            <div className="inline-flex flex-col items-center space-y-4">
+                {tree.map(rootNode => (
+                    <Node key={rootNode.id} node={rootNode} campaigns={campaigns} />
+                ))}
+            </div>
         </div>
     );
 };

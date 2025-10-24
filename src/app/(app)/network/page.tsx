@@ -2,7 +2,7 @@
 import React from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import type { User, Role } from '@/lib/types';
+import type { User, Role, Campaign } from '@/lib/types';
 import { NetworkTree } from '@/components/network-tree';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,14 +10,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 export default function NetworkPage() {
     const firestore = useFirestore();
 
-    const { data: users, isLoading: usersLoading } = useCollection<User>(
+    const { data: usersData, isLoading: usersLoading } = useCollection<User>(
         useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
     );
     const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
         useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
     );
+    const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(
+        useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
+    );
 
-    const isLoading = usersLoading || rolesLoading;
+    const activeUsers = React.useMemo(() => {
+        return usersData?.filter(user => user.status === 'activo');
+    }, [usersData]);
+
+    const isLoading = usersLoading || rolesLoading || campaignsLoading;
 
     return (
         <div className="flex flex-col gap-8">
@@ -36,7 +43,7 @@ export default function NetworkPage() {
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <NetworkTree users={users || []} roles={roles || []} />
+                        <NetworkTree users={activeUsers || []} roles={roles || []} campaigns={campaigns || []} />
                     )}
                 </CardContent>
             </Card>
