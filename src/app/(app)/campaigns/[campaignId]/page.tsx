@@ -1,7 +1,8 @@
 
 "use client"
 import * as React from "react"
-import { useParams } from 'next/navigation'
+import Link from "next/link"
+import { useParams, useRouter } from 'next/navigation'
 import {
   Card,
   CardContent,
@@ -21,11 +22,18 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
-import type { Campaign } from "@/lib/types"
+import type { Campaign, Campaign as CampaignType, ManagedList } from "@/lib/types"
 import { format, parseISO, isToday } from "date-fns"
 import { es } from 'date-fns/locale'
-import { Loader2 } from "lucide-react"
+import { ArrowLeft, Edit, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CampaignForm } from "@/components/campaign-form"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { collection } from "firebase/firestore"
+import { Separator } from "@/components/ui/separator"
 
 const statusColors: Record<string, string> = {
   'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
@@ -35,7 +43,10 @@ const statusColors: Record<string, string> = {
 
 export default function CampaignDetailPage() {
   const params = useParams()
+  const router = useRouter();
   const campaignId = params.campaignId as string;
+
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const firestore = useFirestore()
   const campaignRef = useMemoFirebase(() => {
@@ -43,8 +54,32 @@ export default function CampaignDetailPage() {
   }, [firestore, campaignId]);
 
   const { data: campaign, isLoading } = useDoc<Campaign>(campaignRef);
+  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
-  if (isLoading) {
+  const lists = React.useMemo(() => {
+    const listsMap: Record<string, ManagedList | undefined> = {};
+    if (managedLists) {
+        managedLists.forEach(list => {
+            listsMap[list.id] = list;
+        });
+    }
+    return listsMap;
+  }, [managedLists]);
+
+  const handleFormSubmit = (data: Omit<CampaignType, 'id' | 'progress'>) => {
+    if (firestore) {
+      const campaignData: Partial<CampaignType> = { ...data };
+      if (campaignData.status === 'Finalizada') {
+          campaignData.progress = 100;
+      }
+      
+      setDocumentNonBlocking(doc(firestore, 'campaigns', campaignId), campaignData, { merge: true });
+    }
+    setIsFormOpen(false);
+  }
+
+  if (isLoading || listsLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-10 w-10 animate-spin" />
@@ -57,6 +92,10 @@ export default function CampaignDetailPage() {
         <div className="text-center">
             <h1 className="text-2xl font-bold">Campaña no encontrada</h1>
             <p className="text-muted-foreground">La campaña que buscas no existe o fue eliminada.</p>
+            <Button onClick={() => router.push('/campaigns')} className="mt-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver a Campañas
+            </Button>
         </div>
     )
   }
@@ -66,50 +105,49 @@ export default function CampaignDetailPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{campaign.name}</h1>
-        <p className="text-muted-foreground mt-1">{campaign.description}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => router.push('/campaigns')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{campaign.name}</h1>
+            <p className="text-muted-foreground mt-1">{campaign.description}</p>
+          </div>
+        </div>
+        <Button onClick={() => setIsFormOpen(true)}>
+          <Edit className="mr-2 h-4 w-4" />
+          Editar Campaña
+        </Button>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Estado</CardTitle>
-          </CardHeader>
-          <CardContent>
-             <Badge className={cn("capitalize text-base", isEndingToday && campaign.status !== 'Finalizada' ? "bg-red-500 text-white" : statusColors[campaign.status] || "bg-gray-400")}>
-                {campaign.status}
-            </Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Tipo de Campaña</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold capitalize">{campaign.campaignType}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Fecha de Inicio</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{format(parseISO(campaign.startDate), 'PPP', { locale: es })}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Fecha de Fin</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={cn("text-2xl font-bold", isEndingToday && campaign.status !== 'Finalizada' && "text-red-500")}>
+      <Card>
+        <CardContent className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Estado</p>
+             <div className="flex justify-center">
+                <Badge className={cn("capitalize text-base", isEndingToday && campaign.status !== 'Finalizada' ? "bg-red-500 text-white" : statusColors[campaign.status] || "bg-gray-400")}>
+                    {campaign.status}
+                </Badge>
+             </div>
+          </div>
+           <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Tipo de Campaña</p>
+            <p className="text-xl font-bold capitalize">{campaign.campaignType}</p>
+          </div>
+           <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Fecha de Inicio</p>
+            <p className="text-xl font-bold">{format(parseISO(campaign.startDate), 'PPP', { locale: es })}</p>
+          </div>
+           <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Fecha de Fin</p>
+             <p className={cn("text-xl font-bold", isEndingToday && campaign.status !== 'Finalizada' && "text-red-500")}>
                 {format(parseISO(campaign.endDate), 'PPP', { locale: es })}
             </p>
-          </CardContent>
-        </Card>
-      </div>
-
+          </div>
+        </CardContent>
+      </Card>
+      
       <Card>
           <CardHeader>
             <CardTitle>Objetivo y Progreso</CardTitle>
@@ -119,6 +157,7 @@ export default function CampaignDetailPage() {
                 <p className="font-medium text-muted-foreground">Objetivo</p>
                 <p className="text-lg">{campaign.goal}</p>
              </div>
+             <Separator />
              <div>
                 <p className="font-medium text-muted-foreground">Progreso de la Campaña</p>
                  <div className="flex items-center gap-4 mt-2">
@@ -168,6 +207,20 @@ export default function CampaignDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Editar Campaña</DialogTitle>
+            </DialogHeader>
+            <CampaignForm
+              campaign={campaign}
+              lists={lists}
+              onSubmit={handleFormSubmit}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
     </div>
   )
 }

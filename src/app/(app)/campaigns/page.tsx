@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import Link from "next/link"
@@ -231,7 +232,7 @@ export default function CampaignsPage() {
               {processedCampaigns?.map((campaign) => {
                 const endDate = parseISO(campaign.endDate);
                 const isEndingToday = isToday(endDate);
-                const statusLabel = getStatusLabel(campaign.status);
+                const statusLabel = campaign.status;
                 return (
                 <TableRow key={campaign.id}>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
