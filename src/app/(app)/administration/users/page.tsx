@@ -72,7 +72,7 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null)
 
   const users = React.useMemo(() => {
-    if (!usersData || !currentUser) return [];
+    if (!usersData || !currentUser || !roles) return [];
 
     const currentUserData = usersData.find(u => u.id === currentUser.uid);
     if (!currentUserData) return usersData.filter(u => u.status !== 'inactivo');
@@ -284,7 +284,3 @@ export default function UsersPage() {
     </div>
   )
 }
-
-    
-
-    
