@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { Role } from "@/lib/types"
-import { permissionGroups } from "@/lib/types"
+import { permissionGroups, availablePermissions } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -21,6 +21,18 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { ScrollArea } from "./ui/scroll-area"
+import {
+    Target,
+    Users,
+    UserCog,
+    Shield,
+    Building,
+    ListChecks,
+    Phone,
+    BarChart,
+    Palette,
+    type LucideIcon
+} from "lucide-react"
 
 const roleFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
@@ -42,6 +54,19 @@ const actionLabels: Record<string, string> = {
     update: "Editar",
     delete: "Eliminar"
 };
+
+const moduleIcons: Record<string, LucideIcon> = {
+    campaign: Target,
+    voter: Users,
+    user: UserCog,
+    role: Shield,
+    city: Building,
+    task: ListChecks,
+    call: Phone,
+    report: BarChart,
+    setting: Palette
+};
+
 
 export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
   const form = useForm<RoleFormValues>({
@@ -78,6 +103,13 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
        setValue('permissions', updatedPermissions, { shouldValidate: true });
   }
 
+  const handleSelectAll = (isChecked: boolean) => {
+    setValue('permissions', isChecked ? [...availablePermissions] : [], { shouldValidate: true });
+  }
+
+  const allPermissionsSelected = availablePermissions.length === currentPermissions.length;
+  const somePermissionsSelected = currentPermissions.length > 0 && !allPermissionsSelected;
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -109,21 +141,28 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                             <TableRow>
                                 <TableHead className="w-[200px]">Módulo</TableHead>
                                 {actions.map(action => <TableHead key={action}>{actionLabels[action]}</TableHead>)}
+                                <TableHead className="text-right">
+                                    <div className="flex items-center gap-3 justify-end">
+                                       <span>Todos</span>
+                                        <Checkbox
+                                            checked={allPermissionsSelected}
+                                            indeterminate={somePermissionsSelected}
+                                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                        />
+                                    </div>
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {Object.entries(permissionGroups).map(([module, moduleActions]) => {
+                                const Icon = moduleIcons[module];
                                 const allModuleActionsExist = moduleActions.every(action => currentPermissions.includes(`${module}:${action}`));
                                 const someModuleActionsExist = moduleActions.some(action => currentPermissions.includes(`${module}:${action}`));
 
                                 return (
                                     <TableRow key={module}>
                                         <TableCell className="font-medium capitalize flex items-center gap-3">
-                                            <Checkbox
-                                                checked={allModuleActionsExist}
-                                                indeterminate={someModuleActionsExist && !allModuleActionsExist}
-                                                onCheckedChange={(checked) => handleRowToggle(module, !!checked)}
-                                            />
+                                            {Icon && <Icon className="h-5 w-5 text-muted-foreground"/>}
                                             {module.replace(/_/g, ' ')}
                                         </TableCell>
                                         {actions.map(action => {
@@ -141,6 +180,13 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                                                 </TableCell>
                                             )
                                         })}
+                                         <TableCell className="text-right">
+                                            <Checkbox
+                                                checked={allModuleActionsExist}
+                                                indeterminate={someModuleActionsExist && !allModuleActionsExist}
+                                                onCheckedChange={(checked) => handleRowToggle(module, !!checked)}
+                                            />
+                                        </TableCell>
                                     </TableRow>
                                 )
                             })}
