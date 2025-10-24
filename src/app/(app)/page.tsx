@@ -16,69 +16,81 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  Target,
   UserCheck,
   UserPlus,
   Users,
+  CalendarDays,
+  CalendarClock
 } from "lucide-react"
-import { Progress } from "@/components/ui/progress"
-import { VoterRegistrationChart } from "@/components/voter-registration-chart"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { type Campaign, type Voter, type User, type Task, type Call } from '@/lib/types'
-import { subDays, parseISO } from 'date-fns'
+import { subDays, parseISO, isToday, isWithinInterval, startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns'
+import { WeeklyVoterChart } from '@/components/weekly-voter-chart'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 export default function Dashboard() {
   const firestore = useFirestore();
 
-  const { data: campaigns } = useCollection<Campaign>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
-  );
-  const { data: voters } = useCollection<Voter>(
+  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
     useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
   );
-  const { data: users } = useCollection<User>(
+  const { data: users, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
   );
-  const { data: tasks } = useCollection<Task>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'tasks') : null, [firestore])
-  );
-  const { data: calls } = useCollection<Call>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'calls') : null, [firestore])
-  );
   
-  const promoters = users?.filter(u => u.roleId === 'promoter');
+  const promoters = users?.filter(u => u.roleId === 'promoter' || u.roleId === 'lider');
 
-  const newVotersCount = voters?.filter(v => {
-    try {
-      return parseISO(v.registrationDate) > subDays(new Date(), 30)
-    } catch {
-      return false
-    }
-  }).length ?? 0;
-  
-  const recentActivities = [...(tasks?.slice(0, 2) || []), ...(calls?.slice(0, 2) || [])].map(activity => {
-    if ('title' in activity) {
-        return {
-            id: activity.id,
-            description: activity.title,
-            type: 'Task',
-            date: activity.dueDate,
+  const { newVotersToday, newVotersThisWeek } = React.useMemo(() => {
+    if (!voters) return { newVotersToday: 0, newVotersThisWeek: 0 };
+    
+    const today = new Date();
+    const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
+    const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
+
+    let newVotersToday = 0;
+    let newVotersThisWeek = 0;
+
+    voters.forEach(voter => {
+      try {
+        const registrationDate = parseISO(voter.registrationDate);
+        if (isToday(registrationDate)) {
+          newVotersToday++;
         }
-    }
-    return {
-        id: activity.id,
-        description: `Llamada a votante`,
-        type: 'Call',
-        date: activity.callDate || new Date().toISOString(),
-    }
-}).sort((a, b) => {
-    try {
-        return parseISO(b.date).getTime() - parseISO(a.date).getTime()
-    } catch {
-        return 0
-    }
-});
+        if (isWithinInterval(registrationDate, { start: startOfThisWeek, end: endOfThisWeek })) {
+          newVotersThisWeek++;
+        }
+      } catch {
+        // Ignore invalid dates
+      }
+    });
+    
+    return { newVotersToday, newVotersThisWeek };
+  }, [voters]);
+
+  const topLeaders = React.useMemo(() => {
+    if (!voters || !users) return [];
+    
+    const promoterCounts: Record<string, number> = {};
+    voters.forEach(voter => {
+        promoterCounts[voter.promoterId] = (promoterCounts[voter.promoterId] || 0) + 1;
+    });
+
+    const leaders = users.filter(u => u.roleId === 'lider' || u.roleId === 'promotor');
+
+    return leaders
+        .map(leader => ({
+            ...leader,
+            voterCount: promoterCounts[leader.id] || 0,
+        }))
+        .filter(leader => leader.voterCount > 0)
+        .sort((a, b) => b.voterCount - a.voterCount)
+        .slice(0, 5);
+
+  }, [voters, users]);
+
+
+  const isLoading = votersLoading || usersLoading;
 
 
   return (
@@ -93,7 +105,7 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{voters?.length ?? 0}</div>
+            <div className="text-2xl font-bold">{isLoading ? '...' : voters?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
               Total de votantes registrados
             </p>
@@ -102,14 +114,28 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Nuevos Votantes (30d)
+              Votantes Hoy
             </CardTitle>
-            <UserPlus className="h-4 w-4 text-muted-foreground" />
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{newVotersCount}</div>
+            <div className="text-2xl font-bold">+{isLoading ? '...' : newVotersToday}</div>
             <p className="text-xs text-muted-foreground">
-              En los últimos 30 días
+              Registrados en el día actual
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Votantes (Últimos 7 días)
+            </CardTitle>
+            <CalendarClock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+{isLoading ? '...' : newVotersThisWeek}</div>
+            <p className="text-xs text-muted-foreground">
+              Registrados esta semana
             </p>
           </CardContent>
         </Card>
@@ -119,21 +145,9 @@ export default function Dashboard() {
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{promoters?.length ?? 0}</div>
+            <div className="text-2xl font-bold">{isLoading ? '...' : promoters?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
               Miembros del equipo registrando votantes
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Campañas Activas</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{campaigns?.filter(c => c.status === 'active').length ?? 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Campañas actualmente en progreso
             </p>
           </CardContent>
         </Card>
@@ -142,57 +156,61 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>Registros de Votantes</CardTitle>
-            <CardDescription>Registros mensuales de nuevos votantes.</CardDescription>
+            <CardTitle>Votantes Semana a Semana</CardTitle>
+            <CardDescription>Visión general de los votantes registrados por semana.</CardDescription>
           </CardHeader>
           <CardContent>
-            <VoterRegistrationChart />
+            <WeeklyVoterChart voters={voters} isLoading={isLoading}/>
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Progreso de Campañas</CardTitle>
-            <CardDescription>Progreso actual de las campañas activas.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {campaigns?.filter(c => c.status === 'active').map(campaign => (
-              <div key={campaign.id} className="flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">{campaign.name}</span>
-                  <span className="text-xs text-muted-foreground">{campaign.progress}%</span>
-                </div>
-                <Progress value={campaign.progress} aria-label={`${campaign.name} progress`} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-      
-       <Card>
-          <CardHeader>
-            <CardTitle>Actividades Recientes</CardTitle>
+            <CardTitle>Top 5 Líderes con más Votantes</CardTitle>
+            <CardDescription>Conteo de los 5 líderes que han ingresado más votantes.</CardDescription>
           </CardHeader>
           <CardContent>
-             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Fecha</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentActivities.map((activity) => (
-                  <TableRow key={activity.id}>
-                    <TableCell className="font-medium">{activity.type}</TableCell>
-                    <TableCell>{activity.description}</TableCell>
-                    <TableCell>{activity.date}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Líder</TableHead>
+                        <TableHead className="text-right">Votantes</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {isLoading ? (
+                        [...Array(5)].map((_, i) => (
+                             <TableRow key={i}>
+                                <TableCell className="h-12">Cargando...</TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
+                        ))
+                    ) : topLeaders.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={2} className="h-24 text-center">
+                                No hay datos de líderes para mostrar.
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        topLeaders.map(leader => (
+                            <TableRow key={leader.id}>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={leader.avatar} alt={`${leader.firstName} ${leader.lastName}`} data-ai-hint="person portrait"/>
+                                            <AvatarFallback>{leader.firstName.charAt(0)}{leader.lastName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="font-medium">{leader.firstName} {leader.lastName}</div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-lg">{leader.voterCount}</TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
             </Table>
           </CardContent>
         </Card>
+      </div>
     </div>
   )
 }
