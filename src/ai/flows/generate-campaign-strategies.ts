@@ -22,7 +22,7 @@ const GenerateCampaignStrategyInputSchema = z.object({
 export type GenerateCampaignStrategyInput = z.infer<typeof GenerateCampaignStrategyInputSchema>;
 
 const GenerateCampaignStrategyOutputSchema = z.object({
-  strategy: z.string().describe('A comprehensive and extremely detailed campaign strategy document, up to 5000 words, following the specified structure.'),
+  strategy: z.string().describe('A comprehensive and extremely detailed campaign strategy document, between 4000 and 5000 words, following the specified structure.'),
 });
 export type GenerateCampaignStrategyOutput = z.infer<typeof GenerateCampaignStrategyOutputSchema>;
 
@@ -43,7 +43,7 @@ Lugar: {{{lugar}}}
 Objetivos Principales: {{{objectives}}}
 Restricciones de Recursos (Opcional): {{{resourceConstraints}}}
 
-y con base en esos datos tu vas a generar un modelo de campaña que cumpla con los siguientes requisitos en ese debido orden, debe ser extremadamente detallada, debe llegar hasta las 5000 palabras:
+y con base en esos datos tu vas a generar un modelo de campaña que cumpla con los siguientes requisitos en ese debido orden, debe ser extremadamente detallada, debe tener entre 4000 y 5000 palabras:
 
 I. Diagnóstico y Contexto
 Tipo de Campaña: Personal, Corporativa, o Política. Define el tono, los canales y la Autenticidad Posicionada.
