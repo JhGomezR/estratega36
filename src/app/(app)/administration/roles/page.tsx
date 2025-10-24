@@ -175,7 +175,7 @@ export default function RolesPage() {
                                 {actions.map(action => {
                                   const Icon = actionIcons[action];
                                   return (
-                                    <Tooltip key={action}>
+                                    <Tooltip key={`${module}-${action}`}>
                                       <TooltipTrigger>
                                         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
                                       </TooltipTrigger>
