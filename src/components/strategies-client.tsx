@@ -13,10 +13,14 @@ import { useToast } from '@/hooks/use-toast'
 import { Lightbulb, Loader2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from './ui/scroll-area'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
     message: 'Los datos de la campaña deben tener al menos 50 caracteres.',
+  }),
+  lugar: z.string().min(3, {
+    message: 'El lugar debe tener al menos 3 caracteres.',
   }),
   objectives: z.string().min(20, {
     message: 'Los objetivos deben tener al menos 20 caracteres.',
@@ -33,6 +37,7 @@ export function StrategiesClient() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       campaignData: '',
+      lugar: '',
       objectives: '',
       resourceConstraints: '',
     },
@@ -79,6 +84,20 @@ export function StrategiesClient() {
                         {...field}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lugar"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lugar</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Colombia, Bogotá, etc." {...field} />
+                    </FormControl>
+                    <FormDescription>La ciudad, región o país donde se desarrollará la campaña.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -134,9 +153,7 @@ export function StrategiesClient() {
       <div className="space-y-4">
         {isLoading && (
           <>
-            <Card><CardHeader><Skeleton className="h-8 w-3/4" /></CardHeader><CardContent><Skeleton className="h-32 w-full" /></CardContent></Card>
-            <Card><CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader><CardContent><Skeleton className="h-20 w-full" /></CardContent></Card>
-            <Card><CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader><CardContent><Skeleton className="h-20 w-full" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-8 w-3/4" /></CardHeader><CardContent><Skeleton className="h-96 w-full" /></CardContent></Card>
           </>
         )}
         {result && (
@@ -146,23 +163,9 @@ export function StrategiesClient() {
                 <CardTitle>Estrategia de Campaña Generada</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{result.strategy}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border-accent/50 shadow-lg">
-              <CardHeader>
-                <CardTitle>Recomendaciones Clave</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{result.keyRecommendations}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle>Riesgos Potenciales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{result.potentialRisks}</p>
+                <ScrollArea className="h-[70vh] w-full">
+                  <p className="text-sm whitespace-pre-wrap pr-4">{result.strategy}</p>
+                </ScrollArea>
               </CardContent>
             </Card>
           </>
