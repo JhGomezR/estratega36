@@ -1,7 +1,7 @@
 
 "use client"
 import * as React from "react"
-import { useParams, notFound } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import {
   Card,
   CardContent,
@@ -53,8 +53,12 @@ export default function CampaignDetailPage() {
   }
 
   if (!campaign) {
-    notFound();
-    return null;
+    return (
+        <div className="text-center">
+            <h1 className="text-2xl font-bold">Campaña no encontrada</h1>
+            <p className="text-muted-foreground">La campaña que buscas no existe o fue eliminada.</p>
+        </div>
+    )
   }
   
   const isEndingToday = isToday(parseISO(campaign.endDate));
