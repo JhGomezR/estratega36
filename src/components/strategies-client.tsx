@@ -87,12 +87,18 @@ const generationFunctions: Record<SectionKey, (input: GenerateCampaignStrategyIn
 };
 
 type StrategyResult = Partial<Record<SectionKey, string>>;
-type LoadingState = Partial<Record<SectionKey, boolean>>;
+type GenerationStatus = 'idle' | 'loading' | 'completed' | 'error';
+type SectionStatus = Record<SectionKey, GenerationStatus>;
 
 export function StrategiesClient() {
   const [strategy, setStrategy] = useState<StrategyResult>({})
-  const [loadingSections, setLoadingSections] = useState<LoadingState>({})
-  const [isGenerating, setIsGenerating] = useState(false)
+  const [isOverallGenerating, setIsOverallGenerating] = useState(false)
+  const [sectionStatus, setSectionStatus] = useState<SectionStatus>(
+      Object.keys(sectionTitles).reduce((acc, key) => {
+          acc[key as SectionKey] = 'idle';
+          return acc;
+      }, {} as SectionStatus)
+  );
   const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -106,29 +112,35 @@ export function StrategiesClient() {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsGenerating(true)
+    setIsOverallGenerating(true)
     setStrategy({})
+    setSectionStatus(
+        Object.keys(sectionTitles).reduce((acc, key) => {
+            acc[key as SectionKey] = 'idle';
+            return acc;
+        }, {} as SectionStatus)
+    );
 
     const sectionKeys = Object.keys(generationFunctions) as SectionKey[];
 
     for (const key of sectionKeys) {
-      setLoadingSections(prev => ({ ...prev, [key]: true }));
+      setSectionStatus(prev => ({ ...prev, [key]: 'loading' }));
       try {
         const result = await generationFunctions[key](values);
         setStrategy(prev => ({ ...prev, [key]: result }));
+        setSectionStatus(prev => ({ ...prev, [key]: 'completed' }));
       } catch (e) {
         console.error(`Error generating section ${key}:`, e);
         setStrategy(prev => ({ ...prev, [key]: `Error al generar esta sección.` }));
+        setSectionStatus(prev => ({ ...prev, [key]: 'error' }));
         toast({
           variant: 'destructive',
           title: `Error en Sección: ${sectionTitles[key]}`,
           description: 'No se pudo generar esta parte de la estrategia. Inténtalo de nuevo.',
         })
-      } finally {
-        setLoadingSections(prev => ({ ...prev, [key]: false }));
       }
     }
-    setIsGenerating(false)
+    setIsOverallGenerating(false)
   }
 
   const hasResults = Object.keys(strategy).length > 0;
@@ -213,13 +225,13 @@ export function StrategiesClient() {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isGenerating}>
-                {isGenerating ? (
+              <Button type="submit" disabled={isOverallGenerating}>
+                {isOverallGenerating ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Lightbulb className="mr-2 h-4 w-4" />
                 )}
-                {isGenerating ? 'Generando...' : 'Generar Estrategia'}
+                {isOverallGenerating ? 'Generando...' : 'Generar Estrategia'}
               </Button>
             </CardFooter>
           </form>
@@ -249,14 +261,18 @@ export function StrategiesClient() {
                     <div key={key}>
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xl font-semibold">{sectionTitles[key]}</h3>
-                        {loadingSections[key] && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
-                        {strategy[key] && !loadingSections[key] && <CheckCircle className="h-5 w-5 text-green-500" />}
+                         {sectionStatus[key] === 'loading' && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+                         {sectionStatus[key] === 'completed' && <CheckCircle className="h-5 w-5 text-green-500" />}
+                         {sectionStatus[key] === 'error' && <CheckCircle className="h-5 w-5 text-red-500" />}
                       </div>
-                      {strategy[key] ? (
+                      
+                       {strategy[key] && (
                         <p className="text-sm whitespace-pre-wrap">{strategy[key]}</p>
-                      ) : loadingSections[key] ? (
-                        <p className="text-sm text-muted-foreground">Generando esta sección...</p>
-                      ) : null}
+                       )}
+                       {sectionStatus[key] === 'loading' && (
+                         <p className="text-sm text-muted-foreground">Generando esta sección...</p>
+                       )}
+
                       <Separator className="mt-6" />
                     </div>
                   ))}
