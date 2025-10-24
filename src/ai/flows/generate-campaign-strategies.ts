@@ -26,19 +26,14 @@ export type GenerateCampaignStrategyInput = z.infer<typeof GenerateCampaignStrat
 export async function generateCampaignStrategy(
   input: GenerateCampaignStrategyInput
 ) {
-  return generateCampaignStrategyStream(input);
-}
-
-const generateCampaignStrategyPrompt = ai.definePrompt({
-    name: 'generateCampaignStrategyPrompt',
-    input: { schema: GenerateCampaignStrategyInputSchema },
+  const { stream } = await ai.generate({
     prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed eight-part campaign strategy document. It must be extremely detailed.
 
 Based on the following user input, generate the full strategy:
-- Campaign Data: {{{campaignData}}}
-- Location: {{{lugar}}}
-- Objectives: {{{objectives}}}
-- Resource Constraints: {{{resourceConstraints}}}
+- Campaign Data: ${input.campaignData}
+- Location: ${input.lugar}
+- Objectives: ${input.objectives}
+- Resource Constraints: ${input.resourceConstraints}
 
 Your response must follow this exact 8-part structure, with clear headings for each section. Be extremely detailed in each subsection.
 
@@ -83,25 +78,7 @@ VIII. Riesgos Potenciales
 - Apatía del Votante / Fatiga
 - Competencia con Líderes Locales
 `,
-});
-
-// This flow now returns a stream.
-const generateCampaignStrategyStream = ai.defineFlow(
-  {
-    name: 'generateCampaignStrategyStream',
-    inputSchema: GenerateCampaignStrategyInputSchema,
-    // The output is now a stream of strings
-    outputSchema: z.string(),
     stream: true,
-  },
-  async (input) => {
-    const { stream } = await ai.generate({
-      prompt: generateCampaignStrategyPrompt,
-      input,
-      stream: true,
-    });
-    
-    // Return the text stream directly
-    return stream.text();
-  }
-);
+  });
+  return stream.text();
+}
