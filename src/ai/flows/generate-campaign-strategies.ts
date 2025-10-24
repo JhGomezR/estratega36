@@ -22,7 +22,7 @@ const GenerateCampaignStrategyInputSchema = z.object({
 export type GenerateCampaignStrategyInput = z.infer<typeof GenerateCampaignStrategyInputSchema>;
 
 const GenerateCampaignStrategyOutputSchema = z.object({
-  strategy: z.string().describe('A comprehensive and extremely detailed campaign strategy document, between 4000 and 5000 words, following the specified structure.'),
+  strategy: z.string().describe('A comprehensive and extremely detailed campaign strategy document, following the specified structure.'),
 });
 export type GenerateCampaignStrategyOutput = z.infer<typeof GenerateCampaignStrategyOutputSchema>;
 
@@ -36,7 +36,14 @@ const generateCampaignStrategyPrompt = ai.definePrompt({
   name: 'generateCampaignStrategyPrompt',
   input: {schema: GenerateCampaignStrategyInputSchema},
   output: {schema: GenerateCampaignStrategyOutputSchema},
-  
+  config: {
+    safetySettings: [
+        {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_ONLY_HIGH',
+        },
+    ],
+  },
   prompt: `Vas a recibir 5 parametros;
 Datos clave de la campaña: {{{campaignData}}}
 Lugar: {{{lugar}}}
