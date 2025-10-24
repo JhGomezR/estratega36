@@ -193,6 +193,12 @@
           "type": "string",
           "format": "email"
         },
+        "username": {
+            "type": "string"
+        },
+        "password": {
+            "type": "string"
+        },
         "phone": {
             "type": "string"
         },
@@ -221,6 +227,7 @@
         "firstName",
         "lastName",
         "email",
+        "password",
         "roleId",
         "cityIds",
         "campaignIds",

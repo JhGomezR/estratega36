@@ -31,13 +31,15 @@ const userFormSchema = z.object({
   idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
   idNumber: z.string().min(5, "El número de documento es requerido."),
   email: z.string().email("El correo electrónico no es válido."),
+  username: z.string().optional(),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres."),
   phone: z.string().min(7, "El celular no es válido."),
   roleId: z.string({ required_error: "Debe seleccionar un rol." }),
   cityIds: z.array(z.string()).min(1, "Debe seleccionar al menos una ciudad."),
   campaignIds: z.array(z.string()).min(1, "Debe seleccionar al menos una campaña."),
 });
 
-type UserFormValues = z.infer<typeof userFormSchema>;
+export type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
   user?: User | null;
@@ -58,12 +60,25 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
       idType: user?.idType,
       idNumber: user?.idNumber ?? "",
       email: user?.email ?? "",
+      username: "",
+      password: "",
       phone: user?.phone ?? "",
       roleId: user?.roleId ?? undefined,
       cityIds: user?.cityIds ?? [],
       campaignIds: user?.campaignIds ?? [],
     },
   });
+
+  const email = form.watch("email");
+
+  React.useEffect(() => {
+    if (email) {
+      const username = email.split('@')[0];
+      form.setValue('username', username);
+    } else {
+      form.setValue('username', '');
+    }
+  }, [email, form]);
 
   return (
     <Form {...form}>
@@ -137,20 +152,51 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
           />
         </div>
         
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Correo Electrónico (para acceso)</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="ejemplo@correo.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
                 control={form.control}
-                name="email"
+                name="username"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Correo Electrónico</FormLabel>
+                    <FormLabel>Usuario de Acceso</FormLabel>
                     <FormControl>
-                    <Input type="email" placeholder="ejemplo@correo.com" {...field} />
+                    <Input {...field} readOnly disabled />
+                    </FormControl>
+                    <FormDescription>Se genera automáticamente desde el email.</FormDescription>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Contraseña</FormLabel>
+                    <FormControl>
+                    <Input type="password" placeholder="Mínimo 8 caracteres" {...field} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
                 )}
             />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
                 control={form.control}
                 name="phone"
@@ -164,32 +210,31 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
                 </FormItem>
                 )}
             />
+             <FormField
+                control={form.control}
+                name="roleId"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Rol</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un rol" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {roles.map(role => (
+                        <SelectItem key={role.id} value={role.id} className="capitalize">
+                            {role.name}
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
         </div>
-
-        <FormField
-            control={form.control}
-            name="roleId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Rol</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un rol" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {roles.map(role => (
-                      <SelectItem key={role.id} value={role.id} className="capitalize">
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-        />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField

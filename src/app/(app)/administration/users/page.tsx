@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import type { User, Role, City, Campaign, ManagedList } from "@/lib/types"
-import { UserForm } from "@/components/user-form"
+import { UserForm, type UserFormValues } from "@/components/user-form"
 import {
   Dialog,
   DialogContent,
@@ -40,12 +40,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
-import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, doc, setDoc } from "firebase/firestore"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { createUserWithEmailAndPassword } from "firebase/auth"
+import { useToast } from "@/hooks/use-toast"
 
 export default function UsersPage() {
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { toast } = useToast();
 
   const { data: usersData, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
@@ -101,19 +105,44 @@ export default function UsersPage() {
     }
   }
 
-  const handleFormSubmit = (data: Omit<User, 'id' | 'avatar' | 'status'>) => {
-    if (firestore) {
+  const handleFormSubmit = async (data: UserFormValues) => {
+    if (!firestore || !auth) return;
+
+    try {
       if (selectedUser) {
-        setDocumentNonBlocking(doc(firestore, 'users', selectedUser.id), data, { merge: true });
+        // We don't update auth user here, just firestore document
+        const { password, email, ...firestoreData } = data;
+        setDocumentNonBlocking(doc(firestore, 'users', selectedUser.id), firestoreData, { merge: true });
+        toast({ title: "Usuario Actualizado", description: "Los datos del usuario han sido actualizados." });
+
       } else {
-        const newUser: Omit<User, 'id'> = {
+        // Create auth user first
+        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        const newAuthUser = userCredential.user;
+        
+        const { password, username, ...restOfData } = data;
+
+        const newUserProfile: Omit<User, 'id'> = {
+          ...restOfData,
           avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
           status: 'activo',
-          ...data
         };
-        addDocumentNonBlocking(collection(firestore, 'users'), newUser);
+        
+        // Then create firestore document with the same UID
+        await setDoc(doc(firestore, 'users', newAuthUser.uid), newUserProfile);
+        toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
       }
+    } catch (error: any) {
+        console.error("Error creating user:", error);
+        let description = "Ocurrió un error inesperado.";
+        if (error.code === 'auth/email-already-in-use') {
+            description = "El correo electrónico ya está en uso por otra cuenta.";
+        } else if (error.code === 'auth/weak-password') {
+            description = "La contraseña es demasiado débil.";
+        }
+        toast({ variant: "destructive", title: "Error al crear usuario", description });
     }
+
     setIsFormOpen(false);
   };
 
