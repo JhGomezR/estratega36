@@ -91,16 +91,17 @@ const generateCampaignStrategyStream = ai.defineFlow(
     name: 'generateCampaignStrategyStream',
     inputSchema: GenerateCampaignStrategyInputSchema,
     // The output is now a stream of strings
-    outputSchema: z.string().stream(),
+    outputSchema: z.string(),
+    stream: true,
   },
-  async input => {
+  async (input) => {
     const { stream } = await ai.generate({
-        prompt: generateCampaignStrategyPrompt,
-        input,
-        stream: true,
+      prompt: generateCampaignStrategyPrompt,
+      input,
+      stream: true,
     });
     
-    // Convert the content stream to a string stream
+    // Return the text stream directly
     return stream.text();
   }
 );
