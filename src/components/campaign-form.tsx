@@ -56,7 +56,7 @@ const campaignFormSchema = z.object({
 type CampaignFormValues = z.infer<typeof campaignFormSchema>;
 
 interface CampaignFormProps {
-  campaign?: Omit<Campaign, 'id' | 'progress'> | null;
+  campaign?: Campaign | null;
   lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: CampaignFormValues) => void;
   onCancel: () => void;
