@@ -226,7 +226,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <VoterRegistrationChart isLoading={isLoading} />
+            <VoterRegistrationChart voters={voters} isLoading={isLoading} />
           </CardContent>
         </Card>
       </div>
