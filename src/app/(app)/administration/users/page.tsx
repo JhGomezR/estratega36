@@ -73,21 +73,27 @@ export default function UsersPage() {
 
   const users = React.useMemo(() => {
     if (!usersData || !currentUser || !roles) return [];
-
-    const currentUserData = usersData.find(u => u.id === currentUser.uid);
-    if (!currentUserData) return usersData.filter(u => u.status !== 'inactivo');
-
-    const currentUserRole = roles?.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
-
+    
     const activeUsers = usersData.filter(u => u.status !== 'inactivo');
 
+    // Super admin can see everyone
+    if (currentUser.email === 'axdrcys@gmail.com') {
+      return activeUsers;
+    }
+
+    const currentUserData = usersData.find(u => u.id === currentUser.uid);
+    if (!currentUserData) return [];
+    
+    const currentUserRole = roles.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
+    
     if (currentUserRole === 'admin') {
         return activeUsers;
     }
 
-    // A 'lider' can see themselves and the users they created (their children)
     if (currentUserRole === 'lider') {
-        return activeUsers.filter(u => u.parentId === currentUser.uid || u.id === currentUser.uid);
+        const teamMemberIds = usersData.filter(u => u.parentId === currentUser.uid).map(u => u.id);
+        const allTeamIds = [currentUser.uid, ...teamMemberIds];
+        return activeUsers.filter(u => allTeamIds.includes(u.id));
     }
     
     // Other roles can only see themselves
