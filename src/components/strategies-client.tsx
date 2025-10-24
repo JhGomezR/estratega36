@@ -11,10 +11,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Lightbulb, Loader2 } from 'lucide-react'
+import { Lightbulb, Loader2, Info } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
+import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
@@ -164,11 +165,18 @@ export function StrategiesClient() {
         {result && (
           <>
             <Card className="bg-card/80 border-primary/50 shadow-lg">
-              <CardHeader>
+              <CardHeader className="space-y-4">
                 <CardTitle>Estrategia de Campaña Generada</CardTitle>
+                 <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Nota Importante</AlertTitle>
+                  <AlertDescription>
+                    Este es un modelo de estrategia generado por IA. Debe ser utilizado como una base o un ejemplo para desarrollar tu plan final. Revisa y ajusta el contenido según tu criterio y conocimiento experto.
+                  </AlertDescription>
+                </Alert>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[70vh] w-full">
+                <ScrollArea className="h-[60vh] w-full">
                   <p className="text-sm whitespace-pre-wrap pr-4">{result.strategy}</p>
                 </ScrollArea>
               </CardContent>
