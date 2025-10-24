@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card"
 import {
   Table,
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List, Search } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import type { Task, User, ManagedList } from "@/lib/types"
 import { TaskForm } from "@/components/task-form"
 import {
@@ -54,6 +55,8 @@ const priorityClasses: Record<string, string> = {
   urgente: "bg-red-500 hover:bg-red-600",
 };
 
+const TASKS_PER_PAGE = 15;
+
 export default function TasksPage() {
   const firestore = useFirestore();
 
@@ -72,6 +75,7 @@ export default function TasksPage() {
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
   const [view, setView] = React.useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState(1);
 
   const tasks = React.useMemo(() => {
       return tasksData?.filter(t => t.status !== 'archivada');
@@ -109,6 +113,13 @@ export default function TasksPage() {
       return taskTitle.includes(lowercasedQuery) || assignedUserName.includes(lowercasedQuery);
     });
   }, [tasks, searchQuery, users]);
+
+  const paginatedTasks = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * TASKS_PER_PAGE;
+    return filteredTasks.slice(startIndex, startIndex + TASKS_PER_PAGE);
+  }, [filteredTasks, currentPage]);
+
+  const totalPages = Math.ceil(filteredTasks.length / TASKS_PER_PAGE);
 
   const handleAddNew = () => {
     setSelectedTask(null);
@@ -218,7 +229,17 @@ export default function TasksPage() {
                   <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
                 </TableRow>
               )}
-              {filteredTasks.map((task) => (
+              {!isLoading && paginatedTasks.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    <p className="font-medium">No hay tareas para mostrar.</p>
+                    <p className="text-sm text-muted-foreground">
+                      {searchQuery ? "Intenta con otra búsqueda." : "Crea una nueva tarea para empezar."}
+                    </p>
+                  </TableCell>
+                </TableRow>
+              )}
+              {paginatedTasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell className="font-medium">{task.title}</TableCell>
                   <TableCell>
@@ -258,6 +279,31 @@ export default function TasksPage() {
             </TableBody>
           </Table>
         </CardContent>
+        <CardFooter className="flex items-center justify-between pt-4">
+          <div className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages > 0 ? totalPages : 1}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
       )}
 
@@ -375,3 +421,5 @@ export default function TasksPage() {
     </div>
   )
 }
+
+    
