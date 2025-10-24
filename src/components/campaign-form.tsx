@@ -26,7 +26,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, Trash2 } from "lucide-react"
-import { isFuture, parseISO } from "date-fns"
+import { isFuture, isPast, parseISO, startOfToday } from "date-fns"
 
 const investorSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido."),
@@ -48,6 +48,9 @@ const campaignFormSchema = z.object({
   status: z.string({ required_error: "Debe seleccionar un estado." }),
   hasInvestors: z.boolean(),
   investors: z.array(investorSchema).optional(),
+}).refine(data => data.endDate >= data.startDate, {
+  message: "La fecha de fin no puede ser anterior a la fecha de inicio.",
+  path: ["endDate"],
 });
 
 type CampaignFormValues = z.infer<typeof campaignFormSchema>;
@@ -83,21 +86,29 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
   });
 
   const hasInvestors = form.watch("hasInvestors");
+  const startDate = form.watch("startDate");
   const endDate = form.watch("endDate");
-  const currentStatus = form.watch("status");
+
 
   React.useEffect(() => {
-    if (endDate && currentStatus === 'Finalizada') {
+    if (startDate && endDate) {
       try {
+        const parsedStartDate = parseISO(startDate);
         const parsedEndDate = parseISO(endDate);
-        if (isFuture(parsedEndDate)) {
-          form.setValue('status', 'En Campaña');
+        const today = startOfToday();
+
+        if (isFuture(parsedStartDate)) {
+          form.setValue('status', 'Futura', { shouldValidate: true });
+        } else if (isPast(parsedEndDate)) {
+          form.setValue('status', 'Finalizada', { shouldValidate: true });
+        } else if (!isFuture(parsedStartDate) && isFuture(parsedEndDate) || parsedEndDate >= today) {
+           form.setValue('status', 'En Campaña', { shouldValidate: true });
         }
       } catch (e) {
-        console.error("Invalid end date format");
+        console.error("Invalid date format for status calculation");
       }
     }
-  }, [endDate, currentStatus, form]);
+  }, [startDate, endDate, form]);
 
 
   function handleFormSubmit(data: CampaignFormValues) {
