@@ -15,9 +15,10 @@ import { Button } from "@/components/ui/button"
 import { useFirestore, useMemoFirebase, useDoc, useCollection } from "@/firebase"
 import { doc, collection, writeBatch } from "firebase/firestore"
 import type { BrandingSettings, ManagedList } from "@/lib/types"
-import { Loader2, PlusCircle, Trash2 } from "lucide-react"
+import { Loader2, PlusCircle, Trash2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import Image from "next/image"
 
 function hexToHsl(hex: string): string | null {
     if (!hex) return null;
@@ -148,7 +149,9 @@ export default function SettingsPage() {
     accentColor: '#FFC107',
     sidebarColor: '#141E46',
   });
-  
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+  const [logoFile, setLogoFile] = React.useState<File | null>(null);
+
   const lists = React.useMemo(() => {
     const listsMap: Record<string, string[]> = {};
     if (managedLists) {
@@ -178,6 +181,9 @@ export default function SettingsPage() {
         accentColor: hslStringToHex(brandingSettings.accentColor) || '#FFC107',
         sidebarColor: hslStringToHex(brandingSettings.sidebarColor) || '#141E46',
       });
+      if (brandingSettings.logoUrl) {
+          setLogoPreview(brandingSettings.logoUrl);
+      }
       updateCssVariables(brandingSettings.primaryColor, brandingSettings.accentColor, brandingSettings.sidebarColor);
     }
   }, [brandingSettings]);
@@ -207,22 +213,42 @@ export default function SettingsPage() {
       }
   }
 
-  const handleSaveColors = async () => {
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveBranding = async () => {
     if (!brandingSettingsRef) return;
     setIsSaving(true);
     try {
-        const colorSettings = {
+        let logoUrl = brandingSettings?.logoUrl;
+        
+        // If a new logo file is selected, use its preview data URL.
+        if (logoFile) {
+            logoUrl = logoPreview!;
+        }
+
+        const newBrandingSettings: BrandingSettings = {
             primaryColor: hexToHsl(colors.primaryColor)!,
             accentColor: hexToHsl(colors.accentColor)!,
             sidebarColor: hexToHsl(colors.sidebarColor)!,
+            logoUrl: logoUrl
         };
         
-        setDocumentNonBlocking(brandingSettingsRef, colorSettings, { merge: true });
+        setDocumentNonBlocking(brandingSettingsRef, newBrandingSettings, { merge: true });
 
-        updateCssVariables(colorSettings.primaryColor, colorSettings.accentColor, colorSettings.sidebarColor);
+        updateCssVariables(newBrandingSettings.primaryColor, newBrandingSettings.accentColor, newBrandingSettings.sidebarColor);
         toast({
             title: "Configuración guardada",
-            description: "Tus cambios de color se han guardado correctamente.",
+            description: "Tus cambios de marca se han guardado correctamente.",
         });
 
     } catch (error) {
@@ -264,39 +290,56 @@ export default function SettingsPage() {
                 Ajusta los colores, el logo y el fondo para que coincidan con la identidad de tu campaña.
               </CardDescription>
             </div>
-             <Button onClick={handleSaveColors} disabled={isSaving}>
+             <Button onClick={handleSaveBranding} disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar Colores
+                Guardar Cambios
             </Button>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <Label htmlFor="primary-color">Color Primario</Label>
-            <div className="flex items-center gap-2 col-span-2">
-                <Input id="primary-color-picker" type="color" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-12 h-10 p-1" />
-                <Input id="primary-color-text" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-40" />
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <Label htmlFor="primary-color">Color Primario</Label>
+                <div className="flex items-center gap-2 col-span-2">
+                    <Input id="primary-color-picker" type="color" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-12 h-10 p-1" />
+                    <Input id="primary-color-text" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-40" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <Label htmlFor="accent-color">Color de Acento</Label>
+                <div className="flex items-center gap-2 col-span-2">
+                     <Input id="accent-color-picker" type="color" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-12 h-10 p-1" />
+                    <Input id="accent-color-text" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-40" />
+                </div>
+              </div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <Label htmlFor="sidebar-color">Color de Barra Lateral</Label>
+                <div className="flex items-center gap-2 col-span-2">
+                     <Input id="sidebar-color-picker" type="color" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-12 h-10 p-1" />
+                    <Input id="sidebar-color-text" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-40" />
+                </div>
+              </div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <Label htmlFor="logo-upload">Logo de la Campaña</Label>
+                <div className="col-span-2">
+                    <Input id="logo-upload" type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                    <Button asChild variant="outline">
+                        <label htmlFor="logo-upload" className="cursor-pointer">
+                            <Upload className="mr-2 h-4 w-4"/>
+                            {logoFile ? "Cambiar logo" : "Seleccionar archivo"}
+                        </label>
+                    </Button>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <Label htmlFor="accent-color">Color de Acento</Label>
-            <div className="flex items-center gap-2 col-span-2">
-                 <Input id="accent-color-picker" type="color" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-12 h-10 p-1" />
-                <Input id="accent-color-text" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-40" />
+            <div className="flex items-center justify-center">
+                <div className="w-48 h-48 rounded-lg border border-dashed flex items-center justify-center bg-muted/50">
+                    {logoPreview ? (
+                        <Image src={logoPreview} alt="Vista previa del logo" width={150} height={150} className="object-contain max-h-full max-w-full"/>
+                    ) : (
+                        <span className="text-sm text-muted-foreground text-center">Vista previa del logo</span>
+                    )}
+                </div>
             </div>
-          </div>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <Label htmlFor="sidebar-color">Color de Barra Lateral</Label>
-            <div className="flex items-center gap-2 col-span-2">
-                 <Input id="sidebar-color-picker" type="color" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-12 h-10 p-1" />
-                <Input id="sidebar-color-text" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-40" />
-            </div>
-          </div>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <Label htmlFor="logo">Logo de la Campaña</Label>
-            <div className="col-span-2">
-                <Input id="logo" type="file" />
-            </div>
-          </div>
         </CardContent>
       </Card>
       
@@ -322,5 +365,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-
-    

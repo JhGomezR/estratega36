@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -101,14 +102,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon" className="border-r border-sidebar-border">
         <SidebarHeader>
-          <div className="flex items-center gap-2 p-2">
-            {settings?.logoUrl ? (
-                <Image src={settings.logoUrl} alt="Logo" width={32} height={32} className="size-8"/>
-            ) : (
+            <div className="flex items-center justify-center p-2">
                 <IconEstratega className="size-8 text-sidebar-primary" />
-            )}
-            <span className="text-lg font-semibold text-sidebar-foreground">EstrategaCRM</span>
-          </div>
+                <span className="text-lg font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">EstrategaCRM</span>
+            </div>
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
@@ -227,8 +224,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6 sticky top-0 z-30">
             <SidebarTrigger className="flex md:hidden" />
-            <div className="flex-1">
-                {/* Potentially breadcrumbs here */}
+            <div className="flex-1 flex justify-center items-center">
+                 {settings?.logoUrl ? (
+                    <Image src={settings.logoUrl} alt="Logo de Campaña" width={120} height={40} className="object-contain h-10 w-auto"/>
+                ) : (
+                    <span className="font-semibold text-lg text-primary">EstrategaCRM</span>
+                )}
             </div>
             <UserNav />
         </header>
