@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useUser } from "@/firebase"
+import { useAuth } from "@/firebase"
 
 const userFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -54,8 +54,8 @@ interface UserFormProps {
 }
 
 export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSubmit, onCancel }: UserFormProps) {
-  const { user: currentUser } = useUser();
-  const isAdmin = currentUser?.email === 'axdrcys@gmail.com';
+  const auth = useAuth();
+  const isAdmin = auth.currentUser?.email === 'axdrcys@gmail.com';
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -71,7 +71,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
       roleId: user?.roleId ?? undefined,
       cityIds: user?.cityIds ?? [],
       campaignIds: user?.campaignIds ?? [],
-      parentId: user?.parentId ?? (isAdmin ? undefined : currentUser?.uid),
+      parentId: user?.parentId ?? (isAdmin ? undefined : auth.currentUser?.uid),
     },
   });
 
@@ -368,3 +368,5 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
     </Form>
   )
 }
+
+  

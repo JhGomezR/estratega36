@@ -75,8 +75,8 @@ export default function UsersPage() {
     if (!usersData || !currentUser || !roles) return [];
 
     // Super admin can see everyone except themselves
-    if (currentUser.email === 'axdrcys@gmail.com') {
-      return usersData.filter(u => u.status !== 'inactivo' && u.email !== 'axdrcys@gmail.com');
+    if (auth.currentUser?.email === 'axdrcys@gmail.com') {
+      return usersData.filter(u => u.status !== 'inactivo');
     }
     
     const currentUserData = usersData.find(u => u.id === currentUser.uid);
@@ -99,7 +99,7 @@ export default function UsersPage() {
     // Other roles can only see themselves
     return activeUsers.filter(u => u.id === currentUser.uid);
 
-  }, [usersData, currentUser, roles]);
+  }, [usersData, currentUser, roles, auth.currentUser]);
 
 
   const lists = React.useMemo(() => {
@@ -291,3 +291,5 @@ export default function UsersPage() {
     </div>
   )
 }
+
+  
