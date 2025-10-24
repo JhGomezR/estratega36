@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search, AlertDialogTrigger } from "lucide-react"
+import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import type { Voter, City, User, Role, ManagedList } from "@/lib/types"
 import { VoterForm, type VoterFormValues } from "@/components/voter-form"
 import {
@@ -37,6 +37,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
