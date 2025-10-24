@@ -7,7 +7,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
+  CardFooter
 } from "@/components/ui/card"
 import {
   Table,
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import type { Campaign, ManagedList } from "@/lib/types"
 import { CampaignForm } from "@/components/campaign-form"
@@ -47,6 +48,8 @@ import {
 import { isToday, isPast, parseISO, differenceInMilliseconds } from "date-fns"
 import { cn } from "@/lib/utils"
 import { CampaignGrid } from "@/components/campaign-grid"
+import { Input } from "@/components/ui/input"
+import { Search } from "lucide-react"
 
 const statusColors: Record<string, string> = {
   'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
@@ -54,6 +57,8 @@ const statusColors: Record<string, string> = {
   'Futura': 'bg-yellow-500 hover:bg-yellow-600 text-yellow-900',
   'Archivada': 'bg-gray-500 hover:bg-gray-600 text-white',
 };
+
+const CAMPAIGNS_PER_PAGE = 15;
 
 
 export default function CampaignsPage() {
@@ -68,6 +73,8 @@ export default function CampaignsPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [campaignToDelete, setCampaignToDelete] = React.useState<Campaign | null>(null);
   const [view, setView] = React.useState<'list' | 'grid'>('grid');
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState(1);
 
   const campaigns = React.useMemo(() => {
     return campaignsData?.filter(c => c.status !== 'Archivada');
@@ -95,7 +102,15 @@ export default function CampaignsPage() {
     
     const now = new Date();
     
-    return campaigns.map(campaign => {
+    const filtered = campaigns.filter(campaign => {
+        if (!searchQuery) return true;
+        const lowerCaseQuery = searchQuery.toLowerCase();
+        return campaign.name.toLowerCase().includes(lowerCaseQuery) ||
+               campaign.campaignType.toLowerCase().includes(lowerCaseQuery) ||
+               campaign.status.toLowerCase().includes(lowerCaseQuery);
+    });
+
+    return filtered.map(campaign => {
         let calculatedProgress = campaign.progress;
         
         try {
@@ -123,7 +138,15 @@ export default function CampaignsPage() {
         
         return { ...campaign, progress: calculatedProgress };
     });
-  }, [campaigns]);
+  }, [campaigns, searchQuery]);
+
+  const paginatedCampaigns = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * CAMPAIGNS_PER_PAGE;
+    return processedCampaigns.slice(startIndex, startIndex + CAMPAIGNS_PER_PAGE);
+  }, [processedCampaigns, currentPage]);
+
+  const totalPages = Math.ceil(processedCampaigns.length / CAMPAIGNS_PER_PAGE);
+
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -181,6 +204,21 @@ export default function CampaignsPage() {
   }
 
   const isLoading = campaignsLoading || listsLoading;
+  
+  const searchInput = (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Input
+        placeholder="Buscar campaña..."
+        className="pl-10 h-9"
+        value={searchQuery}
+        onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+        }}
+      />
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -223,11 +261,14 @@ export default function CampaignsPage() {
       </div>
         {view === 'list' ? (
         <Card>
-            <CardHeader>
-            <CardTitle>Lista de Campañas</CardTitle>
-            <CardDescription>
-                Un listado de todas las campañas en tu sistema.
-            </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Lista de Campañas</CardTitle>
+                <CardDescription>
+                    Un listado de todas las campañas en tu sistema.
+                </CardDescription>
+              </div>
+              {searchInput}
             </CardHeader>
             <CardContent>
             <Table>
@@ -247,7 +288,14 @@ export default function CampaignsPage() {
                     <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
                     </TableRow>
                 )}
-                {processedCampaigns?.map((campaign) => {
+                {!isLoading && paginatedCampaigns.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">
+                        {searchQuery ? "No se encontraron campañas." : "No hay campañas para mostrar."}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {paginatedCampaigns?.map((campaign) => {
                     const endDate = parseISO(campaign.endDate);
                     const isEndingToday = isToday(endDate);
                     const statusLabel = campaign.status;
@@ -309,9 +357,37 @@ export default function CampaignsPage() {
                 </TableBody>
             </Table>
             </CardContent>
+            <CardFooter className="flex items-center justify-between pt-4">
+                <div className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages > 0 ? totalPages : 1}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                    </Button>
+                    <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </CardFooter>
         </Card>
         ) : (
-            <CampaignGrid campaigns={processedCampaigns} isLoading={isLoading} statusColors={statusColors}/>
+            <div className="space-y-6">
+                {searchInput}
+                <CampaignGrid campaigns={processedCampaigns} isLoading={isLoading} statusColors={statusColors}/>
+            </div>
         )}
     </div>
   )

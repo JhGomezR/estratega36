@@ -35,7 +35,7 @@ const CampaignCard = ({ campaign, statusColors }: { campaign: Campaign; statusCo
         <CardDescription className="capitalize pt-1">{campaign.campaignType}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground">{campaign.description}</p>
+        <p className="text-sm text-muted-foreground line-clamp-3">{campaign.description}</p>
       </CardContent>
       <CardFooter>
         <Button variant="outline" asChild>
@@ -70,6 +70,15 @@ export function CampaignGrid({ campaigns, isLoading, statusColors }: CampaignGri
       )
   }
 
+  if (campaigns.length === 0) {
+     return (
+        <div className="text-center py-20 bg-card rounded-lg border">
+            <h3 className="text-xl font-semibold">No se encontraron campañas</h3>
+            <p className="text-muted-foreground mt-2">Intenta con otra búsqueda o crea una nueva campaña.</p>
+        </div>
+      )
+  }
+
   return (
     <div className="space-y-8">
       {currentCampaigns.length > 0 && (
@@ -92,13 +101,6 @@ export function CampaignGrid({ campaigns, isLoading, statusColors }: CampaignGri
             ))}
           </div>
         </div>
-      )}
-        
-      {!campaigns || campaigns.length === 0 && (
-          <div className="text-center py-20">
-              <h3 className="text-xl font-semibold">No hay campañas</h3>
-              <p className="text-muted-foreground mt-2">Crea tu primera campaña para empezar.</p>
-          </div>
       )}
     </div>
   )
