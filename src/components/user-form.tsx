@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -49,11 +48,12 @@ interface UserFormProps {
   cities: City[];
   campaigns: Campaign[];
   lists: Record<string, ManagedList | undefined>;
+  allUsers: User[];
   onSubmit: (data: Omit<UserFormValues, 'status'>) => void;
   onCancel: () => void;
 }
 
-export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCancel }: UserFormProps) {
+export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSubmit, onCancel }: UserFormProps) {
   const { user: currentUser } = useUser();
   const isAdmin = currentUser?.email === 'axdrcys@gmail.com';
 
@@ -266,10 +266,10 @@ export function UserForm({ user, roles, cities, campaigns, lists, onSubmit, onCa
                     </FormControl>
                     <SelectContent>
                         <SelectItem value="">Ninguno (Nivel Superior)</SelectItem>
-                        {roles.map(role => (
-                        <SelectItem key={role.id} value={role.id} className="capitalize">
-                            {role.name}
-                        </SelectItem>
+                        {allUsers.filter(u => u.id !== user?.id && u.email !== 'axdrcys@gmail.com').map(u => (
+                            <SelectItem key={u.id} value={u.id}>
+                                {u.firstName} {u.lastName}
+                            </SelectItem>
                         ))}
                     </SelectContent>
                     </Select>

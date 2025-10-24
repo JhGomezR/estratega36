@@ -78,7 +78,7 @@ export default function UsersPage() {
 
     // Super admin can see everyone
     if (currentUser.email === 'axdrcys@gmail.com') {
-      return activeUsers;
+      return activeUsers.filter(u => u.email !== 'axdrcys@gmail.com');
     }
 
     const currentUserData = usersData.find(u => u.id === currentUser.uid);
@@ -204,6 +204,7 @@ export default function UsersPage() {
               cities={cities || []}
               campaigns={campaigns?.filter(c => c.status === 'En Campaña') || []}
               lists={lists}
+              allUsers={usersData || []}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
             />
