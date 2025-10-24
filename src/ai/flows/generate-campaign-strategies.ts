@@ -1,41 +1,66 @@
-
 'use server';
 
 /**
  * @fileOverview Generates campaign strategies using AI based on provided data and objectives.
- * This file is optimized to use a streaming response.
- *
- * - generateCampaignStrategy - A function that returns a stream for the campaign strategy.
- * - GenerateCampaignStrategyInput - The input type for the function.
+ * This version uses a single, structured JSON output to ensure a complete and detailed response.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
 
-const GenerateCampaignStrategyInputSchema = z.object({
-  campaignData:
-    z.string().describe('Data about the campaign, including past performance, voter demographics, and key issues.'),
-  lugar: z.string().describe('The city, region, or country where the campaign will take place.'),
-  objectives: z.string().describe('The objectives of the campaign, such as increasing voter turnout or winning a specific demographic.'),
-  resourceConstraints:
-    z.string().optional().describe('Any limitations on resources, such as budget or staff.'),
+export const GenerateCampaignStrategyInputSchema = z.object({
+  campaignData: z
+    .string()
+    .describe(
+      'Data about the campaign, including past performance, voter demographics, and key issues.'
+    ),
+  lugar: z
+    .string()
+    .describe(
+      'The city, region, or country where the campaign will take place.'
+    ),
+  objectives: z
+    .string()
+    .describe(
+      'The objectives of the campaign, such as increasing voter turnout or winning a specific demographic.'
+    ),
+  resourceConstraints: z
+    .string()
+    .optional()
+    .describe('Any limitations on resources, such as budget or staff.'),
 });
-export type GenerateCampaignStrategyInput = z.infer<typeof GenerateCampaignStrategyInputSchema>;
+export type GenerateCampaignStrategyInput = z.infer<
+  typeof GenerateCampaignStrategyInputSchema
+>;
 
-// The output is now a stream, not a single object.
-export async function generateCampaignStrategy(
-  input: GenerateCampaignStrategyInput
-) {
-  const { stream } = await ai.generate({
-    prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed eight-part campaign strategy document. It must be extremely detailed.
+export const GenerateCampaignStrategyOutputSchema = z.object({
+  diagnostico: z.string().describe('Sección I: Diagnóstico y Contexto'),
+  marca: z.string().describe('Sección II: Marca y Mensaje'),
+  audiencia: z.string().describe('Sección III: Audiencia y Segmentación'),
+  operacion: z.string().describe('Sección IV: Operación y Medición'),
+  consistencia: z.string().describe('Sección V: Estrategia de Constancia y Consistencia'),
+  microtargeting: z.string().describe('Sección VI: Estrategia de Uso Estratégico de Microtargeting'),
+  recomendaciones: z.string().describe('Sección VII: Recomendaciones Clave'),
+  riesgos: z.string().describe('Sección VIII: Riesgos Potenciales'),
+});
+export type GenerateCampaignStrategyOutput = z.infer<
+  typeof GenerateCampaignStrategyOutputSchema
+>;
 
-Based on the following user input, generate the full strategy:
-- Campaign Data: ${input.campaignData}
-- Location: ${input.lugar}
-- Objectives: ${input.objectives}
-- Resource Constraints: ${input.resourceConstraints}
+const generateCampaignStrategyPrompt = ai.definePrompt({
+  name: 'generateCampaignStrategyPrompt',
+  input: { schema: GenerateCampaignStrategyInputSchema },
+  output: { schema: GenerateCampaignStrategyOutputSchema },
+  prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed eight-part campaign strategy document. It must be extremely detailed, with each section being comprehensive and thorough.
 
-Your response must follow this exact 8-part structure, with clear headings for each section. Be extremely detailed in each subsection.
+Based on the following user input, generate the full strategy and return it as a structured JSON object with the keys: "diagnostico", "marca", "audiencia", "operacion", "consistencia", "microtargeting", "recomendaciones", "riesgos".
+
+- Campaign Data: {{{campaignData}}}
+- Location: {{{lugar}}}
+- Objectives: {{{objectives}}}
+- Resource Constraints: {{{resourceConstraints}}}
+
+For each of the 8 sections, provide a deep, detailed, and step-by-step analysis following the structure below. Be extremely detailed in each subsection.
 
 I. Diagnóstico y Contexto
 - Tipo de Campaña: Personal, Corporativa, o Política. Define el tono, los canales y la Autenticidad Posicionada.
@@ -78,7 +103,21 @@ VIII. Riesgos Potenciales
 - Apatía del Votante / Fatiga
 - Competencia con Líderes Locales
 `,
-    stream: true,
-  });
-  return stream.text();
+});
+
+const generateCampaignStrategyFlow = ai.defineFlow(
+  {
+    name: 'generateCampaignStrategyFlow',
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: GenerateCampaignStrategyOutputSchema,
+  },
+  async (input) => {
+    const { output } = await generateCampaignStrategyPrompt(input);
+    return output!;
+  }
+);
+
+
+export async function generateCampaignStrategy(input: GenerateCampaignStrategyInput): Promise<GenerateCampaignStrategyOutput> {
+    return await generateCampaignStrategyFlow(input);
 }

@@ -1,11 +1,14 @@
-
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { generateCampaignStrategy } from '@/ai/flows/generate-campaign-strategies'
+import { 
+    generateCampaignStrategy, 
+    type GenerateCampaignStrategyInput,
+    type GenerateCampaignStrategyOutput 
+} from '@/ai/flows/generate-campaign-strategies'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -15,7 +18,6 @@ import { Lightbulb, Loader2, Info } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
-import { readStreamableValue } from 'ai/rsc'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
@@ -31,7 +33,7 @@ const formSchema = z.object({
 })
 
 export function StrategiesClient() {
-  const [strategy, setStrategy] = useState<string>('')
+  const [strategy, setStrategy] = useState<GenerateCampaignStrategyOutput | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
@@ -47,14 +49,10 @@ export function StrategiesClient() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    setStrategy('')
+    setStrategy(null)
     try {
-      const stream = await generateCampaignStrategy(values);
-
-      for await (const chunk of readStreamableValue(stream)) {
-        setStrategy((prev) => prev + (chunk ?? ''));
-      }
-
+      const result = await generateCampaignStrategy(values);
+      setStrategy(result);
     } catch (e) {
       console.error(e)
       toast({
@@ -66,6 +64,8 @@ export function StrategiesClient() {
       setIsLoading(false)
     }
   }
+  
+  const strategySections = strategy ? Object.entries(strategy) : [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -157,7 +157,7 @@ export function StrategiesClient() {
       </Card>
       
       <div className="space-y-4">
-        {isLoading && !strategy && (
+        {isLoading && (
              <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
                 <Loader2 className="h-16 w-16 text-muted-foreground/50 mb-4 animate-spin" />
                 <h3 className="text-lg font-semibold">Generando tu modelo de estrategia...</h3>
@@ -171,30 +171,38 @@ export function StrategiesClient() {
                 <Lightbulb className="h-16 w-16 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-semibold">Estrategia de Campaña</h3>
                 <p className="text-muted-foreground text-sm">
-                    La estrategia generada por la IA aparecerá aquí en tiempo real.
+                    La estrategia generada por la IA aparecerá aquí.
                 </p>
             </Card>
         )}
         {strategy && (
-          <>
-            <Card className="bg-card/80 border-primary/50 shadow-lg">
-              <CardHeader className="space-y-4">
-                <CardTitle>Estrategia de Campaña Generada</CardTitle>
-                 <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Nota Importante</AlertTitle>
-                  <AlertDescription>
-                    Este es un modelo de estrategia generado por IA. Debe ser utilizado como una base o un ejemplo para desarrollar tu plan final. Revisa y ajusta el contenido según tu criterio y conocimiento experto.
-                  </AlertDescription>
-                </Alert>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[60vh] w-full">
-                  <p className="text-sm whitespace-pre-wrap pr-4">{strategy}{isLoading && '...'}</p>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </>
+          <Card className="bg-card/80 border-primary/50 shadow-lg">
+            <CardHeader className="space-y-4">
+              <CardTitle>Estrategia de Campaña Generada</CardTitle>
+               <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Nota Importante</AlertTitle>
+                <AlertDescription>
+                  Este es un modelo de estrategia generado por IA. Debe ser utilizado como una base o un ejemplo para desarrollar tu plan final. Revisa y ajusta el contenido según tu criterio y conocimiento experto.
+                </AlertDescription>
+              </Alert>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[70vh] w-full">
+                <div className="space-y-6 pr-4">
+                  {strategySections.map(([key, value]) => {
+                      const title = key.charAt(0).toUpperCase() + key.slice(1);
+                      return (
+                        <div key={key}>
+                            <h3 className="text-xl font-semibold mb-2 capitalize">{title.replace(/_/g, ' ')}</h3>
+                            <p className="text-sm whitespace-pre-wrap">{value as string}</p>
+                        </div>
+                      )
+                  })}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
