@@ -16,8 +16,8 @@ import { useFirestore, useMemoFirebase, useDoc, useCollection } from "@/firebase
 import { doc, collection, writeBatch } from "firebase/firestore"
 import type { BrandingSettings, ManagedList } from "@/lib/types"
 import { Loader2, PlusCircle, Trash2 } from "lucide-react"
-import { saveBrandingSettings, updateList } from "@/app/(app)/administration/settings/actions"
 import { useToast } from "@/hooks/use-toast"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 function hexToHsl(hex: string): string | null {
     if (!hex) return null;
@@ -193,22 +193,22 @@ export default function SettingsPage() {
     setColors(prev => ({ ...prev, [colorName]: value }));
   }
   
-  const handleListUpdate = async (listKey: string, newItems: string[]) => {
-    try {
-        const result = await updateList(listKey, newItems);
-        if (!result.success) {
-             throw new Error("Server-side list update failed");
-        }
-    } catch(error) {
-         toast({
-            variant: "destructive",
-            title: "Error al actualizar la lista",
-            description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
-        });
-    }
+  const handleListUpdate = (listKey: string, newItems: string[]) => {
+      if (!firestore) return;
+      try {
+          const listRef = doc(firestore, 'lists', listKey);
+          setDocumentNonBlocking(listRef, { items: newItems }, { merge: true });
+      } catch(error) {
+           toast({
+              variant: "destructive",
+              title: "Error al actualizar la lista",
+              description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+          });
+      }
   }
 
   const handleSaveColors = async () => {
+    if (!brandingSettingsRef) return;
     setIsSaving(true);
     try {
         const colorSettings = {
@@ -216,17 +216,15 @@ export default function SettingsPage() {
             accentColor: hexToHsl(colors.accentColor)!,
             sidebarColor: hexToHsl(colors.sidebarColor)!,
         };
-        const result = await saveBrandingSettings(colorSettings);
+        
+        setDocumentNonBlocking(brandingSettingsRef, colorSettings, { merge: true });
 
-        if (result.success) {
-            updateCssVariables(colorSettings.primaryColor, colorSettings.accentColor, colorSettings.sidebarColor);
-            toast({
-                title: "Configuración guardada",
-                description: "Tus cambios de color se han guardado correctamente.",
-            });
-        } else {
-            throw new Error("Server-side save failed");
-        }
+        updateCssVariables(colorSettings.primaryColor, colorSettings.accentColor, colorSettings.sidebarColor);
+        toast({
+            title: "Configuración guardada",
+            description: "Tus cambios de color se han guardado correctamente.",
+        });
+
     } catch (error) {
         console.error("Failed to save settings:", error);
         toast({
@@ -324,3 +322,5 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+    
