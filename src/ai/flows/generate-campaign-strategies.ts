@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -6,9 +7,9 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
-export const GenerateCampaignStrategyInputSchema = z.object({
+const GenerateCampaignStrategyInputSchema = z.object({
   campaignData: z
     .string()
     .describe(
@@ -33,7 +34,7 @@ export type GenerateCampaignStrategyInput = z.infer<
   typeof GenerateCampaignStrategyInputSchema
 >;
 
-export const GenerateCampaignStrategyOutputSchema = z.object({
+const GenerateCampaignStrategyOutputSchema = z.object({
   diagnostico: z.string().describe('Sección I: Diagnóstico y Contexto'),
   marca: z.string().describe('Sección II: Marca y Mensaje'),
   audiencia: z.string().describe('Sección III: Audiencia y Segmentación'),
