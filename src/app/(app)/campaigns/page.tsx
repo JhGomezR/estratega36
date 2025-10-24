@@ -45,6 +45,13 @@ import {
 import { isToday, isPast, parseISO } from "date-fns"
 import { cn } from "@/lib/utils"
 
+const statusColors: Record<string, string> = {
+  'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
+  'Finalizada': 'bg-green-500 hover:bg-green-600 text-white',
+  'Futura': 'bg-yellow-500 hover:bg-yellow-600 text-yellow-900',
+};
+
+
 export default function CampaignsPage() {
   const firestore = useFirestore();
   const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore]);
@@ -183,15 +190,21 @@ export default function CampaignsPage() {
               {campaigns?.map((campaign) => {
                 const endDate = parseISO(campaign.endDate);
                 const isEndingToday = isToday(endDate);
+                const statusLabel = getStatusLabel(campaign.status);
                 return (
                 <TableRow key={campaign.id}>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
                   <TableCell className="capitalize">{campaign.campaignType}</TableCell>
                   <TableCell>
                     <Badge
-                      className={cn("capitalize", isEndingToday && campaign.status !== 'Finalizada' && "bg-red-500 text-white")}
+                       className={cn(
+                        "capitalize",
+                        isEndingToday && campaign.status !== 'Finalizada' 
+                          ? "bg-red-500 text-white" 
+                          : statusColors[statusLabel] || "bg-gray-400"
+                      )}
                     >
-                      {getStatusLabel(campaign.status)}
+                      {statusLabel}
                     </Badge>
                   </TableCell>
                   <TableCell>
