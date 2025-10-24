@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -35,12 +36,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { geocodeAddress } from "@/ai/flows/geocode-address"
 
@@ -48,7 +48,7 @@ export default function VotersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
+  const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(
     useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
   );
   const { data: cities, isLoading: citiesLoading } = useCollection<City>(
@@ -62,6 +62,10 @@ export default function VotersPage() {
   );
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
+
+  const voters = React.useMemo(() => {
+    return votersData?.filter(v => v.status !== 'inactivo');
+  }, [votersData]);
   
   const promoters = React.useMemo(() => {
     if (!users || !roles) return [];
@@ -106,7 +110,7 @@ export default function VotersPage() {
 
   const handleDelete = () => {
     if (voterToDelete && firestore) {
-      deleteDocumentNonBlocking(doc(firestore, 'voters', voterToDelete.id))
+      setDocumentNonBlocking(doc(firestore, 'voters', voterToDelete.id), { status: 'inactivo' }, { merge: true });
       setVoterToDelete(null)
     }
   }
@@ -122,7 +126,7 @@ export default function VotersPage() {
             city?.name,
             city?.department,
             city?.country
-        ].filter(Boolean); // Filtra partes vacías
+        ].filter(Boolean);
         
         const fullAddress = addressParts.join(', ');
 
@@ -146,6 +150,7 @@ export default function VotersPage() {
         } else {
             const newVoter = {
                 ...voterData,
+                status: 'activo' as const,
                 registrationDate: format(new Date(), "yyyy-MM-dd"),
             };
             addDocumentNonBlocking(collection(firestore, 'voters'), newVoter);
@@ -269,7 +274,7 @@ export default function VotersPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente al votante.
+                             Esta acción no se puede deshacer. Esto marcará al votante como inactivo y no se mostrará en las listas.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -35,21 +36,24 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 
 export default function CitiesPage() {
   const firestore = useFirestore();
-  const { data: cities, isLoading } = useCollection<City>(
+  const { data: citiesData, isLoading } = useCollection<City>(
     useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
   );
 
   const [selectedCity, setSelectedCity] = React.useState<City | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [cityToDelete, setCityToDelete] = React.useState<City | null>(null)
+
+  const cities = React.useMemo(() => {
+    return citiesData?.filter(c => c.status !== 'inactivo');
+  }, [citiesData]);
 
   const handleAddNew = () => {
     setSelectedCity(null)
@@ -67,17 +71,17 @@ export default function CitiesPage() {
 
   const handleDelete = () => {
     if (cityToDelete && firestore) {
-      deleteDocumentNonBlocking(doc(firestore, 'cities', cityToDelete.id))
+      setDocumentNonBlocking(doc(firestore, 'cities', cityToDelete.id), { status: 'inactivo' }, { merge: true });
       setCityToDelete(null)
     }
   }
 
-  const handleFormSubmit = (data: Omit<City, 'id'>) => {
+  const handleFormSubmit = (data: Omit<City, 'id' | 'status'>) => {
     if (firestore) {
       if (selectedCity) {
         setDocumentNonBlocking(doc(firestore, 'cities', selectedCity.id), data, { merge: true });
       } else {
-        addDocumentNonBlocking(collection(firestore, 'cities'), data);
+        addDocumentNonBlocking(collection(firestore, 'cities'), { ...data, status: 'activo' });
       }
     }
     setIsFormOpen(false);
@@ -152,7 +156,7 @@ export default function CitiesPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente la ciudad.
+                            Esta acción no se puede deshacer. Esto marcará la ciudad como inactiva.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

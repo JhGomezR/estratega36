@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -36,16 +37,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 
 
 export default function RolesPage() {
   const firestore = useFirestore();
-  const { data: roles, isLoading } = useCollection<Role>(
+  const { data: rolesData, isLoading } = useCollection<Role>(
     useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
   );
 
@@ -53,6 +53,9 @@ export default function RolesPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [roleToDelete, setRoleToDelete] = React.useState<Role | null>(null)
 
+  const roles = React.useMemo(() => {
+    return rolesData?.filter(r => r.status !== 'inactivo');
+  }, [rolesData]);
 
   const handleAddNew = () => {
     setSelectedRole(null)
@@ -70,18 +73,18 @@ export default function RolesPage() {
 
   const handleDelete = () => {
     if (roleToDelete && firestore) {
-      deleteDocumentNonBlocking(doc(firestore, 'roles', roleToDelete.id))
+      setDocumentNonBlocking(doc(firestore, 'roles', roleToDelete.id), { status: 'inactivo' }, { merge: true });
       setRoleToDelete(null)
     }
   }
 
-  const handleFormSubmit = (data: Omit<Role, 'id'>) => {
+  const handleFormSubmit = (data: Omit<Role, 'id' | 'status'>) => {
     if (firestore) {
       if (selectedRole) {
         setDocumentNonBlocking(doc(firestore, 'roles', selectedRole.id), data, { merge: true });
       } else {
         const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
-        setDocumentNonBlocking(doc(firestore, 'roles', newRoleId), data, {});
+        setDocumentNonBlocking(doc(firestore, 'roles', newRoleId), { ...data, status: 'activo' }, {});
       }
     }
     setIsFormOpen(false)
@@ -137,7 +140,7 @@ export default function RolesPage() {
                   <TableCell className="font-medium capitalize">{role.name}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {role.permissions.map(p => <Badge variant="outline" key={p}>{p}</Badge>)}
+                      {role.permissions.map(p => <Badge variant="outline" key={p}>{p.replace(/_/g, ' ')}</Badge>)}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -154,7 +157,7 @@ export default function RolesPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente el rol.
+                            Esta acción no se puede deshacer. Esto marcará el rol como inactivo.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

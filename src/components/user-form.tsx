@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -44,7 +45,7 @@ interface UserFormProps {
   cities: City[];
   campaigns: Campaign[];
   lists: Record<string, ManagedList | undefined>;
-  onSubmit: (data: UserFormValues) => void;
+  onSubmit: (data: Omit<UserFormValues, 'status'>) => void;
   onCancel: () => void;
 }
 

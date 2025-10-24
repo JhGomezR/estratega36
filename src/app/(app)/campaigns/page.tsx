@@ -31,7 +31,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import {
   AlertDialog,
@@ -42,7 +42,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { isToday, isPast, parseISO, differenceInMilliseconds } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -52,13 +51,14 @@ const statusColors: Record<string, string> = {
   'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
   'Finalizada': 'bg-green-500 hover:bg-green-600 text-white',
   'Futura': 'bg-yellow-500 hover:bg-yellow-600 text-yellow-900',
+  'Archivada': 'bg-gray-500 hover:bg-gray-600 text-white',
 };
 
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
   const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore]);
-  const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollection);
+  const { data: campaignsData, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollection);
 
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
@@ -67,14 +67,17 @@ export default function CampaignsPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [campaignToDelete, setCampaignToDelete] = React.useState<Campaign | null>(null);
   const [view, setView] = React.useState<'list' | 'grid'>('grid');
+
+  const campaigns = React.useMemo(() => {
+    return campaignsData?.filter(c => c.status !== 'Archivada');
+  }, [campaignsData]);
   
   React.useEffect(() => {
     if (campaigns && firestore) {
       campaigns.forEach(campaign => {
-        if (campaign.status !== 'Finalizada') {
+        if (campaign.status !== 'Finalizada' && campaign.status !== 'Archivada') {
           try {
             const endDate = parseISO(campaign.endDate);
-            // Check if endDate is in the past (but not today)
             if (isPast(endDate) && !isToday(endDate)) {
               setDocumentNonBlocking(doc(firestore, 'campaigns', campaign.id), { status: 'Finalizada', progress: 100 }, { merge: true });
             }
@@ -100,7 +103,7 @@ export default function CampaignsPage() {
 
             if (campaign.status === 'Futura' || now < startDate) {
                 calculatedProgress = 0;
-            } else if (campaign.status === 'Finalizada' || now > endDate) {
+            } else if (campaign.status === 'Finalizada' || campaign.status === 'Archivada' || now > endDate) {
                 calculatedProgress = 100;
             } else if (campaign.status === 'En Campaña') {
                 const totalDuration = differenceInMilliseconds(endDate, startDate);
@@ -147,7 +150,7 @@ export default function CampaignsPage() {
 
   const handleDelete = () => {
     if (firestore && campaignToDelete) {
-      deleteDocumentNonBlocking(doc(firestore, 'campaigns', campaignToDelete.id));
+      setDocumentNonBlocking(doc(firestore, 'campaigns', campaignToDelete.id), { status: 'Archivada' }, { merge: true });
       setCampaignToDelete(null);
     }
   }
@@ -289,12 +292,12 @@ export default function CampaignsPage() {
                             <AlertDialogHeader>
                             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Esto eliminará permanentemente la campaña.
+                                Esta acción no se puede deshacer. Esto marcará la campaña como archivada.
                             </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => setCampaignToDelete(null)}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
+                            <AlertDialogAction onClick={handleDelete}>Archivar</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                         </AlertDialog>

@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -36,17 +37,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function UsersPage() {
   const firestore = useFirestore();
 
-  const { data: users, isLoading: usersLoading } = useCollection<User>(
+  const { data: usersData, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
   );
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
@@ -64,6 +64,10 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null)
+
+  const users = React.useMemo(() => {
+    return usersData?.filter(u => u.status !== 'inactivo');
+  }, [usersData]);
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -91,18 +95,19 @@ export default function UsersPage() {
 
   const handleDelete = () => {
     if (userToDelete && firestore) {
-      deleteDocumentNonBlocking(doc(firestore, 'users', userToDelete.id))
+      setDocumentNonBlocking(doc(firestore, 'users', userToDelete.id), { status: 'inactivo' }, { merge: true });
       setUserToDelete(null)
     }
   }
 
-  const handleFormSubmit = (data: Omit<User, 'id' | 'avatar'>) => {
+  const handleFormSubmit = (data: Omit<User, 'id' | 'avatar' | 'status'>) => {
     if (firestore) {
       if (selectedUser) {
         setDocumentNonBlocking(doc(firestore, 'users', selectedUser.id), data, { merge: true });
       } else {
         const newUser: Omit<User, 'id'> = {
           avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
+          status: 'activo',
           ...data
         };
         addDocumentNonBlocking(collection(firestore, 'users'), newUser);
@@ -208,7 +213,7 @@ export default function UsersPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente al usuario.
+                            Esta acción no se puede deshacer. Esto marcará al usuario como inactivo.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

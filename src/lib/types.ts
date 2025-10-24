@@ -1,3 +1,4 @@
+
 export type WithId<T> = T & { id: string };
 
 export type Voter = WithId<{
@@ -14,6 +15,7 @@ export type Voter = WithId<{
   registrationDate: string;
   latitude?: number;
   longitude?: number;
+  status: 'activo' | 'inactivo';
 }>;
 
 export type Investor = {
@@ -33,7 +35,7 @@ export type Campaign = WithId<{
   goal: string;
   startDate: string;
   endDate: string;
-  status: string;
+  status: 'Futura' | 'En Campaña' | 'Finalizada' | 'Archivada';
   progress: number;
 }>;
 
@@ -43,7 +45,7 @@ export type Task = WithId<{
   assignedToId: string;
   startDate: string;
   dueDate: string;
-  status: string;
+  status: 'pendiente' | 'en_curso' | 'finalizada' | 'archivada';
   priority: string;
 }>;
 
@@ -69,6 +71,7 @@ export type User = WithId<{
   cityIds: string[];
   campaignIds: string[];
   avatar: string;
+  status: 'activo' | 'inactivo';
 }>;
 
 export type City = WithId<{
@@ -77,22 +80,25 @@ export type City = WithId<{
   country: string;
   latitude: number;
   longitude: number;
+  status: 'activo' | 'inactivo';
 }>;
 
 export type Role = WithId<{
   name: string;
   permissions: string[];
+  status: 'activo' | 'inactivo';
 }>;
 
 export const availablePermissions = [
-  'manage_users',
-  'manage_campaigns',
-  'view_all_data',
-  'manage_settings',
-  'manage_promoters',
-  'register_voters',
-  'view_own_data',
-  'manage_roles',
+    "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
+    "voter:create", "voter:read", "voter:update", "voter:delete",
+    "user:create", "user:read", "user:update", "user:delete",
+    "role:create", "role:read", "role:update", "role:delete",
+    "city:create", "city:read", "city:update", "city:delete",
+    "task:create", "task:read", "task:update", "task:delete",
+    "call:create", "call:read", "call:update", "call:delete",
+    "report:read",
+    "setting:update"
 ] as const;
 
 export type Permission = (typeof availablePermissions)[number];

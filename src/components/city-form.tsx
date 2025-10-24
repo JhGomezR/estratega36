@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -32,7 +33,7 @@ const cityFormSchema = z.object({
 type CityFormValues = z.infer<typeof cityFormSchema>;
 
 interface CityFormProps {
-  city?: Omit<City, 'id'> | null;
+  city?: Omit<City, 'id' | 'status'> | null;
   onSubmit: (data: CityFormValues) => void;
   onCancel: () => void;
 }

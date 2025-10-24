@@ -42,7 +42,8 @@
           }
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "description": "The status of the campaign, e.g., 'Futura', 'En Campaña', 'Finalizada', 'Archivada'."
         },
         "progress": {
             "type": "number"
@@ -116,6 +117,11 @@
         },
         "longitude": {
             "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the voter, e.g., 'activo', 'inactivo'.",
+          "default": "activo"
         }
       },
       "required": [
@@ -127,7 +133,8 @@
         "cityId",
         "vereda",
         "promoterId",
-        "registrationDate"
+        "registrationDate",
+        "status"
       ]
     },
     "Task": {
@@ -157,7 +164,8 @@
           "type": "string"
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "description": "The status of the task, e.g., 'pendiente', 'en_curso', 'finalizada', 'archivada'."
         }
       },
       "required": ["title", "assignedToId", "startDate", "dueDate", "priority", "status"]
@@ -201,6 +209,11 @@
         "avatar": {
             "type": "string",
             "format": "uri"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the user, e.g., 'activo', 'inactivo'.",
+          "default": "activo"
         }
       },
       "required": [
@@ -209,7 +222,8 @@
         "email",
         "roleId",
         "cityIds",
-        "campaignIds"
+        "campaignIds",
+        "status"
       ]
     },
     "Role": {
@@ -226,21 +240,28 @@
           "items": {
             "type": "string",
             "enum": [
-              "manage_users",
-              "manage_campaigns",
-              "view_all_data",
-              "manage_settings",
-              "manage_promoters",
-              "register_voters",
-              "view_own_data",
-              "manage_roles"
+              "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
+              "voter:create", "voter:read", "voter:update", "voter:delete",
+              "user:create", "user:read", "user:update", "user:delete",
+              "role:create", "role:read", "role:update", "role:delete",
+              "city:create", "city:read", "city:update", "city:delete",
+              "task:create", "task:read", "task:update", "task:delete",
+              "call:create", "call:read", "call:update", "call:delete",
+              "report:read",
+              "setting:update"
             ]
           }
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the role, e.g., 'activo', 'inactivo'.",
+          "default": "activo"
         }
       },
       "required": [
         "name",
-        "permissions"
+        "permissions",
+        "status"
       ]
     },
     "City": {
@@ -263,6 +284,11 @@
         },
         "longitude": {
             "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the city, e.g., 'activo', 'inactivo'.",
+          "default": "activo"
         }
       },
       "required": [
@@ -270,7 +296,8 @@
         "department",
         "country",
         "latitude",
-        "longitude"
+        "longitude",
+        "status"
       ]
     },
     "Call": {

@@ -1,9 +1,10 @@
+
 "use client"
 import * as React from "react"
-import { useForm, Controller } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Role, Permission } from "@/lib/types"
+import type { Role } from "@/lib/types"
 import { availablePermissions } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -70,7 +71,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                         Selecciona los permisos que tendrá este rol.
                     </FormDescription>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {availablePermissions.map((permission) => (
                     <FormField
                         key={permission}
@@ -97,7 +98,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                                 />
                             </FormControl>
                             <FormLabel className="font-normal capitalize">
-                                {permission.replace(/_/g, ' ')}
+                                {permission.replace(':', ': ').replace(/_/g, ' ')}
                             </FormLabel>
                             </FormItem>
                         )

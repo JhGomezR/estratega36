@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -123,9 +124,9 @@ const listTitles: Record<string, string> = {
 };
 
 const defaultLists: Record<string, string[]> = {
-    campaignStatuses: ['Futura', 'En Campaña', 'Finalizada'],
+    campaignStatuses: ['Futura', 'En Campaña', 'Finalizada', 'Archivada'],
     taskPriorities: ['normal', 'alta', 'urgente'],
-    taskStatuses: ['pendiente', 'en_curso', 'finalizada'],
+    taskStatuses: ['pendiente', 'en_curso', 'finalizada', 'archivada'],
     identificationTypes: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte'],
     campaignTypes: ['presidencia', 'alcaldia', 'gobernacion'],
 }

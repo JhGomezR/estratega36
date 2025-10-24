@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -57,7 +57,7 @@ const priorityClasses: Record<string, string> = {
 export default function TasksPage() {
   const firestore = useFirestore();
 
-  const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(
+  const { data: tasksData, isLoading: tasksLoading } = useCollection<Task>(
     useMemoFirebase(() => firestore ? collection(firestore, 'tasks') : null, [firestore])
   );
   const { data: users, isLoading: usersLoading } = useCollection<User>(
@@ -72,6 +72,10 @@ export default function TasksPage() {
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);
   const [view, setView] = React.useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = React.useState("");
+
+  const tasks = React.useMemo(() => {
+      return tasksData?.filter(t => t.status !== 'archivada');
+  }, [tasksData]);
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -126,7 +130,7 @@ export default function TasksPage() {
 
   const handleDelete = () => {
     if (firestore && taskToDelete) {
-      deleteDocumentNonBlocking(doc(firestore, 'tasks', taskToDelete.id));
+      setDocumentNonBlocking(doc(firestore, 'tasks', taskToDelete.id), { status: 'archivada' }, { merge: true });
       setTaskToDelete(null);
     }
   };
@@ -359,17 +363,15 @@ export default function TasksPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta acción no se puede deshacer. Esto eliminará permanentemente la tarea.
+                Esta acción no se puede deshacer. Esto marcará la tarea como archivada.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
+              <AlertDialogAction onClick={handleDelete}>Archivar</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
     </div>
   )
 }
-
-    
