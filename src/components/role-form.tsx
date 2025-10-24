@@ -140,12 +140,11 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[200px]">Módulo</TableHead>
-                                <TableHead className="text-center">
+                                 <TableHead className="text-center">
                                     <div className="flex items-center gap-3 justify-center">
                                        <span>Todos</span>
                                         <Checkbox
-                                            checked={allPermissionsSelected}
-                                            indeterminate={somePermissionsSelected}
+                                            checked={allPermissionsSelected || (somePermissionsSelected ? 'indeterminate' : false)}
                                             onCheckedChange={(checked) => handleSelectAll(!!checked)}
                                         />
                                     </div>
@@ -167,8 +166,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <Checkbox
-                                                checked={allModuleActionsExist}
-                                                indeterminate={someModuleActionsExist && !allModuleActionsExist}
+                                                checked={allModuleActionsExist || (someModuleActionsExist && !allModuleActionsExist ? 'indeterminate' : false)}
                                                 onCheckedChange={(checked) => handleRowToggle(module, !!checked)}
                                             />
                                         </TableCell>
