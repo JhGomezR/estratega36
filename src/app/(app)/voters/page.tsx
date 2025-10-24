@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search, AlertDialogTrigger } from "lucide-react"
 import type { Voter, City, User, Role, ManagedList } from "@/lib/types"
 import { VoterForm, type VoterFormValues } from "@/components/voter-form"
 import {
@@ -37,10 +37,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -52,6 +51,7 @@ const VOTERS_PER_PAGE = 15;
 export default function VotersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
   const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(
     useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
@@ -74,10 +74,6 @@ export default function VotersPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
 
-  const voters = React.useMemo(() => {
-    return votersData?.filter(v => v.status !== 'inactivo');
-  }, [votersData]);
-  
   const promoters = React.useMemo(() => {
     if (!users || !roles) return [];
     const requiredRoles = ['promotor', 'lider', 'voluntario'];
@@ -89,6 +85,36 @@ export default function VotersPage() {
     
     return users.filter(u => promoterRoleIds.includes(u.roleId));
   }, [users, roles]);
+
+  const voters = React.useMemo(() => {
+    if (!votersData || !currentUser || !users || !roles) return [];
+
+    const currentUserData = users.find(u => u.id === currentUser.uid);
+    if (!currentUserData) return [];
+
+    const currentUserRole = roles.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
+    
+    const activeVoters = votersData.filter(v => v.status !== 'inactivo');
+
+    if (currentUserRole === 'admin') {
+      return activeVoters;
+    }
+
+    if (currentUserRole === 'lider') {
+      const leaderId = currentUser.uid;
+      const teamMemberIds = users.filter(u => u.parentId === leaderId).map(u => u.id);
+      const allTeamIds = [leaderId, ...teamMemberIds];
+      return activeVoters.filter(voter => allTeamIds.includes(voter.promoterId));
+    }
+
+    if (currentUserRole === 'promotor' || currentUserRole === 'voluntario') {
+      return activeVoters.filter(voter => voter.promoterId === currentUser.uid);
+    }
+
+    return [];
+
+  }, [votersData, currentUser, users, roles]);
+  
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -204,7 +230,7 @@ export default function VotersPage() {
     }
   };
 
-  const isLoading = votersLoading || citiesLoading || usersLoading || rolesLoading || listsLoading;
+  const isLoading = currentUserLoading || votersLoading || citiesLoading || usersLoading || rolesLoading || listsLoading;
 
 
   return (

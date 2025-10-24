@@ -40,7 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, doc, setDoc } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { createUserWithEmailAndPassword } from "firebase/auth"
@@ -50,6 +50,7 @@ export default function UsersPage() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { toast } = useToast();
+  const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
   const { data: usersData, isLoading: usersLoading } = useCollection<User>(
     useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
@@ -71,8 +72,29 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null)
 
   const users = React.useMemo(() => {
-    return usersData?.filter(u => u.status !== 'inactivo');
-  }, [usersData]);
+    if (!usersData || !currentUser) return [];
+
+    const currentUserData = usersData.find(u => u.id === currentUser.uid);
+    if (!currentUserData) return usersData.filter(u => u.status !== 'inactivo');
+
+    const currentUserRole = roles?.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
+
+    const activeUsers = usersData.filter(u => u.status !== 'inactivo');
+
+    if (currentUserRole === 'admin') {
+        return activeUsers;
+    }
+
+    // A 'lider' can see themselves and the users they created (their children)
+    if (currentUserRole === 'lider') {
+        return activeUsers.filter(u => u.parentId === currentUser.uid || u.id === currentUser.uid);
+    }
+    
+    // Other roles can only see themselves
+    return activeUsers.filter(u => u.id === currentUser.uid);
+
+  }, [usersData, currentUser, roles]);
+
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -150,7 +172,7 @@ export default function UsersPage() {
     return roles?.find(r => r.id === roleId)?.name ?? 'N/A'
   }
   
-  const isLoading = usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
+  const isLoading = currentUserLoading || usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -262,3 +284,7 @@ export default function UsersPage() {
     </div>
   )
 }
+
+    
+
+    
