@@ -42,7 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { isToday, isPast, parseISO } from "date-fns"
+import { isToday, isPast, parseISO, differenceInMilliseconds } from "date-fns"
 import { cn } from "@/lib/utils"
 
 const statusColors: Record<string, string> = {
@@ -81,6 +81,41 @@ export default function CampaignsPage() {
       });
     }
   }, [campaigns, firestore]);
+
+  const processedCampaigns = React.useMemo(() => {
+    if (!campaigns) return [];
+    
+    const now = new Date();
+    
+    return campaigns.map(campaign => {
+        let calculatedProgress = campaign.progress;
+        
+        try {
+            const startDate = parseISO(campaign.startDate);
+            const endDate = parseISO(campaign.endDate);
+
+            if (campaign.status === 'Futura' || now < startDate) {
+                calculatedProgress = 0;
+            } else if (campaign.status === 'Finalizada' || now > endDate) {
+                calculatedProgress = 100;
+            } else if (campaign.status === 'En Campaña') {
+                const totalDuration = differenceInMilliseconds(endDate, startDate);
+                const elapsedDuration = differenceInMilliseconds(now, startDate);
+                
+                if (totalDuration > 0) {
+                    const progress = (elapsedDuration / totalDuration) * 100;
+                    calculatedProgress = Math.round(Math.min(100, Math.max(0, progress)));
+                } else {
+                    calculatedProgress = 0;
+                }
+            }
+        } catch (e) {
+            console.error(`Could not calculate progress for campaign ${campaign.id}`, e);
+        }
+        
+        return { ...campaign, progress: calculatedProgress };
+    });
+  }, [campaigns]);
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -187,7 +222,7 @@ export default function CampaignsPage() {
                   <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
                 </TableRow>
               )}
-              {campaigns?.map((campaign) => {
+              {processedCampaigns?.map((campaign) => {
                 const endDate = parseISO(campaign.endDate);
                 const isEndingToday = isToday(endDate);
                 const statusLabel = getStatusLabel(campaign.status);
