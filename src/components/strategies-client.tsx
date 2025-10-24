@@ -4,20 +4,42 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { 
-    generateCampaignStrategy, 
-    type GenerateCampaignStrategyInput,
-    type GenerateCampaignStrategyOutput 
+import {
+  generateDiagnosticoSection,
+  generateMarcaSection,
+  generateAudienciaSection,
+  generateOperacionSection,
+  generateConsistenciaSection,
+  generateMicrotargetingSection,
+  generateRecomendacionesSection,
+  generateRiesgosSection,
+  type GenerateCampaignStrategyInput,
 } from '@/ai/flows/generate-campaign-strategies'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Lightbulb, Loader2, Info } from 'lucide-react'
+import { Lightbulb, Loader2, Info, CheckCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
+import { Separator } from './ui/separator'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
@@ -32,9 +54,45 @@ const formSchema = z.object({
   resourceConstraints: z.string().optional(),
 })
 
+type SectionKey = 
+  | 'diagnostico' 
+  | 'marca' 
+  | 'audiencia' 
+  | 'operacion' 
+  | 'consistencia' 
+  | 'microtargeting' 
+  | 'recomendaciones' 
+  | 'riesgos';
+
+const sectionTitles: Record<SectionKey, string> = {
+  diagnostico: 'I. Diagnóstico y Contexto',
+  marca: 'II. Marca y Mensaje',
+  audiencia: 'III. Audiencia y Segmentación',
+  operacion: 'IV. Operación y Medición',
+  consistencia: 'V. Estrategia de Constancia y Consistencia',
+  microtargeting: 'VI. Estrategia de Uso Estratégico de Microtargeting',
+  recomendaciones: 'VII. Recomendaciones Clave',
+  riesgos: 'VIII. Riesgos Potenciales',
+};
+
+const generationFunctions: Record<SectionKey, (input: GenerateCampaignStrategyInput) => Promise<string>> = {
+  diagnostico: generateDiagnosticoSection,
+  marca: generateMarcaSection,
+  audiencia: generateAudienciaSection,
+  operacion: generateOperacionSection,
+  consistencia: generateConsistenciaSection,
+  microtargeting: generateMicrotargetingSection,
+  recomendaciones: generateRecomendacionesSection,
+  riesgos: generateRiesgosSection,
+};
+
+type StrategyResult = Partial<Record<SectionKey, string>>;
+type LoadingState = Partial<Record<SectionKey, boolean>>;
+
 export function StrategiesClient() {
-  const [strategy, setStrategy] = useState<GenerateCampaignStrategyOutput | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [strategy, setStrategy] = useState<StrategyResult>({})
+  const [loadingSections, setLoadingSections] = useState<LoadingState>({})
+  const [isGenerating, setIsGenerating] = useState(false)
   const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -48,24 +106,32 @@ export function StrategiesClient() {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true)
-    setStrategy(null)
-    try {
-      const result = await generateCampaignStrategy(values);
-      setStrategy(result);
-    } catch (e) {
-      console.error(e)
-      toast({
-        variant: 'destructive',
-        title: 'Error de Generación',
-        description: 'No se pudo generar la estrategia. Por favor, inténtalo de nuevo.',
-      })
-    } finally {
-      setIsLoading(false)
+    setIsGenerating(true)
+    setStrategy({})
+
+    const sectionKeys = Object.keys(generationFunctions) as SectionKey[];
+
+    for (const key of sectionKeys) {
+      setLoadingSections(prev => ({ ...prev, [key]: true }));
+      try {
+        const result = await generationFunctions[key](values);
+        setStrategy(prev => ({ ...prev, [key]: result }));
+      } catch (e) {
+        console.error(`Error generating section ${key}:`, e);
+        setStrategy(prev => ({ ...prev, [key]: `Error al generar esta sección.` }));
+        toast({
+          variant: 'destructive',
+          title: `Error en Sección: ${sectionTitles[key]}`,
+          description: 'No se pudo generar esta parte de la estrategia. Inténtalo de nuevo.',
+        })
+      } finally {
+        setLoadingSections(prev => ({ ...prev, [key]: false }));
+      }
     }
+    setIsGenerating(false)
   }
-  
-  const strategySections = strategy ? Object.entries(strategy) : [];
+
+  const hasResults = Object.keys(strategy).length > 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -74,7 +140,9 @@ export function StrategiesClient() {
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardHeader>
               <CardTitle>Generador de Estrategias</CardTitle>
-              <CardDescription>Define los parámetros para que la IA genere una estrategia de campaña.</CardDescription>
+              <CardDescription>
+                Define los parámetros para que la IA genere una estrategia de campaña.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -103,7 +171,9 @@ export function StrategiesClient() {
                     <FormControl>
                       <Input placeholder="Ej: Colombia, Bogotá, etc." {...field} />
                     </FormControl>
-                    <FormDescription>La ciudad, región o país donde se desarrollará la campaña.</FormDescription>
+                    <FormDescription>
+                      La ciudad, región o país donde se desarrollará la campaña.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -143,65 +213,64 @@ export function StrategiesClient() {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
+              <Button type="submit" disabled={isGenerating}>
+                {isGenerating ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Lightbulb className="mr-2 h-4 w-4" />
                 )}
-                {isLoading ? 'Generando...' : 'Generar Estrategia'}
+                {isGenerating ? 'Generando...' : 'Generar Estrategia'}
               </Button>
             </CardFooter>
           </form>
         </Form>
       </Card>
-      
+
       <div className="space-y-4">
-        {isLoading && (
-             <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
-                <Loader2 className="h-16 w-16 text-muted-foreground/50 mb-4 animate-spin" />
-                <h3 className="text-lg font-semibold">Generando tu modelo de estrategia...</h3>
-                <p className="text-muted-foreground text-sm mt-2">
-                    Esto puede tomar hasta 2 minutos. Gracias por tu paciencia.
-                </p>
-            </Card>
-        )}
-        {!isLoading && !strategy && (
-             <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
-                <Lightbulb className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-semibold">Estrategia de Campaña</h3>
-                <p className="text-muted-foreground text-sm">
-                    La estrategia generada por la IA aparecerá aquí.
-                </p>
-            </Card>
-        )}
-        {strategy && (
+        {hasResults ? (
           <Card className="bg-card/80 border-primary/50 shadow-lg">
             <CardHeader className="space-y-4">
               <CardTitle>Estrategia de Campaña Generada</CardTitle>
-               <Alert>
+              <Alert>
                 <Info className="h-4 w-4" />
                 <AlertTitle>Nota Importante</AlertTitle>
                 <AlertDescription>
-                  Este es un modelo de estrategia generado por IA. Debe ser utilizado como una base o un ejemplo para desarrollar tu plan final. Revisa y ajusta el contenido según tu criterio y conocimiento experto.
+                  Este es un modelo de estrategia generado por IA. Debe ser
+                  utilizado como una base o un ejemplo para desarrollar tu plan
+                  final. Revisa y ajusta el contenido según tu criterio y
+                  conocimiento experto.
                 </AlertDescription>
               </Alert>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[70vh] w-full">
                 <div className="space-y-6 pr-4">
-                  {strategySections.map(([key, value]) => {
-                      const title = key.charAt(0).toUpperCase() + key.slice(1);
-                      return (
-                        <div key={key}>
-                            <h3 className="text-xl font-semibold mb-2 capitalize">{title.replace(/_/g, ' ')}</h3>
-                            <p className="text-sm whitespace-pre-wrap">{value as string}</p>
-                        </div>
-                      )
-                  })}
+                  {(Object.keys(sectionTitles) as SectionKey[]).map(key => (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xl font-semibold">{sectionTitles[key]}</h3>
+                        {loadingSections[key] && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+                        {strategy[key] && !loadingSections[key] && <CheckCircle className="h-5 w-5 text-green-500" />}
+                      </div>
+                      {strategy[key] ? (
+                        <p className="text-sm whitespace-pre-wrap">{strategy[key]}</p>
+                      ) : loadingSections[key] ? (
+                        <p className="text-sm text-muted-foreground">Generando esta sección...</p>
+                      ) : null}
+                      <Separator className="mt-6" />
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
             </CardContent>
+          </Card>
+        ) : (
+          <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
+            <Lightbulb className="h-16 w-16 text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-semibold">Estrategia de Campaña</h3>
+            <p className="text-muted-foreground text-sm">
+              La estrategia generada por la IA aparecerá aquí, sección por sección.
+            </p>
           </Card>
         )}
       </div>
