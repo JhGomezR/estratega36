@@ -90,15 +90,15 @@ export type Role = WithId<{
 }>;
 
 export const availablePermissions = [
-    "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
-    "voter:create", "voter:read", "voter:update", "voter:delete",
-    "user:create", "user:read", "user:update", "user:delete",
-    "role:create", "role:read", "role:update", "role:delete",
-    "city:create", "city:read", "city:update", "city:delete",
-    "task:create", "task:read", "task:update", "task:delete",
-    "call:create", "call:read", "call:update", "call:delete",
-    "report:read",
-    "setting:update"
+  "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
+  "voter:create", "voter:read", "voter:update", "voter:delete",
+  "user:create", "user:read", "user:update", "user:delete",
+  "role:create", "role:read", "role:update", "role:delete",
+  "city:create", "city:read", "city:update", "city:delete",
+  "task:create", "task:read", "task:update", "task:delete",
+  "call:create", "call:read", "call:update", "call:delete",
+  "report:read",
+  "setting:update"
 ] as const;
 
 export type Permission = (typeof availablePermissions)[number];
@@ -114,3 +114,4 @@ export type ManagedList = WithId<{
     name: string;
     items: string[];
 }>;
+
