@@ -26,6 +26,83 @@ const GenerateCampaignStrategyOutputSchema = z.object({
 });
 export type GenerateCampaignStrategyOutput = z.infer<typeof GenerateCampaignStrategyOutputSchema>;
 
+// Tool for Section I: Diagnosis and Context
+const generateDiagnosisSectionTool = ai.defineTool(
+  {
+    name: 'generateDiagnosisSection',
+    description: `Genera la sección 'I. Diagnóstico y Contexto' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
+- Tipo de Campaña: Personal, Corporativa, o Política. Define el tono, los canales y la Autenticidad Posicionada.
+- Objetivo Principal: ¿Ganar una elección? ¿Lanzar un producto? ¿Mejorar la reputación? (Debe ser medible). Establece el "norte estratégico" y el foco de la Planeación.
+- Entorno/Contexto: Situación política/social actual; temas clave de la agenda mediática y los intereses de los electores. Permite la Lectura Constante del Contexto y evita errores costosos.
+- Oponente/Competencia: ¿Quiénes son los principales oponentes/competidores? (Fortalezas y debilidades). Base para el Análisis estratégico y la diferenciación del mensaje.`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+      const { text } = await ai.generate({
+        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Lugar: ${input.lugar}\n- Objetivos: ${input.objectives}\n- Restricciones: ${input.resourceConstraints}\n\nGenera un análisis extremadamente detallado para la sección "I. Diagnóstico y Contexto". Expande sobre cada uno de los puntos: Tipo de Campaña, Objetivo Principal, Entorno/Contexto y Oponente/Competencia. Sé exhaustivo y proporciona un análisis profundo.`,
+      });
+      return text;
+  }
+);
+
+// Tool for Section II: Brand and Message
+const generateBrandSectionTool = ai.defineTool(
+  {
+    name: 'generateBrandSection',
+    description: `Genera la sección 'II. Marca y Mensaje' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
+- Valores Fundamentales: 3 a 5 valores esenciales de la marca/candidato (el ADN único). Define la Coherencia de Marca Total y la Autenticidad Posicionada.
+- Propuesta de Valor Central: ¿Qué solución concreta ofrece o qué causa defiende? ¿Qué lo hace único? Define el Mensaje Central y el eje de la campaña.
+- Tono Deseado: ¿Serio y técnico, o cercano y emocional? (Para el Storytelling). Guía la Narrativa Emocional Segmentada y la Construcción de imagen.`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+      const { text } = await ai.generate({
+        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Objetivos: ${input.objectives}\n\nGenera un análisis extremadamente detallado para la sección "II. Marca y Mensaje". Expande sobre cada uno de los puntos: Valores Fundamentales, Propuesta de Valor Central y Tono Deseado. Sé exhaustivo y proporciona un análisis profundo.`,
+      });
+      return text;
+  }
+);
+
+// Tool for Section III: Audience and Segmentation
+const generateAudienceSectionTool = ai.defineTool(
+  {
+    name: 'generateAudienceSection',
+    description: `Genera la sección 'III. Audiencia y Segmentación' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
+- Audiencia Primaria: Demografía principal (Edad, ubicación, nivel socioeconómico) de la audiencia clave. Base para la Segmentación de mensajes y el Uso Estratégico de Microtargeting.
+- Motivaciones de la Audiencia: ¿Qué les preocupa, qué necesitan, o qué sentimiento busca movilizar? Impulsa el Uso emocional de los mensajes y el Análisis del voto.`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+      const { text } = await ai.generate({
+        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Lugar: ${input.lugar}\n\nGenera un análisis extremadamente detallado para la sección "III. Audiencia y Segmentación". Expande sobre cada uno de los puntos: Audiencia Primaria y Motivaciones de la Audiencia. Sé exhaustivo y proporciona un análisis profundo y recomendaciones de microtargeting.`,
+      });
+      return text;
+  }
+);
+
+// Tool for Section IV: Operation and Measurement
+const generateOperationSectionTool = ai.defineTool(
+  {
+    name: 'generateOperationSection',
+    description: `Genera la sección 'IV. Operación y Medición' de la estrategia. Debe ser extremadamente detallada, explicando el paso a paso. La sección debe cubrir:
+- Recursos y Equipo: ¿El comando es centralizado o descentralizado? ¿Se cuenta con consultores/equipo multidisciplinario? Determina la viabilidad de la Gestión Profesional y la logística.
+- Canales Actuales: ¿En qué redes sociales/medios ya tiene presencia y cuál es su alcance? Define la estrategia de Doble Presencia (Terreno y Redes) y el plan de Visibilidad.
+- Indicadores Clave de Éxito: ¿Qué se va a medir para saber si se tiene éxito? (Ej. Conocimiento de marca, favorabilidad, ventas, % de voto). Fundamento para el Monitoreo electoral y la Gestión Data-Driven.`,
+    inputSchema: GenerateCampaignStrategyInputSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+       const { text } = await ai.generate({
+        prompt: `Basado en los siguientes datos:\n- Datos de campaña: ${input.campaignData}\n- Restricciones: ${input.resourceConstraints}\n\nGenera un análisis extremadamente detallado para la sección "IV. Operación y Medición". Expande sobre cada uno de los puntos: Recursos y Equipo, Canales Actuales e Indicadores Clave de Éxito. Sé exhaustivo y proporciona un análisis profundo y un plan de acción claro.`,
+      });
+      return text;
+  }
+);
+
+
 export async function generateCampaignStrategy(
   input: GenerateCampaignStrategyInput
 ): Promise<GenerateCampaignStrategyOutput> {
@@ -36,42 +113,22 @@ const generateCampaignStrategyPrompt = ai.definePrompt({
   name: 'generateCampaignStrategyPrompt',
   input: {schema: GenerateCampaignStrategyInputSchema},
   output: {schema: GenerateCampaignStrategyOutputSchema},
-  config: {
-    safetySettings: [
-        {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_ONLY_HIGH',
-        },
-    ],
-  },
-  prompt: `Vas a recibir 5 parametros;
-Datos clave de la campaña: {{{campaignData}}}
-Lugar: {{{lugar}}}
-Objetivos Principales: {{{objectives}}}
-Restricciones de Recursos (Opcional): {{{resourceConstraints}}}
+  tools: [
+    generateDiagnosisSectionTool,
+    generateBrandSectionTool,
+    generateAudienceSectionTool,
+    generateOperationSectionTool,
+  ],
+  prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed campaign strategy document based on the user's input. 
 
-y con base en esos datos tu vas a generar un modelo de campaña que cumpla con los siguientes requisitos en ese debido orden, debe ser extremadamente detallada:
+You must call the tools for each section in the correct order to build the document. Each section must be clearly titled and formatted. The final document should be comprehensive, well-structured, and provide deep insights.
 
-I. Diagnóstico y Contexto
-Tipo de Campaña: Personal, Corporativa, o Política. Define el tono, los canales y la Autenticidad Posicionada.
-Objetivo Principal: ¿Ganar una elección? ¿Lanzar un producto? ¿Mejorar la reputación? (Debe ser medible). Establece el "norte estratégico" y el foco de la Planeación.
-Entorno/Contexto: Situación política/social actual; temas clave de la agenda mediática y los intereses de los electores. Permite la Lectura Constante del Contexto y evita errores costosos.
-Oponente/Competencia: ¿Quiénes son los principales oponentes/competidores? (Fortalezas y debilidades). Base para el Análisis estratégico y la diferenciación del mensaje.
+1. Call 'generateDiagnosisSection'
+2. Call 'generateBrandSection'
+3. Call 'generateAudienceSection'
+4. Call 'generateOperationSection'
 
-II. Marca y Mensaje
-Valores Fundamentales: 3 a 5 valores esenciales de la marca/candidato (el ADN único). Define la Coherencia de Marca Total y la Autenticidad Posicionada.
-Propuesta de Valor Central: ¿Qué solución concreta ofrece o qué causa defiende? ¿Qué lo hace único? Define el Mensaje Central y el eje de la campaña.
-Tono Deseado: ¿Serio y técnico, o cercano y emocional? (Para el Storytelling). Guía la Narrativa Emocional Segmentada y la Construcción de imagen.
-
-III. Audiencia y Segmentación
-Audiencia Primaria: Demografía principal (Edad, ubicación, nivel socioeconómico) de la audiencia clave. Base para la Segmentación de mensajes y el Uso Estratégico de Microtargeting.
-Motivaciones de la Audiencia: ¿Qué les preocupa, qué necesitan, o qué sentimiento busca movilizar? Impulsa el Uso emocional de los mensajes y el Análisis del voto.
-
-IV. Operación y Medición
-Recursos y Equipo: ¿El comando es centralizado o descentralizado? ¿Se cuenta con consultores/equipo multidisciplinario? Determina la viabilidad de la Gestión Profesional y la logística.
-Canales Actuales: ¿En qué redes sociales/medios ya tiene presencia y cuál es su alcance? Define la estrategia de Doble Presencia (Terreno y Redes) y el plan de Visibilidad.
-Indicadores Clave de Éxito: ¿Qué se va a medir para saber si se tiene éxito? (Ej. Conocimiento de marca, favorabilidad, ventas, % de voto). Fundamento para el Monitoreo electoral y la Gestión Data-Driven.
-`,
+Combine the outputs of all tools into a single, cohesive, and extremely detailed strategy document. Ensure the final text is well over 2500 words and formatted with clear headings for each of the four main sections.`,
 });
 
 const generateCampaignStrategyFlow = ai.defineFlow(
@@ -81,8 +138,7 @@ const generateCampaignStrategyFlow = ai.defineFlow(
     outputSchema: GenerateCampaignStrategyOutputSchema,
   },
   async input => {
-    const {output} = await generateCampaignStrategyPrompt(input);
-    // The entire detailed document will be in the 'strategy' field of the output.
+    const { output } = await generateCampaignStrategyPrompt(input);
     return { strategy: output!.strategy };
   }
 );
