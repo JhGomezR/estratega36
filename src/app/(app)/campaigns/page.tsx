@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, Eye } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye, LayoutGrid, List } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import type { Campaign, ManagedList } from "@/lib/types"
 import { CampaignForm } from "@/components/campaign-form"
@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { isToday, isPast, parseISO, differenceInMilliseconds } from "date-fns"
 import { cn } from "@/lib/utils"
+import { CampaignGrid } from "@/components/campaign-grid"
 
 const statusColors: Record<string, string> = {
   'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
@@ -65,6 +66,7 @@ export default function CampaignsPage() {
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [campaignToDelete, setCampaignToDelete] = React.useState<Campaign | null>(null);
+  const [view, setView] = React.useState<'list' | 'grid'>('grid');
   
   React.useEffect(() => {
     if (campaigns && firestore) {
@@ -183,115 +185,130 @@ export default function CampaignsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Campañas</h1>
           <p className="text-muted-foreground">Administra y monitorea tus campañas políticas.</p>
         </div>
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleAddNew}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nueva Campaña
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>{selectedCampaign ? "Editar Campaña" : "Nueva Campaña"}</DialogTitle>
-            </DialogHeader>
-            <CampaignForm
-              campaign={selectedCampaign}
-              lists={lists}
-              onSubmit={handleFormSubmit}
-              onCancel={() => setIsFormOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 rounded-md bg-muted p-1">
+                <Button variant={view === 'grid' ? 'secondary' : 'ghost'} size="sm" onClick={() => setView('grid')} className="gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    Grid
+                </Button>
+                <Button variant={view === 'list' ? 'secondary' : 'ghost'} size="sm" onClick={() => setView('list')} className="gap-2">
+                    <List className="h-4 w-4" />
+                    Lista
+                </Button>
+            </div>
+            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <DialogTrigger asChild>
+                <Button onClick={handleAddNew}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Nueva Campaña
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                <DialogTitle>{selectedCampaign ? "Editar Campaña" : "Nueva Campaña"}</DialogTitle>
+                </DialogHeader>
+                <CampaignForm
+                campaign={selectedCampaign}
+                lists={lists}
+                onSubmit={handleFormSubmit}
+                onCancel={() => setIsFormOpen(false)}
+                />
+            </DialogContent>
+            </Dialog>
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Campañas</CardTitle>
-          <CardDescription>
-            Un listado de todas las campañas en tu sistema.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Progreso</TableHead>
-                <TableHead>Fecha de Fin</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && (
+        {view === 'list' ? (
+        <Card>
+            <CardHeader>
+            <CardTitle>Lista de Campañas</CardTitle>
+            <CardDescription>
+                Un listado de todas las campañas en tu sistema.
+            </CardDescription>
+            </CardHeader>
+            <CardContent>
+            <Table>
+                <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Progreso</TableHead>
+                    <TableHead>Fecha de Fin</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
-              )}
-              {processedCampaigns?.map((campaign) => {
-                const endDate = parseISO(campaign.endDate);
-                const isEndingToday = isToday(endDate);
-                const statusLabel = campaign.status;
-                return (
-                <TableRow key={campaign.id}>
-                  <TableCell className="font-medium">{campaign.name}</TableCell>
-                  <TableCell className="capitalize">{campaign.campaignType}</TableCell>
-                  <TableCell>
-                    <Badge
-                       className={cn(
-                        "capitalize",
-                        isEndingToday && campaign.status !== 'Finalizada' 
-                          ? "bg-red-500 text-white" 
-                          : statusColors[statusLabel] || "bg-gray-400"
-                      )}
-                    >
-                      {statusLabel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                        <Progress value={campaign.progress} className="w-24" />
-                        <span>{campaign.progress}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className={cn(isEndingToday && campaign.status !== 'Finalizada' && "text-red-500 font-bold")}>{campaign.endDate}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link href={`/campaigns/${campaign.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(campaign)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog open={!!campaignToDelete && campaignToDelete.id === campaign.id} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => confirmDelete(campaign)}>
-                          <Trash2 className="h-4 w-4" />
+                </TableHeader>
+                <TableBody>
+                {isLoading && (
+                    <TableRow>
+                    <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
+                    </TableRow>
+                )}
+                {processedCampaigns?.map((campaign) => {
+                    const endDate = parseISO(campaign.endDate);
+                    const isEndingToday = isToday(endDate);
+                    const statusLabel = campaign.status;
+                    return (
+                    <TableRow key={campaign.id}>
+                    <TableCell className="font-medium">{campaign.name}</TableCell>
+                    <TableCell className="capitalize">{campaign.campaignType}</TableCell>
+                    <TableCell>
+                        <Badge
+                        className={cn(
+                            "capitalize",
+                            isEndingToday && campaign.status !== 'Finalizada' 
+                            ? "bg-red-500 text-white" 
+                            : statusColors[statusLabel] || "bg-gray-400"
+                        )}
+                        >
+                        {statusLabel}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>
+                        <div className="flex items-center gap-2">
+                            <Progress value={campaign.progress} className="w-24" />
+                            <span>{campaign.progress}%</span>
+                        </div>
+                    </TableCell>
+                    <TableCell className={cn(isEndingToday && campaign.status !== 'Finalizada' && "text-red-500 font-bold")}>{campaign.endDate}</TableCell>
+                    <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/campaigns/${campaign.id}`}>
+                            <Eye className="h-4 w-4" />
+                        </Link>
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente la campaña.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setCampaignToDelete(null)}>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(campaign)}>
+                        <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog open={!!campaignToDelete && campaignToDelete.id === campaign.id} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => confirmDelete(campaign)}>
+                            <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Esto eliminará permanentemente la campaña.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setCampaignToDelete(null)}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
+                    </TableRow>
+                    )
+                })}
+                </TableBody>
+            </Table>
+            </CardContent>
+        </Card>
+        ) : (
+            <CampaignGrid campaigns={processedCampaigns} isLoading={isLoading} statusColors={statusColors}/>
+        )}
     </div>
   )
 }
