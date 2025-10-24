@@ -40,8 +40,7 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => (
 
 
 const Node = ({ node, campaigns, userMap }: { node: TreeNode; campaigns: Campaign[]; userMap: Map<string, TreeNode>}) => {
-    const userCampaigns = campaigns.filter(c => node.campaignIds.includes(c.id) && c.status === 'En Campaña');
-
+    
     return (
         <div className="flex flex-col items-center relative">
             <Card className="min-w-[280px] w-fit max-w-sm z-10 bg-card shadow-md my-2 border-2 border-primary/20">
@@ -56,25 +55,6 @@ const Node = ({ node, campaigns, userMap }: { node: TreeNode; campaigns: Campaig
                             <Badge variant="secondary" className="capitalize mt-1 text-xs">{node.roleName}</Badge>
                         </div>
                     </div>
-                     {userCampaigns.length > 0 && (
-                        <div className="pt-2 border-t">
-                            <p className="text-xs font-semibold mb-1.5 text-muted-foreground">Campañas Activas:</p>
-                            <div className="flex flex-wrap gap-1">
-                                {userCampaigns.map(campaign => (
-                                     <TooltipProvider key={campaign.id}>
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Badge variant="outline">{campaign.name}</Badge>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{campaign.name}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
 
