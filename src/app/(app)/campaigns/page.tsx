@@ -42,6 +42,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { isToday, isPast, parseISO } from "date-fns"
+import { cn } from "@/lib/utils"
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
@@ -54,6 +56,24 @@ export default function CampaignsPage() {
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [campaignToDelete, setCampaignToDelete] = React.useState<Campaign | null>(null);
+  
+  React.useEffect(() => {
+    if (campaigns && firestore) {
+      campaigns.forEach(campaign => {
+        if (campaign.status !== 'Finalizada') {
+          try {
+            const endDate = parseISO(campaign.endDate);
+            // Check if endDate is in the past (but not today)
+            if (isPast(endDate) && !isToday(endDate)) {
+              setDocumentNonBlocking(doc(firestore, 'campaigns', campaign.id), { status: 'Finalizada' }, { merge: true });
+            }
+          } catch (e) {
+            console.error(`Invalid date for campaign ${campaign.id}: ${campaign.endDate}`);
+          }
+        }
+      });
+    }
+  }, [campaigns, firestore]);
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, ManagedList | undefined> = {};
@@ -160,20 +180,16 @@ export default function CampaignsPage() {
                   <TableCell colSpan={6} className="text-center">Cargando...</TableCell>
                 </TableRow>
               )}
-              {campaigns?.map((campaign) => (
+              {campaigns?.map((campaign) => {
+                const endDate = parseISO(campaign.endDate);
+                const isEndingToday = isToday(endDate);
+                return (
                 <TableRow key={campaign.id}>
                   <TableCell className="font-medium">{campaign.name}</TableCell>
                   <TableCell className="capitalize">{campaign.campaignType}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={
-                        campaign.status === "active"
-                          ? "default"
-                          : campaign.status === "completed"
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="capitalize"
+                      className={cn("capitalize", isEndingToday && campaign.status !== 'Finalizada' && "bg-red-500 text-white")}
                     >
                       {getStatusLabel(campaign.status)}
                     </Badge>
@@ -184,7 +200,7 @@ export default function CampaignsPage() {
                         <span>{campaign.progress}%</span>
                     </div>
                   </TableCell>
-                  <TableCell>{campaign.endDate}</TableCell>
+                  <TableCell className={cn(isEndingToday && campaign.status !== 'Finalizada' && "text-red-500 font-bold")}>{campaign.endDate}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(campaign)}>
                       <Edit className="h-4 w-4" />
@@ -210,7 +226,8 @@ export default function CampaignsPage() {
                     </AlertDialog>
                   </TableCell>
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
           </Table>
         </CardContent>
