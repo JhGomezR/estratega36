@@ -5,7 +5,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
+  CardFooter,
 } from "@/components/ui/card"
 import {
   Table,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Eye, Loader2, Save, Search, Clock, CheckCircle } from "lucide-react"
+import { Edit, Eye, Loader2, Save, Search, Clock, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -51,6 +52,8 @@ const statusColors: Record<Call['status'], string> = {
   atendida: 'bg-green-500/20 text-green-700 hover:bg-green-500/30'
 }
 
+const CALLS_PER_PAGE = 15;
+
 export default function CallsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -74,6 +77,7 @@ export default function CallsPage() {
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [localAttempts, setLocalAttempts] = React.useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState(1);
 
   React.useEffect(() => {
     if (calls) {
@@ -163,6 +167,13 @@ export default function CallsPage() {
       return 0;
     });
   }, [calls, searchQuery, getVoterInfo, getUserName]);
+
+  const paginatedCalls = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * CALLS_PER_PAGE;
+    return processedCalls.slice(startIndex, startIndex + CALLS_PER_PAGE);
+  }, [processedCalls, currentPage]);
+
+  const totalPages = Math.ceil(processedCalls.length / CALLS_PER_PAGE);
 
   const callStats = React.useMemo(() => {
     if (!calls) return { pending: 0, attended: 0 };
@@ -318,14 +329,14 @@ export default function CallsPage() {
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">Cargando...</TableCell>
                 </TableRow>
-              ) : !processedCalls || processedCalls.length === 0 ? (
+              ) : !paginatedCalls || paginatedCalls.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
                     {searchQuery ? "No se encontraron resultados." : "No hay llamadas pendientes. Agrega un votante para empezar."}
                   </TableCell>
                 </TableRow>
               ) : (
-                processedCalls.map((call) => {
+                paginatedCalls.map((call) => {
                   const voter = getVoterInfo(call.voterId);
                   const isLocked = !!call.details;
                   return (
@@ -380,6 +391,31 @@ export default function CallsPage() {
             </TableBody>
           </Table>
         </CardContent>
+         <CardFooter className="flex items-center justify-between pt-4">
+          <div className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages > 0 ? totalPages : 1}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
       
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
