@@ -180,50 +180,28 @@ export async function generateCampaignStrategy(
 }
 
 const generateCampaignStrategyPrompt = ai.definePrompt({
-  name: 'generateCampaignStrategyPrompt',
-  input: {schema: GenerateCampaignStrategyInputSchema},
-  output: {schema: GenerateCampaignStrategyOutputSchema},
-  prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed eight-part campaign strategy document based on the user's input. The final document must be well over 2500 words and formatted with clear headings for each section.
+    name: 'generateCampaignStrategyPrompt',
+    input: { schema: GenerateCampaignStrategyInputSchema },
+    output: { schema: GenerateCampaignStrategyOutputSchema },
+    tools: [
+        generateAuthenticityStrategyTool,
+        generateNarrativeStrategyTool,
+        generateManagementStrategyTool,
+        generateContextStrategyTool,
+        generateConsistencyStrategyTool,
+        generateMicrotargetingStrategyTool,
+        generateRecommendationsTool,
+        generateRisksTool,
+    ],
+    prompt: `You are an expert political campaign strategist. Your task is to generate a complete and extremely detailed eight-part campaign strategy document. You must call all 8 of the provided tools in sequence to construct the full document. The final document must be well over 2500 words, formatted with clear headings for each section, and provide a deep, step-by-step analysis for each point.
 
-Based on the following user input:
+Based on the following user input, call the tools in order to generate the full strategy:
 - Campaign Data: {{{campaignData}}}
 - Location: {{{lugar}}}
 - Objectives: {{{objectives}}}
 - Resource Constraints: {{{resourceConstraints}}}
 
-Generate the full content for the following 8 sections. For each section, provide a deep and detailed step-by-step analysis.
-
-Section 1: Estrategia de Autenticidad Posicionada
-- Objective: Define the Unique DNA that connects the candidate's global vision with local needs.
-- Sub-points: Definición del ADN Único, Alineación con la Oferta.
-
-Section 2: Estrategia de Narrativa Emocional Segmentada
-- Objective: Create messages that mobilize people, adapted to each subgroup.
-- Sub-points: Creación de la Narrativa, Segmentación y Adaptación.
-
-Section 3: Estrategia de Gestión Profesional y Data-Driven
-- Objective: Ensure efficient, data-driven execution.
-- Sub-points: Estructura y Gerenciamiento, Medición y Decisión.
-
-Section 4: Estrategia de Lectura Constante del Contexto
-- Objective: Keep the campaign relevant by reacting to the agenda.
-- Sub-points: Monitoreo de la Agenda, Reacción y Relevancia.
-
-Section 5: Estrategia de Constancia y Consistencia
-- Objective: Build a lasting reputation and maintain campaign energy.
-- Sub-points: Frecuencia y Ritmo, Unidad y Coherencia.
-
-Section 6: Estrategia de Uso Estratégico de Microtargeting
-- Objective: Optimize the strategy for everything.
-- Sub-points: Implementación de Data y Adaptación Fina, Eficiencia.
-
-Section 7: Recomendaciones Clave
-- Details: Priorizar el Personal Local, Sensibilidad Cultural Inquebrantable, Inversión en Logística de Infraestructura, Enfoque en Promesas Tangibles, Mecanismo de GOTV Robusto.
-
-Section 8: Riesgos Potenciales
-- Risks to analyze: Riesgo Logístico y de Seguridad, Errores Culturales / Desconfianza Externa, Apatía del Votante / Fatiga, Competencia con Líderes Locales.
-
-Combine the content of all 8 sections into a single, cohesive, and extremely detailed strategy document. Ensure the final text is formatted with clear headings for each of the eight main sections.`,
+After calling all 8 tools, combine their outputs into a single, cohesive, and extremely detailed strategy document. Ensure the final text is formatted with clear headings for each of the eight main sections.`,
 });
 
 const generateCampaignStrategyFlow = ai.defineFlow(
@@ -237,5 +215,3 @@ const generateCampaignStrategyFlow = ai.defineFlow(
     return { strategy: output!.strategy };
   }
 );
-
-    
