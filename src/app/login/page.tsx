@@ -69,13 +69,33 @@ export default function LoginPage() {
       });
       router.push("/");
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found' && data.email === 'axdrcys@gmail.com') {
+      const isInvalidCredential = error.code === 'auth/invalid-credential';
+      const isUserNotFound = error.code === 'auth/user-not-found';
+
+      if ((isInvalidCredential || isUserNotFound) && data.email === 'axdrcys@gmail.com') {
         // If the admin user does not exist, create it
         try {
           if (!firestore) throw new Error("Firestore not available");
           
           const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
           const newAuthUser = userCredential.user;
+
+          // Set admin role (assuming it's defined elsewhere, e.g., in types.ts and you have a 'roles' collection)
+          await setDoc(doc(firestore, 'roles', 'admin'), {
+            name: 'Admin',
+            permissions: [
+              "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
+              "voter:create", "voter:read", "voter:update", "voter:delete",
+              "user:create", "user:read", "user:update", "user:delete",
+              "role:create", "role:read", "role:update", "role:delete",
+              "city:create", "city:read", "city:update", "city:delete",
+              "task:create", "task:read", "task:update", "task:delete",
+              "call:create", "call:read", "call:update", "call:delete",
+              "report:read",
+              "setting:update"
+            ],
+            status: 'activo'
+          });
 
           const adminProfile: Omit<User, 'id'> = {
             firstName: 'AXCYS',
@@ -110,7 +130,7 @@ export default function LoginPage() {
       } else {
         console.error(error);
         let description = "Ocurrió un error inesperado.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        if (isInvalidCredential || isUserNotFound || error.code === 'auth/wrong-password') {
           description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
         }
         toast({
