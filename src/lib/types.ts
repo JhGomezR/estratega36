@@ -1,4 +1,5 @@
 
+
 export type WithId<T> = T & { id: string };
 
 export type Voter = WithId<{
@@ -126,4 +127,25 @@ export type BrandingSettings = {
 export type ManagedList = WithId<{
     name: string;
     items: string[];
+}>;
+
+export type GeneratedStrategy = WithId<{
+    campaignId: string;
+    generatedAt: string;
+    inputs: {
+        campaignData: string;
+        lugar: string;
+        objectives: string;
+        resourceConstraints?: string;
+    };
+    outputs: {
+        diagnostico: string;
+        marca: string;
+        audiencia: string;
+        operacion: string;
+        consistencia: string;
+        microtargeting: string;
+        recomendaciones: string;
+        riesgos: string;
+    };
 }>;

@@ -368,6 +368,41 @@
             "items": { "type": "array", "items": { "type": "string" } }
         },
         "required": ["name", "items"]
+    },
+     "GeneratedStrategy": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GeneratedStrategy",
+      "type": "object",
+      "description": "Stores an AI-generated campaign strategy.",
+      "properties": {
+        "campaignId": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "campaignData": { "type": "string" },
+            "lugar": { "type": "string" },
+            "objectives": { "type": "string" },
+            "resourceConstraints": { "type": "string" }
+          },
+          "required": ["campaignData", "lugar", "objectives"]
+        },
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "diagnostico": { "type": "string" },
+            "marca": { "type": "string" },
+            "audiencia": { "type": "string" },
+            "operacion": { "type": "string" },
+            "consistencia": { "type": "string" },
+            "microtargeting": { "type": "string" },
+            "recomendaciones": { "type": "string" },
+            "riesgos": { "type": "string" }
+          },
+          "required": ["diagnostico", "marca", "audiencia", "operacion", "consistencia", "microtargeting", "recomendaciones", "riesgos"]
+        }
+      },
+      "required": ["campaignId", "generatedAt", "inputs", "outputs"]
     }
   },
   "auth": {
@@ -393,6 +428,12 @@
         "$ref": "#/entities/Campaign"
       },
       "description": "Stores campaign information."
+    },
+     "/campaigns/{campaignId}/generatedStrategies/{strategyId}": {
+      "schema": {
+        "$ref": "#/entities/GeneratedStrategy"
+      },
+      "description": "Stores AI-generated strategies for a specific campaign."
     },
     "/voters/{voterId}": {
       "schema": {

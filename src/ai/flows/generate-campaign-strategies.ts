@@ -3,6 +3,8 @@
 
 import { ai } from '@/ai/genkit'
 import { z } from 'zod'
+import { getFirestore, collection, addDoc } from 'firebase/firestore'
+import { initializeFirebase } from '@/firebase'
 
 const GenerateCampaignStrategyInputSchema = z.object({
   campaignData: z
@@ -24,6 +26,7 @@ const GenerateCampaignStrategyInputSchema = z.object({
     .string()
     .optional()
     .describe('Any limitations on resources, such as budget or staff.'),
+  campaignId: z.string().describe('The ID of the campaign this strategy belongs to.'),
 })
 export type GenerateCampaignStrategyInput = z.infer<
   typeof GenerateCampaignStrategyInputSchema
@@ -199,4 +202,46 @@ const riesgosFlow = createSectionFlow(
 );
 export async function generateRiesgosSection(input: GenerateCampaignStrategyInput): Promise<string> {
     return await riesgosFlow(input);
+}
+
+const SaveStrategyInputSchema = z.object({
+  campaignId: z.string(),
+  inputs: z.object({
+    campaignData: z.string(),
+    lugar: z.string(),
+    objectives: z.string(),
+    resourceConstraints: z.string().optional(),
+  }),
+  outputs: z.object({
+    diagnostico: z.string(),
+    marca: z.string(),
+    audiencia: z.string(),
+    operacion: z.string(),
+    consistencia: z.string(),
+    microtargeting: z.string(),
+    recomendaciones: z.string(),
+    riesgos: z.string(),
+  })
+});
+
+export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInputSchema>): Promise<{ success: boolean, id?: string }> {
+  try {
+    const { firestore } = initializeFirebase();
+    if (!firestore) throw new Error("Firestore is not initialized.");
+
+    const strategyRef = collection(firestore, `campaigns/${data.campaignId}/generatedStrategies`);
+
+    const docRef = await addDoc(strategyRef, {
+      campaignId: data.campaignId,
+      generatedAt: new Date().toISOString(),
+      inputs: data.inputs,
+      outputs: data.outputs
+    });
+
+    console.log("Strategy saved with ID: ", docRef.id);
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error("Error saving strategy:", error);
+    return { success: false };
+  }
 }

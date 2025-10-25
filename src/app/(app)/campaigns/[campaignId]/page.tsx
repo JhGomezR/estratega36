@@ -1,4 +1,5 @@
 
+
 "use client"
 import * as React from "react"
 import Link from "next/link"
@@ -22,18 +23,19 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
-import type { Campaign, ManagedList, Campaign as CampaignType } from "@/lib/types"
+import type { Campaign, ManagedList, Campaign as CampaignType, GeneratedStrategy } from "@/lib/types"
 import { format, parseISO, isToday } from "date-fns"
 import { es } from 'date-fns/locale'
-import { ArrowLeft, Edit, Loader2 } from "lucide-react"
+import { ArrowLeft, Edit, Loader2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionModal } from "@/components/ui/dialog"
 import { CampaignForm } from "@/components/campaign-form"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useCollection } from "@/firebase/firestore/use-collection"
 import { collection } from "firebase/firestore"
 import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const statusColors: Record<string, string> = {
   'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
@@ -47,6 +49,7 @@ export default function CampaignDetailPage() {
   const campaignId = params.campaignId as string;
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [selectedStrategy, setSelectedStrategy] = React.useState<GeneratedStrategy | null>(null);
 
   const firestore = useFirestore()
   const campaignRef = useMemoFirebase(() => {
@@ -54,6 +57,12 @@ export default function CampaignDetailPage() {
   }, [firestore, campaignId]);
 
   const { data: campaign, isLoading } = useDoc<Campaign>(campaignRef);
+  
+  const strategiesRef = useMemoFirebase(() => {
+      return firestore && campaignId ? collection(firestore, 'campaigns', campaignId, 'generatedStrategies') : null
+  }, [firestore, campaignId]);
+  const { data: strategies, isLoading: strategiesLoading } = useCollection<GeneratedStrategy>(strategiesRef);
+
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
@@ -79,7 +88,7 @@ export default function CampaignDetailPage() {
     setIsFormOpen(false);
   }
 
-  if (isLoading || listsLoading) {
+  if (isLoading || listsLoading || strategiesLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-10 w-10 animate-spin" />
@@ -148,25 +157,63 @@ export default function CampaignDetailPage() {
         </CardContent>
       </Card>
       
-      <Card>
-          <CardHeader>
-            <CardTitle>Objetivo y Progreso</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-             <div>
-                <p className="font-medium text-muted-foreground">Objetivo</p>
-                <p className="text-lg">{campaign.goal}</p>
-             </div>
-             <Separator />
-             <div>
-                <p className="font-medium text-muted-foreground">Progreso de la Campaña</p>
-                 <div className="flex items-center gap-4 mt-2">
-                    <Progress value={campaign.progress} className="w-full" />
-                    <span className="text-lg font-bold text-primary">{campaign.progress}%</span>
-                </div>
-             </div>
-          </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card>
+            <CardHeader>
+              <CardTitle>Objetivo y Progreso</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <div>
+                  <p className="font-medium text-muted-foreground">Objetivo</p>
+                  <p className="text-lg">{campaign.goal}</p>
+               </div>
+               <Separator />
+               <div>
+                  <p className="font-medium text-muted-foreground">Progreso de la Campaña</p>
+                   <div className="flex items-center gap-4 mt-2">
+                      <Progress value={campaign.progress} className="w-full" />
+                      <span className="text-lg font-bold text-primary">{campaign.progress}%</span>
+                  </div>
+               </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Estrategias Generadas por IA</CardTitle>
+                <CardDescription>Historial de estrategias creadas para esta campaña.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Fecha de Creación</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {strategies && strategies.length > 0 ? (
+                            strategies.sort((a,b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()).map(strategy => (
+                                <TableRow key={strategy.id}>
+                                    <TableCell>{format(new Date(strategy.generatedAt), "dd/MM/yyyy 'a las' HH:mm")}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="outline" size="sm" onClick={() => setSelectedStrategy(strategy)}>
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            Ver
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={2} className="text-center h-24">No hay estrategias generadas.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+      </div>
 
 
       {campaign.hasInvestors && (
@@ -221,6 +268,28 @@ export default function CampaignDetailPage() {
             />
           </DialogContent>
         </Dialog>
+        
+      <Dialog open={!!selectedStrategy} onOpenChange={(open) => !open && setSelectedStrategy(null)}>
+        <DialogContent className="max-w-4xl h-[90vh]">
+            <DialogHeader>
+                <DialogTitle>Estrategia Generada</DialogTitle>
+                <DialogDescriptionModal>
+                    Contenido de la estrategia generada el {selectedStrategy ? format(new Date(selectedStrategy.generatedAt), "PPP 'a las' p", {locale: es}) : ''}.
+                </DialogDescriptionModal>
+            </DialogHeader>
+            <ScrollArea className="h-full">
+                <div className="space-y-6 pr-6">
+                    {selectedStrategy && Object.entries(selectedStrategy.outputs).map(([key, value]) => (
+                        <div key={key}>
+                            <h3 className="text-lg font-semibold mb-2 capitalize">{key.replace(/_/g, ' ')}</h3>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{value}</p>
+                            <Separator className="mt-4" />
+                        </div>
+                    ))}
+                </div>
+            </ScrollArea>
+        </DialogContent>
+    </Dialog>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import { useState } from 'react'
@@ -14,6 +15,7 @@ import {
   generateMicrotargetingSection,
   generateRecomendacionesSection,
   generateRiesgosSection,
+  saveGeneratedStrategy,
 } from '@/ai/flows/generate-campaign-strategies'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,11 +37,14 @@ import {
 } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Lightbulb, Loader2, CheckCircle, AlertTriangle, Info } from 'lucide-react'
+import { Lightbulb, Loader2, CheckCircle, AlertTriangle, Info, Save } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Separator } from './ui/separator'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
+import type { Campaign } from '@/lib/types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Skeleton } from './ui/skeleton'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
@@ -52,6 +57,7 @@ const formSchema = z.object({
     message: 'Los objetivos de la campaña deben tener al menos 20 caracteres.',
   }),
   resourceConstraints: z.string().optional(),
+  campaignId: z.string({ required_error: 'Debe seleccionar una campaña.' }),
 })
 
 type SectionKey =
@@ -97,7 +103,13 @@ const initialSectionStatus = sectionKeys.reduce((acc, key) => {
   return acc
 }, {} as SectionStatus)
 
-export function StrategiesClient() {
+interface StrategiesClientProps {
+  campaigns: Campaign[];
+  isLoading: boolean;
+}
+
+
+export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps) {
   const [strategy, setStrategy] = useState<StrategyResult>({})
   const [isOverallGenerating, setIsOverallGenerating] = useState(false)
   const [sectionStatus, setSectionStatus] = useState<SectionStatus>(initialSectionStatus)
@@ -106,28 +118,26 @@ export function StrategiesClient() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      campaignData: 'Carlos Ardila a la Camara por el departamento del putumayo, ya hasido 2 veces electo',
-      lugar: 'Putumayo',
-      objectives: 'Aumentar y generar la mayor cantidad de votos posibles',
-      resourceConstraints: 'presupuesto reducido',
+      campaignData: '',
+      lugar: '',
+      objectives: '',
+      resourceConstraints: '',
+      campaignId: undefined,
     },
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsOverallGenerating(true)
-    setStrategy({})
-    setSectionStatus(initialSectionStatus)
-    form.reset({
-        campaignData: '',
-        lugar: '',
-        objectives: '',
-        resourceConstraints: ''
-    });
+    setIsOverallGenerating(true);
+    setStrategy({});
+    setSectionStatus(initialSectionStatus);
+    
+    const generatedOutputs: StrategyResult = {};
 
     for (const key of sectionKeys) {
         setSectionStatus(prev => ({ ...prev, [key]: 'loading' }));
         try {
             const result = await generationFunctions[key](values);
+            generatedOutputs[key] = result;
             setStrategy(prev => ({ ...prev, [key]: result }));
             setSectionStatus(prev => ({ ...prev, [key]: 'completed' }));
         } catch (e: any) {
@@ -145,7 +155,30 @@ export function StrategiesClient() {
         }
     }
     
+    // Save the complete strategy to Firestore
+    try {
+        const { campaignId, ...inputs } = values;
+        await saveGeneratedStrategy({
+            campaignId,
+            inputs,
+            outputs: generatedOutputs as Record<SectionKey, string>
+        });
+        toast({
+            title: "Estrategia Guardada",
+            description: "La estrategia completa ha sido guardada en la base de datos.",
+            action: <Save className="h-5 w-5" />,
+        });
+    } catch (e) {
+        console.error("Error saving the whole strategy:", e);
+        toast({
+            variant: "destructive",
+            title: "Error al Guardar Estrategia",
+            description: "No se pudo guardar la estrategia en la base de datos.",
+        });
+    }
+    
     setIsOverallGenerating(false);
+    form.reset({ campaignData: '', lugar: '', objectives: '', resourceConstraints: '', campaignId: values.campaignId });
   }
 
   const hasStarted = isOverallGenerating || Object.values(strategy).some(v => v);
@@ -162,6 +195,37 @@ export function StrategiesClient() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="campaignId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Campaña Activa</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={isLoading ? "Cargando campañas..." : "Selecciona una campaña"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {isLoading ? (
+                           <SelectItem value="loading" disabled>Cargando...</SelectItem>
+                        ) : campaigns.length > 0 ? (
+                           campaigns.map(campaign => (
+                            <SelectItem key={campaign.id} value={campaign.id}>
+                              {campaign.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                           <SelectItem value="no-campaigns" disabled>No hay campañas activas</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>La estrategia generada se asociará a esta campaña.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="campaignData"
@@ -246,13 +310,13 @@ export function StrategiesClient() {
       <div className="space-y-4">
         {hasStarted ? (
           <Card className="bg-card/80 border-primary/50 shadow-lg">
-             {isOverallGenerating && (
-                <div className="p-4 border-b text-sm text-muted-foreground flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generando estrategia... Este proceso puede tardar hasta 2 minutos. Por favor, no cierres esta ventana.
-                </div>
-               )}
              <CardHeader>
+                {isOverallGenerating && (
+                    <div className="p-4 border-b text-sm text-muted-foreground flex items-center gap-2 mb-4 rounded-lg bg-muted/50">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generando estrategia... Este proceso puede tardar hasta 2 minutos. Por favor, no cierres esta ventana.
+                    </div>
+                )}
                 <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>Contenido Generado por IA</AlertTitle>
@@ -277,6 +341,7 @@ export function StrategiesClient() {
                       <div className="text-sm whitespace-pre-wrap text-muted-foreground p-4 border rounded-md min-h-[50px] bg-muted/20">
                          {sectionStatus[key] === 'loading' && <p>Generando esta sección...</p>}
                          {strategy[key] && <p>{strategy[key]}</p>}
+                         {sectionStatus[key] === 'idle' && <Skeleton className="h-20 w-full" />}
                       </div>
 
                       <Separator className="mt-6" />
