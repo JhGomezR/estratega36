@@ -40,7 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -52,6 +52,7 @@ const VOTERS_PER_PAGE = 15;
 export default function VotersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const auth = useAuth();
   const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
   const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(
@@ -90,12 +91,16 @@ export default function VotersPage() {
   const voters = React.useMemo(() => {
     if (!votersData || !currentUser || !users || !roles) return [];
 
+    const activeVoters = votersData.filter(v => v.status !== 'inactivo');
+    
+    if (auth.currentUser?.email === 'axdrcys@gmail.com') {
+      return activeVoters;
+    }
+
     const currentUserData = users.find(u => u.id === currentUser.uid);
     if (!currentUserData) return [];
 
     const currentUserRole = roles.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
-    
-    const activeVoters = votersData.filter(v => v.status !== 'inactivo');
 
     if (currentUserRole === 'admin') {
       return activeVoters;
@@ -114,7 +119,7 @@ export default function VotersPage() {
 
     return [];
 
-  }, [votersData, currentUser, users, roles]);
+  }, [votersData, currentUser, users, roles, auth.currentUser]);
   
 
   const lists = React.useMemo(() => {

@@ -1,6 +1,7 @@
+
 "use client"
 import React from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { User, Role, Campaign } from '@/lib/types';
 import { NetworkTree } from '@/components/network-tree';
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 
 export default function NetworkPage() {
     const firestore = useFirestore();
+    const auth = useAuth();
 
     const { data: usersData, isLoading: usersLoading } = useCollection<User>(
         useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
@@ -21,8 +23,9 @@ export default function NetworkPage() {
     );
 
     const activeUsers = React.useMemo(() => {
-        // Filter out inactive users and the main admin user
-        return usersData?.filter(user => user.status === 'activo' && user.email !== 'axdrcys@gmail.com');
+        // Superadmin doesn't need to be filtered out from the tree data itself.
+        // The tree starts from campaigns and their assigned root users.
+        return usersData?.filter(user => user.status === 'activo');
     }, [usersData]);
 
     const isLoading = usersLoading || rolesLoading || campaignsLoading;
