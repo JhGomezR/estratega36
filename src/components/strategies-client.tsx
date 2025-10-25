@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from 'react'
@@ -74,17 +75,6 @@ const sectionTitles: Record<SectionKey, string> = {
   riesgos: 'VIII. Riesgos Potenciales',
 }
 
-const generationFunctions: Record<SectionKey, (input: GenerateCampaignStrategyInput) => Promise<string>> = {
-  diagnostico: generateDiagnosticoSection,
-  marca: generateMarcaSection,
-  audiencia: generateAudienciaSection,
-  operacion: generateOperacionSection,
-  consistencia: generateConsistenciaSection,
-  microtargeting: generateMicrotargetingSection,
-  recomendaciones: generateRecomendacionesSection,
-  riesgos: generateRiesgosSection,
-};
-
 type StrategyResult = Partial<Record<SectionKey, string>>
 type GenerationStatus = 'idle' | 'loading' | 'completed' | 'error'
 type SectionStatus = Record<SectionKey, GenerationStatus>
@@ -116,6 +106,12 @@ export function StrategiesClient() {
     setIsOverallGenerating(true)
     setStrategy({})
     setSectionStatus(initialSectionStatus)
+    form.reset({
+        campaignData: '',
+        lugar: '',
+        objectives: '',
+        resourceConstraints: ''
+    });
 
     const generationPipeline = [
       { key: 'diagnostico' as SectionKey, func: generateDiagnosticoSection },
@@ -144,7 +140,7 @@ export function StrategiesClient() {
                 title: `Error en Sección: ${sectionTitles[key]}`,
                 description: 'No se pudo generar esta parte de la estrategia.',
             });
-            setIsOverallGenerating(false);
+            setIsOverallGenerating(false); // Detener el proceso general si hay un error
             return;
         }
     }
@@ -250,14 +246,14 @@ export function StrategiesClient() {
       <div className="space-y-4">
         {hasStarted ? (
           <Card className="bg-card/80 border-primary/50 shadow-lg">
-            <CardHeader className="space-y-4">
-              <CardTitle>Estrategia de Campaña Generada</CardTitle>
-               {isOverallGenerating && (
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
+             {isOverallGenerating && (
+                <div className="p-4 border-b text-sm text-muted-foreground flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Generando... Este proceso puede tardar hasta 2 minutos. Por favor, no cierres esta ventana.
+                    Generando estrategia... Este proceso puede tardar hasta 2 minutos. Por favor, no cierres esta ventana.
                 </div>
                )}
+            <CardHeader>
+              <CardTitle>Estrategia de Campaña Generada</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[70vh] w-full">
@@ -296,3 +292,5 @@ export function StrategiesClient() {
     </div>
   )
 }
+
+    
