@@ -101,7 +101,6 @@ const audienciaFlow = createSectionFlow(
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
   - Objectives: {{{objectives}}}
-  - Resource Constraints: {{{resourceConstraints}}}
   
   Structure your response following these subsections:
   - Audiencia Primaria: Demografía principal (Edad, ubicación, nivel socioeconómico) de la audiencia clave. Base para la Segmentación de mensajes y el Uso Estratégico de Microtargeting.

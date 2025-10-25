@@ -35,10 +35,9 @@ import {
 } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Lightbulb, Loader2, Info, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Lightbulb, Loader2, CheckCircle, AlertTriangle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
-import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Separator } from './ui/separator'
 
 const formSchema = z.object({
@@ -104,10 +103,10 @@ export function StrategiesClient() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      campaignData: '',
-      lugar: '',
-      objectives: '',
-      resourceConstraints: '',
+      campaignData: 'Carlos Ardila a la Camara por el departamento del putumayo, ya hasido 2 veces electo',
+      lugar: 'Putumayo',
+      objectives: 'Aumentar y generar la mayor cantidad de votos posibles',
+      resourceConstraints: 'presupuesto reducido',
     },
   })
 
@@ -126,13 +125,13 @@ export function StrategiesClient() {
         setSectionStatus(prev => ({ ...prev, [key]: 'completed' }));
       } catch (e) {
         console.error(`Error generating section ${key}:`, e);
-        const errorMessage = `Error al generar esta sección.`;
+        const errorMessage = `Error al generar esta sección. Por favor, revisa la consola para más detalles.`;
         setStrategy(prev => ({ ...prev, [key]: errorMessage }));
         setSectionStatus(prev => ({ ...prev, [key]: 'error' }));
         toast({
           variant: 'destructive',
           title: `Error en Sección: ${sectionTitles[key]}`,
-          description: 'No se pudo generar esta parte de la estrategia. Inténtalo de nuevo.',
+          description: 'No se pudo generar esta parte de la estrategia.',
         })
       }
     }
@@ -221,7 +220,7 @@ export function StrategiesClient() {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isOverallGenerating}>
+              <Button type="submit" disabled={isOverallGenerating} className="w-40">
                 {isOverallGenerating ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -239,25 +238,6 @@ export function StrategiesClient() {
           <Card className="bg-card/80 border-primary/50 shadow-lg">
             <CardHeader className="space-y-4">
               <CardTitle>Estrategia de Campaña Generada</CardTitle>
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle>Nota Importante</AlertTitle>
-                <AlertDescription>
-                  Este es un modelo de estrategia generado por IA. Debe ser
-                  utilizado como una base o un ejemplo para desarrollar tu plan
-                  final. Revisa y ajusta el contenido según tu criterio y
-                  conocimiento experto.
-                </AlertDescription>
-              </Alert>
-               {isOverallGenerating && (
-                 <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-800">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <AlertTitle>Generación en Progreso</AlertTitle>
-                    <AlertDescription>
-                        La IA está creando tu estrategia sección por sección. Este proceso puede tardar hasta 2 minutos.
-                    </AlertDescription>
-                </Alert>
-               )}
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[70vh] w-full">
@@ -271,11 +251,15 @@ export function StrategiesClient() {
                          {sectionStatus[key] === 'error' && <AlertTriangle className="h-5 w-5 text-red-500" />}
                       </div>
                       
-                       {strategy[key] ? (
-                        <p className="text-sm whitespace-pre-wrap">{strategy[key]}</p>
-                       ) : sectionStatus[key] === 'loading' && (
-                         <p className="text-sm text-muted-foreground">Generando esta sección...</p>
-                       )}
+                       <div className="text-sm whitespace-pre-wrap text-muted-foreground p-4 border rounded-md min-h-[50px] bg-muted/20">
+                         {strategy[key] ? (
+                            <p>{strategy[key]}</p>
+                          ) : (
+                            sectionStatus[key] === 'loading' && (
+                              <p>Generando esta sección...</p>
+                            )
+                          )}
+                       </div>
 
                       <Separator className="mt-6" />
                     </div>
