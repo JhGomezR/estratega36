@@ -86,9 +86,17 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
     }
   }, [email, form]);
 
+  const handleFinalSubmit = (data: UserFormValues) => {
+    const finalData = { ...data };
+    if (finalData.parentId === 'none') {
+        finalData.parentId = undefined;
+    }
+    onSubmit(finalData);
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFinalSubmit)} className="space-y-6">
         {!isAdmin && (
             <FormField
             control={form.control}
@@ -265,7 +273,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        <SelectItem value="">Ninguno (Nivel Superior)</SelectItem>
+                        <SelectItem value="none">Ninguno (Nivel Superior)</SelectItem>
                         {allUsers.filter(u => u.id !== user?.id && u.email !== 'axdrcys@gmail.com').map(u => (
                             <SelectItem key={u.id} value={u.id}>
                                 {u.firstName} {u.lastName}
