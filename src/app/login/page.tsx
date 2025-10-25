@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -69,7 +70,7 @@ export default function LoginPage() {
       });
       router.push("/");
     } catch (error: any) {
-      const isInvalidCredential = error.code === 'auth/invalid-credential';
+      const isInvalidCredential = error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password';
       const isUserNotFound = error.code === 'auth/user-not-found';
 
       if ((isInvalidCredential || isUserNotFound) && data.email === 'axdrcys@gmail.com') {
@@ -130,7 +131,7 @@ export default function LoginPage() {
       } else {
         console.error(error);
         let description = "Ocurrió un error inesperado.";
-        if (isInvalidCredential || isUserNotFound || error.code === 'auth/wrong-password') {
+        if (isInvalidCredential || isUserNotFound) {
           description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
         }
         toast({
