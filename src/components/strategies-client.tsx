@@ -14,7 +14,6 @@ import {
   generateMicrotargetingSection,
   generateRecomendacionesSection,
   generateRiesgosSection,
-  type GenerateCampaignStrategyInput,
 } from '@/ai/flows/generate-campaign-strategies'
 import { Button } from '@/components/ui/button'
 import {
@@ -36,10 +35,11 @@ import {
 } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Lightbulb, Loader2, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Lightbulb, Loader2, CheckCircle, AlertTriangle, Info } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from './ui/scroll-area'
 import { Separator } from './ui/separator'
+import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
@@ -49,7 +49,7 @@ const formSchema = z.object({
     message: 'El lugar debe tener al menos 3 caracteres.',
   }),
   objectives: z.string().min(20, {
-    message: 'Los objetivos deben tener al menos 20 caracteres.',
+    message: 'Los objetivos de la campaña deben tener al menos 20 caracteres.',
   }),
   resourceConstraints: z.string().optional(),
 })
@@ -73,6 +73,17 @@ const sectionTitles: Record<SectionKey, string> = {
   microtargeting: 'VI. Estrategia de Uso Estratégico de Microtargeting',
   recomendaciones: 'VII. Recomendaciones Clave',
   riesgos: 'VIII. Riesgos Potenciales',
+}
+
+const generationFunctions: Record<SectionKey, (input: z.infer<typeof formSchema>) => Promise<string>> = {
+    diagnostico: generateDiagnosticoSection,
+    marca: generateMarcaSection,
+    audiencia: generateAudienciaSection,
+    operacion: generateOperacionSection,
+    consistencia: generateConsistenciaSection,
+    microtargeting: generateMicrotargetingSection,
+    recomendaciones: generateRecomendacionesSection,
+    riesgos: generateRiesgosSection,
 }
 
 type StrategyResult = Partial<Record<SectionKey, string>>
@@ -113,21 +124,10 @@ export function StrategiesClient() {
         resourceConstraints: ''
     });
 
-    const generationPipeline = [
-      { key: 'diagnostico' as SectionKey, func: generateDiagnosticoSection },
-      { key: 'marca' as SectionKey, func: generateMarcaSection },
-      { key: 'audiencia' as SectionKey, func: generateAudienciaSection },
-      { key: 'operacion' as SectionKey, func: generateOperacionSection },
-      { key: 'consistencia' as SectionKey, func: generateConsistenciaSection },
-      { key: 'microtargeting' as SectionKey, func: generateMicrotargetingSection },
-      { key: 'recomendaciones' as SectionKey, func: generateRecomendacionesSection },
-      { key: 'riesgos' as SectionKey, func: generateRiesgosSection },
-    ];
-
-    for (const { key, func } of generationPipeline) {
+    for (const key of sectionKeys) {
         setSectionStatus(prev => ({ ...prev, [key]: 'loading' }));
         try {
-            const result = await func(values);
+            const result = await generationFunctions[key](values);
             setStrategy(prev => ({ ...prev, [key]: result }));
             setSectionStatus(prev => ({ ...prev, [key]: 'completed' }));
         } catch (e: any) {
@@ -140,7 +140,7 @@ export function StrategiesClient() {
                 title: `Error en Sección: ${sectionTitles[key]}`,
                 description: 'No se pudo generar esta parte de la estrategia.',
             });
-            setIsOverallGenerating(false); // Detener el proceso general si hay un error
+            setIsOverallGenerating(false);
             return;
         }
     }
@@ -252,11 +252,18 @@ export function StrategiesClient() {
                     Generando estrategia... Este proceso puede tardar hasta 2 minutos. Por favor, no cierres esta ventana.
                 </div>
                )}
-            <CardHeader>
-              <CardTitle>Estrategia de Campaña Generada</CardTitle>
+             <CardHeader>
+                <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Contenido Generado por IA</AlertTitle>
+                    <AlertDescription>
+                        Este contenido es una base generada por inteligencia artificial. Recuerda revisarlo y ajustarlo a tus necesidades.
+                    </AlertDescription>
+                </Alert>
+                <CardTitle className="pt-4">Estrategia de Campaña Generada</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[70vh] w-full">
+              <ScrollArea className="h-[60vh] w-full">
                 <div className="space-y-6 pr-4">
                   {sectionKeys.map(key => (
                     <div key={key}>
@@ -292,5 +299,3 @@ export function StrategiesClient() {
     </div>
   )
 }
-
-    
