@@ -56,7 +56,7 @@ const createSectionFlow = (
 // Section 1: Diagnóstico y Contexto
 const diagnosticoFlow = createSectionFlow(
   'diagnostico',
-  `You are an expert political campaign strategist. Generate ONLY the "Diagnóstico y Contexto" section of a campaign strategy document. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Diagnóstico y Contexto" section of a campaign strategy document. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
@@ -77,7 +77,7 @@ export async function generateDiagnosticoSection(input: GenerateCampaignStrategy
 // Section 2: Marca y Mensaje
 const marcaFlow = createSectionFlow(
   'marca',
-  `You are an expert political campaign strategist. Generate ONLY the "Marca y Mensaje" section of a campaign strategy document. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Marca y Mensaje" section of a campaign strategy document. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
@@ -96,7 +96,7 @@ export async function generateMarcaSection(input: GenerateCampaignStrategyInput)
 // Section 3: Audiencia y Segmentación
 const audienciaFlow = createSectionFlow(
   'audiencia',
-  `You are an expert political campaign strategist. Generate ONLY the "Audiencia y Segmentación" section of a campaign strategy document. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Audiencia y Segmentación" section of a campaign strategy document. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
@@ -113,7 +113,7 @@ export async function generateAudienciaSection(input: GenerateCampaignStrategyIn
 // Section 4: Operación y Medición
 const operacionFlow = createSectionFlow(
   'operacion',
-  `You are an expert political campaign strategist. Generate ONLY the "Operación y Medición" section of a campaign strategy document. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Operación y Medición" section of a campaign strategy document. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
@@ -132,7 +132,7 @@ export async function generateOperacionSection(input: GenerateCampaignStrategyIn
 // Section 5: Constancia y Consistencia
 const consistenciaFlow = createSectionFlow(
   'consistencia',
-  `You are an expert political campaign strategist. Generate ONLY the "Estrategia de Constancia y Consistencia" section. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Estrategia de Constancia y Consistencia" section. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
@@ -149,7 +149,7 @@ export async function generateConsistenciaSection(input: GenerateCampaignStrateg
 // Section 6: Microtargeting
 const microtargetingFlow = createSectionFlow(
   'microtargeting',
-  `You are an expert political campaign strategist. Generate ONLY the "Estrategia de Uso Estratégico de Microtargeting" section. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Estrategia de Uso Estratégico de Microtargeting" section. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
@@ -166,7 +166,7 @@ export async function generateMicrotargetingSection(input: GenerateCampaignStrat
 // Section 7: Recomendaciones Clave
 const recomendacionesFlow = createSectionFlow(
   'recomendaciones',
-  `You are an expert political campaign strategist. Generate ONLY the "Recomendaciones Clave" section. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Recomendaciones Clave" section. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Location: {{{lugar}}}
   - Resource Constraints: {{{resourceConstraints}}}
@@ -185,7 +185,7 @@ export async function generateRecomendacionesSection(input: GenerateCampaignStra
 // Section 8: Riesgos Potenciales
 const riesgosFlow = createSectionFlow(
   'riesgos',
-  `You are an expert political campaign strategist. Generate ONLY the "Riesgos Potenciales" section. Be extremely detailed.
+  `You are an expert political campaign strategist. Generate ONLY the "Riesgos Potenciales" section. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
   - Campaign Data: {{{campaignData}}}
   - Location: {{{lugar}}}
