@@ -117,29 +117,39 @@ export function StrategiesClient() {
     setStrategy({})
     setSectionStatus(initialSectionStatus)
 
-    for (const key of sectionKeys) {
-      setSectionStatus(prev => ({ ...prev, [key]: 'loading' }))
-      try {
-        const result = await generationFunctions[key](values);
-        setStrategy(prev => ({ ...prev, [key]: result }))
-        setSectionStatus(prev => ({ ...prev, [key]: 'completed' }))
-      } catch (e) {
-        console.error(`Error generating section ${key}:`, e);
-        const errorMessage = `Error al generar esta sección. Por favor, revisa la consola para más detalles.`;
-        setStrategy(prev => ({ ...prev, [key]: errorMessage }))
-        setSectionStatus(prev => ({ ...prev, [key]: 'error' }))
-        toast({
-          variant: 'destructive',
-          title: `Error en Sección: ${sectionTitles[key]}`,
-          description: 'No se pudo generar esta parte de la estrategia.',
-        })
-        // Stop generation on first error
-        setIsOverallGenerating(false);
-        return;
-      }
-    }
+    const generationPipeline = [
+      { key: 'diagnostico' as SectionKey, func: generateDiagnosticoSection },
+      { key: 'marca' as SectionKey, func: generateMarcaSection },
+      { key: 'audiencia' as SectionKey, func: generateAudienciaSection },
+      { key: 'operacion' as SectionKey, func: generateOperacionSection },
+      { key: 'consistencia' as SectionKey, func: generateConsistenciaSection },
+      { key: 'microtargeting' as SectionKey, func: generateMicrotargetingSection },
+      { key: 'recomendaciones' as SectionKey, func: generateRecomendacionesSection },
+      { key: 'riesgos' as SectionKey, func: generateRiesgosSection },
+    ];
 
-    setIsOverallGenerating(false)
+    for (const { key, func } of generationPipeline) {
+        setSectionStatus(prev => ({ ...prev, [key]: 'loading' }));
+        try {
+            const result = await func(values);
+            setStrategy(prev => ({ ...prev, [key]: result }));
+            setSectionStatus(prev => ({ ...prev, [key]: 'completed' }));
+        } catch (e: any) {
+            console.error(`Error generating section ${key}:`, e);
+            const errorMessage = `Error al generar esta sección. Por favor, revisa la consola para más detalles.`;
+            setStrategy(prev => ({ ...prev, [key]: errorMessage }));
+            setSectionStatus(prev => ({ ...prev, [key]: 'error' }));
+            toast({
+                variant: 'destructive',
+                title: `Error en Sección: ${sectionTitles[key]}`,
+                description: 'No se pudo generar esta parte de la estrategia.',
+            });
+            setIsOverallGenerating(false);
+            return;
+        }
+    }
+    
+    setIsOverallGenerating(false);
   }
 
   const hasStarted = isOverallGenerating || Object.values(strategy).some(v => v);
@@ -230,7 +240,7 @@ export function StrategiesClient() {
                 ) : (
                   <Lightbulb className="mr-2 h-4 w-4" />
                 )}
-                {isOverallGenerating ? 'Generando Estrategia...' : 'Generar Estrategia'}
+                {isOverallGenerating ? 'Generando...' : 'Generar Estrategia'}
               </Button>
             </CardFooter>
           </form>
