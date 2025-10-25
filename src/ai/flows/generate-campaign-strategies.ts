@@ -47,8 +47,8 @@ const createSectionFlow = (
       outputSchema: z.string(),
     },
     async (input) => {
-      const { output } = await prompt(input);
-      return output || "";
+      const result = await prompt(input);
+      return result.text;
     }
   );
 };
