@@ -70,18 +70,17 @@ export default function LoginPage() {
       });
       router.push("/");
     } catch (error: any) {
-      const isInvalidCredential = error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password';
-      const isUserNotFound = error.code === 'auth/user-not-found';
-
-      if ((isInvalidCredential || isUserNotFound) && data.email === 'axdrcys@gmail.com') {
-        // If the admin user does not exist, create it
+      const isLoginError = error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password';
+      
+      if (isLoginError && data.email === 'axdrcys@gmail.com') {
+        // If the admin user does not exist or credentials fail, try to create it
         try {
           if (!firestore) throw new Error("Firestore not available");
           
           const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
           const newAuthUser = userCredential.user;
 
-          // Set admin role (assuming it's defined elsewhere, e.g., in types.ts and you have a 'roles' collection)
+          // Set admin role
           await setDoc(doc(firestore, 'roles', 'admin'), {
             name: 'Admin',
             permissions: [
@@ -121,17 +120,19 @@ export default function LoginPage() {
           router.push("/");
 
         } catch (creationError: any) {
-          console.error("Admin creation error:", creationError);
-          toast({
+          // Handle case where creation also fails (e.g., email already exists with different credential)
+           console.error("Admin creation error:", creationError);
+           toast({
             variant: "destructive",
             title: "Error Crítico",
-            description: "No se pudo crear la cuenta de administrador.",
+            description: "No se pudo iniciar sesión ni crear la cuenta de administrador.",
           });
         }
       } else {
+        // Handle other general errors or errors for non-admin users
         console.error(error);
         let description = "Ocurrió un error inesperado.";
-        if (isInvalidCredential || isUserNotFound) {
+        if (isLoginError) {
           description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
         }
         toast({
