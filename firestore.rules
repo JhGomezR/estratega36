@@ -1,121 +1,181 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset is for **prototyping only** and provides a basic level of security.
- * It is crucial to replace these with more restrictive rules before deploying to production.
- *
- * Core Philosophy:
- * This ruleset focuses on allowing all access to all documents, as requested by the user.
- * It enforces minimal security checks and prioritizes rapid development over strict access control.
- *
- * Data Structure:
- * The Firestore database is structured with top-level collections for `users`, `roles`, `campaigns`, `voters`, `cities`, `tasks`, `calls`, `settings`, and `lists`.
- *
- * Key Security Decisions:
- * - All read and write operations are allowed for all users. This is **highly insecure** and should be changed immediately for production use.
- * - No data validation is performed. All writes are accepted as-is, regardless of the data's validity.
- *
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows all read and write access to user profiles.
+     * @description Checks if the request is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user's ID matches the provided userId.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user's ID matches the provided userId and the resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && exists(resource.data);
+    }
+
+    /**
+     * @description Enforces that the incoming ownership field matches the user's auth UID.
+     */
+    function isValidOwnerOnCreate(ownerField) {
+        return request.resource.data[ownerField] == request.auth.uid;
+    }
+
+    /**
+     * @description Enforces immutability for critical relational fields like `creatorId`.
+     */
+    function isOwnerIdImmutable(ownerField) {
+        return request.resource.data[ownerField] == resource.data[ownerField];
+    }
+
+    /**
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any user profile.
+     * @allow (create) - Authenticated user can create their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) - Authenticated user can only access their own profile.
+     * @deny (list) - User listing is not allowed.
+     * @deny (create) - An authenticated user cannot create a document with an id different than their userId.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
      */
     match /users/{userId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Allows all read and write access to role definitions.
+     * @description Rules for roles.
      * @path /roles/{roleId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any role definition.
+     * @allow (get, list) - Any authenticated user can read roles. Consider restricting to admins.
+     * @allow (create, update, delete) - No one should be able to create/update/delete roles.
+     * @principle Protects role definitions from unauthorized modification.
      */
     match /roles/{roleId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows all read and write access to campaign information.
+     * @description Rules for campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any campaign.
+     * @allow (get, list) - Any authenticated user can read campaigns.
+     * @allow (create) - Any authenticated user can create campaigns.
+     * @allow (update, delete) -  Any authenticated user can update or delete campaigns. Consider restricting this to the campaign owner.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows all read and write access to voter information.
+     * @description Rules for AI-generated strategies for a specific campaign.
+     * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
+     * @allow (get, list) - Any authenticated user can read AI-generated strategies for a specific campaign.
+     * @allow (create) - Any authenticated user can create strategies for campaigns.
+     * @allow (update, delete) - Any authenticated user can update or delete strategies for campaigns. Consider restricting this to the campaign owner.
+     */
+    match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
+       allow get, list: if isSignedIn();
+       allow create: if isSignedIn();
+       allow update: if isSignedIn();
+       allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Rules for voters.
      * @path /voters/{voterId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any voter.
+     * @allow (get, list) - Any authenticated user can read voter information.
+     * @allow (create) - Any authenticated user can create voter records.
+     * @allow (update, delete) - Any authenticated user can update or delete voter records. Consider restricting this to certain roles.
      */
     match /voters/{voterId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows all read and write access to city information.
+     * @description Rules for cities.
      * @path /cities/{cityId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any city.
+     * @allow (get, list) - Any authenticated user can read city information.
+     * @allow (create, update, delete) - Only admins can create, update, or delete city information.
      */
     match /cities/{cityId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get, list: if isSignedIn();
+      allow create: if false; // TODO: Restrict to admins
+      allow update: if false; // TODO: Restrict to admins
+      allow delete: if false; // TODO: Restrict to admins
     }
 
     /**
-     * @description Allows all read and write access to task information.
+     * @description Rules for tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any task.
+     * @allow (get, list) - Any authenticated user can read tasks.
+     * @allow (create) - Any authenticated user can create task.
+     * @allow (update, delete) - Any authenticated user can update or delete tasks. Consider restricting this to task owner or campaign managers.
      */
     match /tasks/{taskId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows all read and write access to call information.
+     * @description Rules for calls.
      * @path /calls/{callId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any call.
+     * @allow (get, list) - Any authenticated user can read call records.
+     * @allow (create) - Any authenticated user can create call records.
+     * @allow (update, delete) - Any authenticated user can update or delete calls records. Consider restricting this to the user who made the call.
      */
     match /calls/{callId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows all read and write access to branding settings.
+     * @description Rules for application branding settings.
      * @path /settings/branding
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify branding settings.
+     * @allow (get) - Any authenticated user can read the branding settings.
+     * @allow (update) - Any authenticated user can update the branding settings. Consider restricting to admins.
+     * @allow (list, create, delete) - Not allowed.
      */
     match /settings/branding {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if false;
+      allow update: if isSignedIn(); // Consider restricting to admins
+      allow delete: if false;
     }
-    
+
     /**
-     * @description Allows all read and write access to managed lists.
+     * @description Rules for user-managed lists.
      * @path /lists/{listId}
-     * @allow (get, list, create, update, delete)
-     * @principle Allows any user to read or modify any managed list.
+     * @allow (get, list) - Any authenticated user can read lists.
+     * @allow (create) - Any authenticated user can create lists.
+     * @allow (update, delete) -  Any authenticated user can update or delete lists. Consider restricting this to the list owner.
      */
     match /lists/{listId} {
-        allow get, list: if true;
-        allow create, update, delete: if true;
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
   }
 }
