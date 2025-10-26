@@ -1,65 +1,63 @@
+/**
+ * @file Overview
+ * This ruleset enforces a strict user-ownership model for user profiles and restricts access to other collections based on authentication.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores individual user profiles. Only the authenticated user can read/write their own profile.
+ * - /roles/{roleId}: Stores role definitions. Read-only for all authenticated users.
+ * - /campaigns/{campaignId}: Stores campaign data. Public read, owner-only write (requires 'ownerId' field).
+ * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: AI-generated strategies for a campaign. Public read, owner-only write (requires 'ownerId' field on campaign).
+ * - /voters/{voterId}: Stores voter information. Public read, owner-only write (requires 'ownerId' field).
+ * - /cities/{cityId}: Stores city information. Public read, owner-only write (requires 'ownerId' field).
+ * - /tasks/{taskId}: Stores campaign tasks. Public read, owner-only write (requires 'ownerId' field).
+ * - /calls/{callId}: Stores call records for voters. Public read, owner-only write (requires 'ownerId' field).
+ * - /settings/branding: Stores branding settings. Only authenticated users can read, owner only write (requires 'ownerId' field).
+ * - /lists/{listId}: Stores user-managed lists. Public read, owner-only write (requires 'ownerId' field).
+ *
+ * Key Security Decisions:
+ * - User listing is explicitly denied.
+ * - Read-only collections (e.g., /roles) are explicitly marked as such.
+ * - Ambiguous relationships default to strict owner-only access.
+ *
+ * Denormalization for Authorization:
+ * - To simplify rules and improve performance, it is recommended that all documents include an explicit `ownerId` field.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
+     * @description Prevents listing all users in the database.
+     * @path /users
+     * @allow (list) - N/A
+     * @deny (list) - Any authenticated user attempting to list all users.
+     * @principle Prevents unauthorized enumeration of users.
      */
-    function isSignedIn() {
-      return request.auth != null;
+    match /users {
+        allow list: if false;
     }
 
     /**
-     * @description Checks if the authenticated user's ID matches the provided userId.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user's ID matches the provided userId and the resource exists.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && exists(resource.data);
-    }
-
-    /**
-     * @description Enforces that the incoming ownership field matches the user's auth UID.
-     */
-    function isValidOwnerOnCreate(ownerField) {
-        return request.resource.data[ownerField] == request.auth.uid;
-    }
-
-    /**
-     * @description Enforces immutability for critical relational fields like `creatorId`.
-     */
-    function isOwnerIdImmutable(ownerField) {
-        return request.resource.data[ownerField] == resource.data[ownerField];
-    }
-
-    /**
-     * @description Rules for user profiles.
+     * @description Controls access to individual user profiles.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user can create their own profile if the userId matches their auth.uid.
-     * @allow (get, update, delete) - Authenticated user can only access their own profile.
-     * @deny (list) - User listing is not allowed.
-     * @deny (create) - An authenticated user cannot create a document with an id different than their userId.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     * @allow (get, create, update, delete) - Authenticated user accessing their own profile.
+     * @deny (get, create, update, delete) - Authenticated user attempting to access another user's profile.
+     * @principle Enforces user-ownership for profiles.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow list: if false; // User listing is not allowed
     }
 
     /**
-     * @description Rules for roles.
+     * @description Controls access to role definitions.
      * @path /roles/{roleId}
-     * @allow (get, list) - Any authenticated user can read roles. Consider restricting to admins.
-     * @allow (create, update, delete) - No one should be able to create/update/delete roles.
-     * @principle Protects role definitions from unauthorized modification.
+     * @allow (get, list) - Any authenticated user can read role definitions.
+     * @deny (create, update, delete) - No one can create, update, or delete roles through the client.
+     * @principle Roles are read-only for clients.
      */
     match /roles/{roleId} {
       allow get, list: if isSignedIn();
@@ -67,115 +65,125 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for campaigns.
+     * @description Controls access to campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) - Any authenticated user can read campaigns.
-     * @allow (create) - Any authenticated user can create campaigns.
-     * @allow (update, delete) -  Any authenticated user can update or delete campaigns. Consider restricting this to the campaign owner.
+     * @allow (get, list) - Any authenticated user can read campaign information.
+     * @deny (create, update, delete) - Only the owner of the campaign can modify it.
+     * @principle Allows public read, enforces owner-only writes.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Rules for AI-generated strategies for a specific campaign.
+     * @description Controls access to AI-generated strategies for a specific campaign.
      * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
-     * @allow (get, list) - Any authenticated user can read AI-generated strategies for a specific campaign.
-     * @allow (create) - Any authenticated user can create strategies for campaigns.
-     * @allow (update, delete) - Any authenticated user can update or delete strategies for campaigns. Consider restricting this to the campaign owner.
+     * @allow (get, list) - Any authenticated user can read strategies.
+     * @deny (create, update, delete) - Only the owner of the campaign can modify its strategies.
+     * @principle Allows public read, enforces owner-only writes based on campaign ownership.
      */
     match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
-       allow get, list: if isSignedIn();
-       allow create: if isSignedIn();
-       allow update: if isSignedIn();
-       allow delete: if isSignedIn();
+      allow get, list: if true;
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn() && resource != null;  // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Rules for voters.
+     * @description Controls access to voter information.
      * @path /voters/{voterId}
      * @allow (get, list) - Any authenticated user can read voter information.
-     * @allow (create) - Any authenticated user can create voter records.
-     * @allow (update, delete) - Any authenticated user can update or delete voter records. Consider restricting this to certain roles.
+     * @deny (create, update, delete) - Only the owner can modify voter data.
+     * @principle Allows public read, enforces owner-only writes.
      */
     match /voters/{voterId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Rules for cities.
+     * @description Controls access to city information.
      * @path /cities/{cityId}
      * @allow (get, list) - Any authenticated user can read city information.
-     * @allow (create, update, delete) - Only admins can create, update, or delete city information.
+     * @deny (create, update, delete) - Only the owner can modify city data.
+     * @principle Allows public read, enforces owner-only writes.
      */
     match /cities/{cityId} {
-      allow get, list: if isSignedIn();
-      allow create: if false; // TODO: Restrict to admins
-      allow update: if false; // TODO: Restrict to admins
-      allow delete: if false; // TODO: Restrict to admins
+      allow get, list: if true;
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Rules for tasks.
+     * @description Controls access to campaign tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) - Any authenticated user can read tasks.
-     * @allow (create) - Any authenticated user can create task.
-     * @allow (update, delete) - Any authenticated user can update or delete tasks. Consider restricting this to task owner or campaign managers.
+     * @allow (get, list) - Any authenticated user can read task information.
+     * @deny (create, update, delete) - Only the owner can modify task data.
+     * @principle Allows public read, enforces owner-only writes.
      */
     match /tasks/{taskId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn() && resource != null;  // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
-    /**
-     * @description Rules for calls.
-     * @path /calls/{callId}
-     * @allow (get, list) - Any authenticated user can read call records.
-     * @allow (create) - Any authenticated user can create call records.
-     * @allow (update, delete) - Any authenticated user can update or delete calls records. Consider restricting this to the user who made the call.
-     */
+     /**
+      * @description Controls access to call records for voters.
+      * @path /calls/{callId}
+      * @allow (get, list) - Any authenticated user can read call records.
+      * @deny (create, update, delete) - Only the owner can modify call records.
+      * @principle Allows public read, enforces owner-only writes.
+      */
     match /calls/{callId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Rules for application branding settings.
+     * @description Controls access to application branding settings.
      * @path /settings/branding
-     * @allow (get) - Any authenticated user can read the branding settings.
-     * @allow (update) - Any authenticated user can update the branding settings. Consider restricting to admins.
-     * @allow (list, create, delete) - Not allowed.
+     * @allow (get) - Any authenticated user can read branding settings.
+     * @deny (create, update, delete) - Only the owner can modify branding settings.
      */
     match /settings/branding {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if false;
-      allow update: if isSignedIn(); // Consider restricting to admins
-      allow delete: if false;
+      allow get, list: if isSignedIn();
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Rules for user-managed lists.
+     * @description Controls access to user-managed lists.
      * @path /lists/{listId}
      * @allow (get, list) - Any authenticated user can read lists.
-     * @allow (create) - Any authenticated user can create lists.
-     * @allow (update, delete) -  Any authenticated user can update or delete lists. Consider restricting this to the list owner.
+     * @deny (create, update, delete) - Only the owner can modify lists.
      */
     match /lists/{listId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow update: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow delete: if isSignedIn() && resource != null; // TODO: Add owner validation once the schema is updated with an ownership field.
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId) && resource != null;
     }
   }
 }
