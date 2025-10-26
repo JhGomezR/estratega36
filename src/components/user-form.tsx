@@ -87,11 +87,11 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
   }, [email, form]);
 
   const handleFinalSubmit = (data: UserFormValues) => {
-    const finalData = { ...data };
+    const finalData: Partial<UserFormValues> = { ...data };
     if (finalData.parentId === 'none') {
-        finalData.parentId = undefined;
+        delete finalData.parentId;
     }
-    onSubmit(finalData);
+    onSubmit(finalData as Omit<UserFormValues, 'status'>);
   }
 
   return (
@@ -376,5 +376,3 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
     </Form>
   )
 }
-
-  
