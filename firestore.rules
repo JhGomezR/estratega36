@@ -1,49 +1,102 @@
+/**
+ * @fileoverview Firestore Security Rules for the political campaign management application.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes secure access to user data and enforces a role-based access control model where appropriate.
+ * User-specific data is strictly controlled, and public data is clearly defined.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles. Access is restricted to the owner of the profile.
+ * - /roles/{roleId}: Stores role definitions. Not directly user-modifiable in this version.
+ * - /campaigns/{campaignId}: Stores campaign data.
+ * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: Stores AI-generated campaign strategies.
+ * - /voters/{voterId}: Stores voter information.
+ * - /cities/{cityId}: Stores city information.
+ * - /tasks/{taskId}: Stores tasks.
+ * - /calls/{callId}: Stores call records.
+ * - /settings/branding: Stores branding settings.
+ * - /lists/{listId}: Stores managed lists.
+ *
+ * Key Security Decisions:
+ * - Users cannot list all users. This is a security best practice.
+ * - Branding settings are publicly readable, but only updatable by authorized roles (future enhancement).
+ * - Data validation is relaxed to allow for rapid prototyping, focusing on ownership and relational integrity.
+ *
+ * Denormalization for Authorization:
+ * This ruleset assumes that data necessary for authorization decisions (e.g., ownership, roles) is denormalized
+ * directly onto the documents being secured. This avoids costly `get()` calls within the rules.
+ * For instance, campaign documents should include fields indicating ownership or authorized users.
+ *
+ * Structural Segregation:
+ * The application uses structural segregation to differentiate between private user data (under /users/{userId})
+ * and potentially public campaign or voter data at the top level.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows access to branding settings. These settings are considered public.
-     * @path /settings/branding
-     * @allow (get, list) Any authenticated user can read branding settings.
-     * @deny (create, update, delete) No one can create, update, or delete the branding settings via client.
-     * @principle Allows public read access to non-sensitive configuration data.
+     * @description Checks if the user is signed in.
+     * @path N/A (Helper Function)
+     * @allow N/A
+     * @deny N/A
+     * @principle Authentication: Ensures only authenticated users can access protected resources.
      */
-    match /settings/branding {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     /**
-     * @description Controls access to user profiles.  Users can only manage their own profile.
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     * @path N/A (Helper Function)
+     * @allow N/A
+     * @deny N/A
+     * @principle Authorization: Enforces user-ownership of data.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+     /**
+     * @description Checks if the authenticated user's UID matches the provided userId and the resource exists.
+     * @path N/A (Helper Function)
+     * @allow N/A
+     * @deny N/A
+     * @principle Authorization: Enforces user-ownership of data, and validates if resource exists before destructive operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+
+    /**
+     * @description Controls access to user profiles.
      * @path /users/{userId}
-     * @allow (get, list) The owner can read their own profile.
-     * @allow (create) A user can create their own profile (self-registration).
-     * @allow (update, delete) The owner can update or delete their own profile.
-     * @deny Requests from other users or unauthenticated users.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Authenticated user can create their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) Authenticated user can get, update and delete their own profile if the userId matches their auth.uid and resource exists.
+     * @deny (create) Authenticated user cannot create a profile for another user.
+     * @deny (get, update, delete) Authenticated user cannot get, update or delete another user's profile.
+     * @deny (list) Users cannot list all user documents.
+     * @principle Enforces document ownership for user profiles and prevents unauthorized data access.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && existsAfterUpdate();
-      allow delete: if isOwner(userId) && existsAfterUpdate();
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to role definitions.  Roles are read-only and managed by admins (not implemented in this version).
+     * @description Controls access to role definitions.
      * @path /roles/{roleId}
-     * @allow (get, list) Any authenticated user can read role definitions.
-     * @deny (create, update, delete) No one can create, update, or delete roles via client.
-     * @principle Restricts modification of roles to server-side logic.
+     * @allow (get) Anyone can read role definitions.
+     * @deny (create, update, delete, list) No one can create, update, delete, or list roles.
+     * @principle Restricts role management to backend services or administrative functions.
      */
     match /roles/{roleId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow get: if true;
+      allow list: if false;
       allow create: if false;
       allow update: if false;
       allow delete: if false;
@@ -52,158 +105,113 @@ service cloud.firestore {
     /**
      * @description Controls access to campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any authenticated user can read campaign information.
-     * @allow (create, update, delete) Only authenticated users can create, update, or delete campaigns.
-     * @principle Requires authentication for campaign modification.
+     * @allow (get, list) Anyone can read campaign information.
+     * @deny (create, update, delete) Only authenticated users with appropriate roles (to be implemented) can manage campaigns.
+     * @principle Allows public read access to campaigns, but restricts write access to authorized users.
      */
     match /campaigns/{campaignId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add role-based validation once roles are defined.
+      allow update: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
+      allow delete: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
+    }
 
-      /**
-       * @description Controls access to AI-generated strategies for campaigns.
-       * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
-       * @allow (get, list) Any authenticated user can read campaign strategies.
-       * @allow (create, update, delete) Only authenticated users can create, update, or delete campaign strategies.
-       * @principle Requires authentication for campaign strategy modification.
-       */
-      match /generatedStrategies/{strategyId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
-      }
+    /**
+     * @description Controls access to AI-generated campaign strategies.
+     * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
+     * @allow (get, list) Anyone can read AI-generated campaign strategies.
+     * @deny (create, update, delete) Only authenticated users with appropriate roles (to be implemented) can manage AI-generated campaign strategies.
+     * @principle Allows public read access to AI-generated campaign strategies, but restricts write access to authorized users.
+     */
+    match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add role-based validation once roles are defined.
+      allow update: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
+      allow delete: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
     }
 
     /**
      * @description Controls access to voter information.
      * @path /voters/{voterId}
-     * @allow (get, list) Any authenticated user can read voter information.
-     * @allow (create, update, delete) Only authenticated users can create, update, or delete voters.
-     * @principle Requires authentication for voter modification.
+     * @allow (get, list) Anyone can read voter information.
+     * @deny (create, update, delete) Only authenticated users with appropriate roles (to be implemented) can manage voters.
+     * @principle Allows public read access to voter information, but restricts write access to authorized users.
      */
     match /voters/{voterId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add role-based validation once roles are defined.
+      allow update: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
+      allow delete: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
     }
 
     /**
-     * @description Controls access to city information.  City data is read-only.
+     * @description Controls access to city information.
      * @path /cities/{cityId}
-     * @allow (get, list) Any authenticated user can read city information.
-     * @deny (create, update, delete) No one can create, update, or delete cities via client.
-     * @principle Restricts modification of city data to server-side logic.
+     * @allow (get, list) Anyone can read city information.
+     * @deny (create, update, delete) Only authenticated users with appropriate roles (to be implemented) can manage cities.
+     * @principle Allows public read access to city information, but restricts write access to authorized users.
      */
     match /cities/{cityId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add role-based validation once roles are defined.
+      allow update: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
+      allow delete: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
     }
 
     /**
      * @description Controls access to campaign tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any authenticated user can read task information.
-     * @allow (create, update, delete) Only authenticated users can create, update, or delete tasks.
-     * @principle Requires authentication for task modification.
+     * @allow (get, list) Anyone can read tasks.
+     * @deny (create, update, delete) Only authenticated users with appropriate roles (to be implemented) can manage tasks.
+     * @principle Allows public read access to tasks, but restricts write access to authorized users.
      */
     match /tasks/{taskId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add role-based validation once roles are defined.
+      allow update: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
+      allow delete: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
     }
 
     /**
      * @description Controls access to call records.
      * @path /calls/{callId}
-     * @allow (get, list) Any authenticated user can read call records.
-     * @allow (create, update, delete) Only authenticated users can create, update, or delete calls.
-     * @principle Requires authentication for call modification.
+     * @allow (get, list) Anyone can read call records.
+     * @deny (create, update, delete) Only authenticated users with appropriate roles (to be implemented) can manage call records.
+     * @principle Allows public read access to call records, but restricts write access to authorized users.
      */
     match /calls/{callId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add role-based validation once roles are defined.
+      allow update: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
+      allow delete: if false; // TODO: Add role-based validation once roles are defined and ensure resource exists
     }
 
     /**
-     * @description Controls access to user-managed lists.
+     * @description Controls access to branding settings.
+     * @path /settings/branding
+     * @allow (get) Anyone can read branding settings.
+     * @deny (create, update, delete, list) Only authenticated users with appropriate roles (to be implemented) can update branding settings.
+     * @principle Allows public read access to branding settings, but restricts write access to authorized users.
+     */
+    match /settings/branding {
+      allow get: if true;
+      allow list: if false;
+      allow create: if false;
+      allow update: if isSignedIn(); // TODO: Add role-based validation once roles are defined.
+      allow delete: if false;
+    }
+
+    /**
+     * @description Controls access to managed lists.
      * @path /lists/{listId}
-     * @allow (get, list) Any authenticated user can read lists.
-     * @allow (create, update, delete) Only authenticated users can create, update, or delete lists.
+     * @allow (get, list) Anyone can read managed lists.
+     * @deny (create, update, delete) Only authenticated users can manage their own lists.
      */
     match /lists/{listId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isSignedIn(); // TODO: Add ownership/role validation once roles are defined.
+      allow update: if false; // TODO: Add ownership/role validation once roles are defined and ensure resource exists
+      allow delete: if false; // TODO: Add ownership/role validation once roles are defined and ensure resource exists
     }
-   
-        /**
-         * Adding admin and super_admin claims for enhanced roles
-         */
-        function isAdmin() {
-            return isSignedIn() && hasClaim('admin');
-        }
-        
-        function isSuperAdmin() {
-            return isSignedIn() && hasClaim('super_admin');
-        }
-
-        function hasClaim(claim) {
-          return request.auth.token[claim] == true;
-        }
-
-    /**
-     * @description Helper function to determine if the current user is signed in.
-     * @return {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Helper function to determine if the requested user ID matches the authenticated user's ID.
-     * @param {string} userId The user ID from the path.
-     * @return {boolean} True if the user IDs match, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-     /**
-      * @description Helper function to determine if the requested user ID matches the authenticated user's ID and if the document exists.
-      * @param {string} userId The user ID from the path.
-      * @return {boolean} True if the user IDs match and the document exists, false otherwise.
-      */
-     function isExistingOwner(userId) {
-       return isOwner(userId) && exists(getSelf().data);
-     }
-     
-    function existsAfterUpdate() {
-      return exists(resource.data);
-    }
-    
-     function exists(data) {
-        return data != null;
-     }
-
-     function getSelf() {
-        return get(request.path);
-     }
   }
 }
