@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Eye, Loader2, Save, Search, Clock, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react"
+import { Edit, Eye, Loader2, Save, Search, Clock, CheckCircle, ChevronLeft, ChevronRight, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,17 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc, writeBatch } from "firebase/firestore"
 import type { Call, Voter, User } from "@/lib/types"
@@ -59,7 +70,7 @@ export default function CallsPage() {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   
-  const { data: calls, isLoading: callsLoading } = useCollection<Call>(
+  const { data: callsData, isLoading: callsLoading } = useCollection<Call>(
     useMemoFirebase(() => firestore ? collection(firestore, "calls") : null, [firestore])
   );
   const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
@@ -78,6 +89,12 @@ export default function CallsPage() {
   const [localAttempts, setLocalAttempts] = React.useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [callToDelete, setCallToDelete] = React.useState<Call | null>(null)
+
+
+  const calls = React.useMemo(() => {
+    return callsData?.filter(c => c.status_call !== 'inactivo');
+  }, [callsData]);
 
   React.useEffect(() => {
     if (calls) {
@@ -105,6 +122,7 @@ export default function CallsPage() {
             batch.set(newCallRef, {
               voterId: voter.id,
               status: "pendiente",
+              status_call: "activo",
               attempts: 0,
             });
           });
@@ -128,7 +146,7 @@ export default function CallsPage() {
     };
 
     syncCallList();
-  }, [voters, calls, firestore, toast]);
+  }, [voters, callsData, firestore, toast]);
 
   const getVoterInfo = React.useCallback((voterId: string) => {
     return voters?.find(v => v.id === voterId);
@@ -195,7 +213,7 @@ export default function CallsPage() {
     setIsViewOpen(true);
   }
 
-  const handleFormSubmit = (data: Omit<Call, 'id' | 'voterId' | 'callDate'>) => {
+  const handleFormSubmit = (data: Omit<Call, 'id' | 'voterId' | 'callDate' | 'status_call'>) => {
     if (firestore && selectedCall) {
       let callData: Partial<Call> = { ...data };
       if (data.status === 'atendida' && selectedCall.status !== 'atendida') {
@@ -255,6 +273,21 @@ export default function CallsPage() {
       });
       setIsDetailsOpen(false);
       setSelectedCall(null);
+    }
+  };
+
+  const confirmDelete = (call: Call) => {
+    setCallToDelete(call);
+  };
+
+  const handleDelete = () => {
+    if (callToDelete && firestore) {
+        setDocumentNonBlocking(doc(firestore, 'calls', callToDelete.id), { status_call: 'inactivo' }, { merge: true });
+        setCallToDelete(null);
+        toast({
+            title: "Llamada archivada",
+            description: "La llamada ha sido movida al archivo.",
+        });
     }
   };
 
@@ -383,6 +416,25 @@ export default function CallsPage() {
                          <Button variant="ghost" size="icon" onClick={() => handleEdit(call)} disabled={isLocked}>
                            <Edit className="h-4 w-4" />
                          </Button>
+                         <AlertDialog open={!!callToDelete && callToDelete.id === call.id} onOpenChange={(open) => !open && setCallToDelete(null)}>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => confirmDelete(call)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Esto marcará la llamada como inactiva y la archivará.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={() => setCallToDelete(null)}>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDelete}>Archivar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   )
@@ -537,5 +589,3 @@ export default function CallsPage() {
     </div>
   )
 }
-
-    

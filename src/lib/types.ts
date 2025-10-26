@@ -56,6 +56,7 @@ export type Call = WithId<{
   voterId: string;
   userId?: string;
   status: (typeof CallStatus)[number];
+  status_call?: 'activo' | 'inactivo';
   callDate?: string;
   attempts: number;
   details?: string;
