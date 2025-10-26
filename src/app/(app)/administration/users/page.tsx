@@ -163,6 +163,7 @@ export default function UsersPage() {
         await setDoc(doc(firestore, 'users', newAuthUser.uid), newUserProfile);
         toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
       }
+      setIsFormOpen(false);
     } catch (error: any) {
         console.error("Error handling user form:", error);
         let description = "Ocurrió un error inesperado.";
@@ -173,8 +174,6 @@ export default function UsersPage() {
         }
         toast({ variant: "destructive", title: "Error al crear usuario", description });
     }
-
-    setIsFormOpen(false);
   };
 
   const getRoleName = (roleId: string) => {
