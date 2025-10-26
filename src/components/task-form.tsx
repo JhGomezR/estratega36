@@ -68,8 +68,14 @@ export function TaskForm({ task, users, lists, onSubmit, onCancel }: TaskFormPro
   const activeUsers = users.filter(user => user.status === 'activo');
 
   function handleFormSubmit(data: TaskFormValues) {
-    const { startDate, ...rest } = data;
-    onSubmit(rest);
+    const { startDate, assignedToId, ...rest } = data;
+    
+    const finalData: Omit<TaskFormValues, 'startDate'> & { assignedToId?: string } = { ...rest };
+    if (assignedToId) {
+      finalData.assignedToId = assignedToId;
+    }
+    
+    onSubmit(finalData);
   }
 
   return (
