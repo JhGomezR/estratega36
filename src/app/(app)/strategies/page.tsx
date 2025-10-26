@@ -1,8 +1,7 @@
-
 "use client"
 import { StrategiesClient } from "@/components/strategies-client";
 import { useAuth, useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import type { Campaign, User } from "@/lib/types";
+import type { Campaign, Role, User } from "@/lib/types";
 import { collection, doc } from "firebase/firestore";
 import React from "react";
 
@@ -19,13 +18,24 @@ export default function StrategiesPage() {
   const userRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: currentUserData, isLoading: userLoading } = useDoc<User>(userRef);
 
+  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
+  );
+
   const activeCampaigns = React.useMemo(() => {
-    if (!campaignsData || !currentUserData) return [];
+    if (!campaignsData || !currentUserData || !roles) return [];
+
+    const adminRole = roles.find(r => r.name.toLowerCase() === 'admin');
+    const isAdmin = currentUserData.roleId === adminRole?.id || currentUserData.email === 'axdrcys@gmail.com';
+    
+    if (isAdmin) {
+        return campaignsData.filter(c => c.status === 'En Campaña');
+    }
     
     return campaignsData.filter(c => 
       c.status === 'En Campaña' && currentUserData.campaignIds.includes(c.id)
     );
-  }, [campaignsData, currentUserData]);
+  }, [campaignsData, currentUserData, roles]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -37,7 +47,7 @@ export default function StrategiesPage() {
       </div>
       <StrategiesClient 
         campaigns={activeCampaigns}
-        isLoading={campaignsLoading || userLoading}
+        isLoading={campaignsLoading || userLoading || rolesLoading}
       />
     </div>
   )
