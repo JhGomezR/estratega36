@@ -85,7 +85,7 @@ export default function VotersPage() {
         
     if (promoterRoleIds.length === 0) return [];
     
-    return users.filter(u => promoterRoleIds.includes(u.roleId));
+    return users.filter(u => promoterRoleIds.includes(u.roleId) && u.status === 'activo');
   }, [users, roles]);
 
   const voters = React.useMemo(() => {
