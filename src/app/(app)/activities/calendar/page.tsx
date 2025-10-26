@@ -38,6 +38,7 @@ const statusLabels: Record<Task['status'], string> = {
   pendiente: "Pendiente",
   en_curso: "En Curso",
   finalizada: "Finalizada",
+  archivada: "Archivada"
 };
 
 type TaskWithRenderInfo = Task & { start: Date; due: Date; level: number };
@@ -127,7 +128,10 @@ export default function CalendarPage() {
   
   const tasks = React.useMemo(() => {
     if (!tasksData) return [];
-    const parsedTasks = tasksData.map(task => {
+    
+    const activeTasks = tasksData.filter(task => task.status !== 'archivada');
+
+    const parsedTasks = activeTasks.map(task => {
         try {
             return { ...task, start: parseISO(task.startDate), due: parseISO(task.dueDate), level: 0 };
         } catch { return null; }

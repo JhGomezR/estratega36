@@ -47,7 +47,7 @@ export type Task = WithId<{
   startDate: string;
   dueDate: string;
   status: 'pendiente' | 'en_curso' | 'finalizada' | 'archivada';
-  priority: string;
+  priority: 'normal' | 'alta' | 'urgente';
 }>;
 
 export const CallStatus = ['pendiente', 'atendida'] as const;
