@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useToast } from '@/hooks/use-toast';
 
 
 interface KanbanBoardProps {
@@ -45,8 +46,21 @@ const statusColors: Record<string, string> = {
 
 const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusChange }: { task: Task, user?: User, allStatuses: string[], onEdit: () => void, onDelete: () => void, onView: () => void, onStatusChange: (newStatus: string) => void }) => {
     
+    const { toast } = useToast();
     const dueDate = new Date(task.dueDate);
     const isOverdue = isPast(dueDate) && task.status !== 'finalizada';
+
+    const handleStatusAttempt = (newStatus: string) => {
+        if (task.status === 'pendiente' && !task.assignedToId && (newStatus === 'en_curso' || newStatus === 'finalizada')) {
+            toast({
+                variant: 'destructive',
+                title: 'Acción no permitida',
+                description: 'No se puede mover la tarea a "En Curso" o "Finalizada" si no tiene un usuario asignado.',
+            });
+            return;
+        }
+        onStatusChange(newStatus);
+    }
 
     return (
         <Card className="mb-4 bg-card hover:bg-muted/50 transition-colors duration-200 shadow-sm">
@@ -78,7 +92,7 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {allStatuses.filter(s => s !== task.status).map(status => (
-                                <DropdownMenuItem key={status} onClick={() => onStatusChange(status)} className="capitalize">
+                                <DropdownMenuItem key={status} onClick={() => handleStatusAttempt(status)} className="capitalize">
                                     {status.replace(/_/g, ' ')}
                                 </DropdownMenuItem>
                             ))}
@@ -103,8 +117,11 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
 
 export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDeleteTask, onViewTask }: KanbanBoardProps) => {
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const handleStatusChange = (task: Task, newStatus: string) => {
+        // Validation for moving out of 'pendiente' is inside TaskCard.
+        // This function now just handles the update.
         if (firestore) {
             setDocumentNonBlocking(doc(firestore, 'tasks', task.id), { status: newStatus }, { merge: true });
         }

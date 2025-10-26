@@ -56,6 +56,8 @@ export function TaskForm({ task, users, lists, onSubmit, onCancel }: TaskFormPro
       status: task?.status,
     },
   });
+  
+  const activeUsers = users.filter(user => user.status === 'activo');
 
   function handleFormSubmit(data: TaskFormValues) {
     const { startDate, ...rest } = data;
@@ -107,7 +109,7 @@ export function TaskForm({ task, users, lists, onSubmit, onCancel }: TaskFormPro
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {users.map(user => (
+                    {activeUsers.map(user => (
                       <SelectItem key={user.id} value={user.id}>
                         {`${user.firstName} ${user.lastName}`}
                       </SelectItem>
