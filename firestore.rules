@@ -1,207 +1,165 @@
 /**
- * @fileoverview Firestore Security Rules for the political campaign management application.
- *
- * Core Philosophy:
- * This ruleset enforces a combination of user-ownership and role-based access control. Most data is either owned by a specific user or accessible based on the user's role. Data validation is relaxed in favor of rapid prototyping.
- *
- * Data Structure:
- * - /users/{userId}: User profiles, accessible only to the user themselves.
- * - /roles/{roleId}: Role definitions, publicly readable but only manageable by authorized users (not implemented in this prototype).
- * - /campaigns/{campaignId}: Campaign data, publicly readable but only manageable by authorized users (not implemented in this prototype).
- * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: AI-generated strategies for a campaign, only accessible to those with access to the parent campaign (not implemented in this prototype).
- * - /voters/{voterId}: Voter data, publicly readable but only manageable by authorized users (not implemented in this prototype).
- * - /cities/{cityId}: City data, publicly readable.
- * - /tasks/{taskId}: Task data, publicly readable but only manageable by authorized users (not implemented in this prototype).
- * - /calls/{callId}: Call data, publicly readable but only manageable by authorized users (not implemented in this prototype).
- * - /settings/branding: Application-wide branding settings, publicly readable but only updatable by authorized users (not implemented in this prototype).
- * - /lists/{listId}: User-managed lists, publicly readable but only manageable by authorized users (not implemented in this prototype).
- *
- * Key Security Decisions:
- * - User listing is implicitly denied by the absence of a general `list` rule on `/users`.
- * - Role-based access control is planned but not yet fully implemented.
- * - Data validation is minimal to facilitate rapid prototyping. Only authorization-critical fields are validated.
- * - Public read access is granted for several top-level collections to facilitate data discovery and display. Write access to these collections is restricted and would be enabled if the data model included ownership.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a role-based access control model, granting 'admin' and 'super_admin' roles full access to all data.
+ * @dataStructure
+ * - /users/{userId}: Stores user profiles.
+ * - /roles/{roleId}: Stores role definitions.
+ * - /campaigns/{campaignId}: Stores campaign information.
+ * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: Stores AI-generated strategies for a specific campaign.
+ * - /voters/{voterId}: Stores voter information.
+ * - /cities/{cityId}: Stores city information.
+ * - /tasks/{taskId}: Stores campaign tasks.
+ * - /calls/{callId}: Stores call records for voters.
+ * - /settings/branding: Stores application branding settings.
+ * - /lists/{listId}: Stores user-managed lists.
+ * @keySecurityDecisions
+ * - Admins and super admins have full CRUD access to all collections.
+ * - Other roles or unauthenticated users are not explicitly granted any access in this prototype.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own profile data.
+     * @description Grants full access to admins and super admins for user profiles.
      * @path /users/{userId}
-     * @allow (create) User 's031sQgjugYha5RcuBDeZzZnwnX2' can create their profile if request.auth.uid == userId
-     * @deny (create) User 's031sQgjugYha5RcuBDeZzZnwnX2' cannot create another user's profile if request.auth.uid != userId
-     * @allow (get, list) User 's031sQgjugYha5RcuBDeZzZnwnX2' can read their profile.
-     * @deny (get, list) Another user cannot read this user's profile.
-     * @allow (update, delete) User 's031sQgjugYha5RcuBDeZzZnwnX2' can update/delete their profile.
-     * @deny (update, delete) Another user cannot update/delete this user's profile.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any user profile.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot access any user profile other than their own.
+     * @principle Role-based access control.
      */
     match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
     /**
-     * @description Allows anyone to read roles, but restricts creation, updates, and deletion.
+     * @description Grants full access to admins and super admins for role definitions.
      * @path /roles/{roleId}
-     * @allow (get, list) Any user can read role information.
-     * @deny (create) No one can create roles without proper authorization (not implemented).
-     * @deny (update) No one can update roles without proper authorization (not implemented).
-     * @deny (delete) No one can delete roles without proper authorization (not implemented).
-     * @principle Allows public read access with restricted write access.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any role definition.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot modify roles.
+     * @principle Role-based access control.
      */
     match /roles/{roleId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating roles.
-      allow update: if false; // TODO: Add role-based access control for updating roles.
-      allow delete: if false; // TODO: Add role-based access control for deleting roles.
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
     /**
-     * @description Allows anyone to read campaign information, but restricts creation, updates, and deletion.
+     * @description Grants full access to admins and super admins for campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any user can read campaign information.
-     * @deny (create) No one can create campaigns without proper authorization (not implemented).
-     * @deny (update) No one can update campaigns without proper authorization (not implemented).
-     * @deny (delete) No one can delete campaigns without proper authorization (not implemented).
-     * @principle Allows public read access with restricted write access.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any campaign.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot create, modify, or delete campaigns.
+     * @principle Role-based access control.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating campaigns.
-      allow update: if false; // TODO: Add role-based access control for updating campaigns.
-      allow delete: if false; // TODO: Add role-based access control for deleting campaigns.
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+
+       /**
+        * @description Grants full access to admins and super admins for AI-generated strategies for a specific campaign.
+        * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
+        * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any generated strategy.
+        * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete generated strategies.
+        * @principle Role-based access control.
+        */
+      match /generatedStrategies/{strategyId} {
+        allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      }
     }
 
     /**
-     * @description Allows anyone to read AI-generated strategies for a specific campaign, but restricts creation, updates, and deletion.
-     * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
-     * @allow (get, list) Any user can read AI-generated strategies for a specific campaign.
-     * @deny (create) No one can create AI-generated strategies without proper authorization (not implemented).
-     * @deny (update) No one can update AI-generated strategies without proper authorization (not implemented).
-     * @deny (delete) No one can delete AI-generated strategies without proper authorization (not implemented).
-     * @principle Allows public read access with restricted write access.
-     */
-    match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating generated strategies.
-      allow update: if false; // TODO: Add role-based access control for updating generated strategies.
-      allow delete: if false; // TODO: Add role-based access control for deleting generated strategies.
-    }
-
-    /**
-     * @description Allows anyone to read voter information, but restricts creation, updates, and deletion.
+     * @description Grants full access to admins and super admins for voter information.
      * @path /voters/{voterId}
-     * @allow (get, list) Any user can read voter information.
-     * @deny (create) No one can create voters without proper authorization (not implemented).
-     * @deny (update) No one can update voters without proper authorization (not implemented).
-     * @deny (delete) No one can delete voters without proper authorization (not implemented).
-     * @principle Allows public read access with restricted write access.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any voter.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete voter information.
+     * @principle Role-based access control.
      */
     match /voters/{voterId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating voters.
-      allow update: if false; // TODO: Add role-based access control for updating voters.
-      allow delete: if false; // TODO: Add role-based access control for deleting voters.
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
     /**
-     * @description Allows anyone to read city information.
+     * @description Grants full access to admins and super admins for city information.
      * @path /cities/{cityId}
-     * @allow (get, list) Any user can read city information.
-     * @deny (create) No one can create cities without proper authorization (not implemented).
-     * @deny (update) No one can update cities without proper authorization (not implemented).
-     * @deny (delete) No one can delete cities without proper authorization (not implemented).
-     * @principle Allows public read access with restricted write access.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any city.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete city information.
+     * @principle Role-based access control.
      */
     match /cities/{cityId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating cities.
-      allow update: if false; // TODO: Add role-based access control for updating cities.
-      allow delete: if false; // TODO: Add role-based access control for deleting cities.
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
     /**
-     * @description Allows anyone to read task information, but restricts creation, updates, and deletion.
+     * @description Grants full access to admins and super admins for campaign tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any user can read task information.
-     * @deny (create) No one can create tasks without proper authorization (not implemented).
-     * @deny (update) No one can update tasks without proper authorization (not implemented).
-     * @deny (delete) No one can delete tasks without proper authorization (not implemented).
-     * @principle Allows public read access with restricted write access.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any task.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete tasks.
+     * @principle Role-based access control.
      */
     match /tasks/{taskId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating tasks.
-      allow update: if false; // TODO: Add role-based access control for updating tasks.
-      allow delete: if false; // TODO: Add role-based access control for deleting tasks.
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
-   /**
-     * @description Allows anyone to read call information, but restricts creation, updates, and deletion.
+    /**
+     * @description Grants full access to admins and super admins for call records for voters.
      * @path /calls/{callId}
-     * @allow (get, list) Any user can read call information.
-     * @deny (create) No one can create calls without proper authorization (not implemented).
-     * @deny (update) No one can update calls without proper authorization (not implemented).
-     * @deny (delete) No one can delete calls without proper authorization (not implemented).
-     * @principle Allows public read access with restricted write access.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any call record.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete call records.
+     * @principle Role-based access control.
      */
     match /calls/{callId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating calls.
-      allow update: if false; // TODO: Add role-based access control for updating calls.
-      allow delete: if false; // TODO: Add role-based access control for deleting calls.
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
     /**
-     * @description Allows anyone to read branding settings, but restricts updates.
+     * @description Grants full access to admins and super admins for application branding settings.
      * @path /settings/branding
-     * @allow (get) Any user can read branding settings.
-     * @deny (list) Listing is not allowed for single documents.
-     * @deny (create) Creation is not allowed for single documents.
-     * @deny (update) No one can update branding settings without proper authorization (not implemented).
-     * @deny (delete) Deletion is not allowed for single documents.
-     * @principle Allows public read access with restricted write access.
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on the branding settings.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot modify branding settings.
+     * @principle Role-based access control.
      */
     match /settings/branding {
-      allow get: if true;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false; // TODO: Add role-based access control for updating branding settings.
-      allow delete: if false;
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
     /**
-     * @description Allows anyone to read managed lists, but restricts creation, updates, and deletion.
+     * @description Grants full access to admins and super admins for user-managed lists.
      * @path /lists/{listId}
-     * @allow (get, list) Any user can read managed lists.
-     * @deny (create) No one can create lists without proper authorization (not implemented).
-     * @deny (update) No one can update lists without proper authorization (not implemented).
-     * @deny (delete) No one can delete lists without proper authorization (not implemented).
+     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any list.
+     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete lists.
+     * @principle Role-based access control.
      */
     match /lists/{listId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add role-based access control for creating lists.
-      allow update: if false; // TODO: Add role-based access control for updating lists.
-      allow delete: if false; // TODO: Add role-based access control for deleting lists.
+      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
-  }
+    /**
+     * @description Helper function to check if the user has the 'admin' role.
+     * @return {boolean} True if the user has the 'admin' role, false otherwise.
+     */
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/roles/admin).data.permissions.hasAny(['campaign:create', 'campaign:read', 'campaign:update', 'campaign:delete',
+              'voter:create', 'voter:read', 'voter:update', 'voter:delete',
+              'user:create', 'user:read', 'user:update', 'user:delete',
+              'role:create', 'role:read', 'role:update', 'role:delete',
+              'city:create', 'city:read', 'city:update', 'city:delete',
+              'task:create', 'task:read', 'task:update', 'task:delete',
+              'call:create', 'call:read', 'call:update', 'call:delete',
+              'report:read',
+              'setting:update']);
+    }
 
-  // Helper functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
+    /**
+     * @description Helper function to check if the user has the 'super_admin' role.
+     * @return {boolean} True if the user has the 'super_admin' role, false otherwise.
+     */
+    function isSuperAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/roles/super_admin).data.permissions.hasAny(['campaign:create', 'campaign:read', 'campaign:update', 'campaign:delete',
+              'voter:create', 'voter:read', 'voter:update', 'voter:delete',
+              'user:create', 'user:read', 'user:update', 'user:delete',
+              'role:create', 'role:read', 'role:update', 'role:delete',
+              'city:create', 'city:read', 'city:update', 'city:delete',
+              'task:create', 'task:read', 'task:update', 'task:delete',
+              'call:create', 'call:read', 'call:update', 'call:delete',
+              'report:read',
+              'setting:update']);
+    }
   }
 }
