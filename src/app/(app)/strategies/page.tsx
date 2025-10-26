@@ -26,7 +26,7 @@ export default function StrategiesPage() {
     if (!campaignsData || !currentUserData || !roles) return [];
 
     const adminRole = roles.find(r => r.name.toLowerCase() === 'admin');
-    const isAdmin = currentUserData.roleId === adminRole?.id || currentUserData.email === 'axdrcys@gmail.com';
+    const isAdmin = currentUserData.email === 'axdrcys@gmail.com' || currentUserData.roleId === adminRole?.id;
     
     if (isAdmin) {
         return campaignsData.filter(c => c.status === 'En Campaña');
