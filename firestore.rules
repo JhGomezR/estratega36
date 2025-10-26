@@ -1,181 +1,239 @@
 /**
- * @fileoverview Firestore Security Rules for the political campaign management application.
+ * @fileoverview Firestore Security Rules for the application.
  *
  * Core Philosophy:
- * This ruleset enforces a combination of user-based and role-based access control. Users
- * can only create, read, update, and delete their own data unless they have elevated
- * privileges granted through roles. Public read access is granted to a few top-level collections.
+ * This ruleset prioritizes a role-based access control (RBAC) model, leveraging Firebase Authentication's custom claims for elevated privileges (e.g., super_admin).
+ * Standard users generally have read and write access to their own data.
+ * The "super_admin" role, managed via custom claims, bypasses most restrictions for full database access.
  *
  * Data Structure:
- * - /users/{userId}: User profiles, accessible only to the user themselves.
- * - /roles/{roleId}: Role definitions, with specific roles like 'admin', 'campaign_manager', and 'promoter'.
- * - /campaigns/{campaignId}: Campaign information, publicly readable but writable only by authorized users.
- * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: AI-generated strategies for campaigns, writeable only by authorized users
- * - /voters/{voterId}: Voter information, publicly readable but writable only by authorized users.
- * - /cities/{cityId}: City information, publicly readable but writable only by authorized users.
- * - /tasks/{taskId}: Campaign tasks, publicly readable but writable only by authorized users.
- * - /calls/{callId}: Call records for voters, publicly readable but writable only by authorized users.
- * - /settings/branding: Application-wide branding settings, writable only by authorized users.
- * - /lists/{listId}: User-managed lists, accessible only to the user who created them.
+ * - /users/{userId}: Stores user profiles.  User documents are secured by ownership.
+ * - /roles/{roleId}: Stores role definitions. Intended to be managed by admins.
+ * - /campaigns/{campaignId}: Stores campaign data.
+ * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: AI-generated campaign strategies.
+ * - /voters/{voterId}: Stores voter data.
+ * - /cities/{cityId}: Stores city data.
+ * - /tasks/{taskId}: Stores campaign tasks.
+ * - /calls/{callId}: Stores call records for voters.
+ * - /settings/branding: A single document storing branding settings.
+ * - /lists/{listId}: User-managed lists.
  *
  * Key Security Decisions:
- * - Listing of users is explicitly denied to prevent unauthorized data access.
- * - Public read access is granted to the /campaigns, /voters, /cities, /tasks, and /calls collections to enable broad data consumption.
- * - The default security posture for ambiguous relationships is strict owner-only access.
+ * - Super Admin Role: Users with the 'super_admin' custom claim have full read and write access to the entire database.
+ * - User Ownership:  Most user-created data is secured via ownership (the user's UID must match the document's userId field or the document ID).
+ * - No User Listing: Listing all users is generally disallowed to prevent information disclosure.
+ * - Public Read for Campaigns, Voters, Cities, Tasks, Calls: Read access to these collections is open to everyone.
+ * - Write Restriction for Campaigns, Voters, Cities, Tasks, Calls: Write access is restricted to super admins.
+ * - Settings and Lists: Branding settings and managed lists are only updatable by super admins.
  *
  * Denormalization for Authorization:
- *   - The data model does not currently require denormalization. Write rules will have to be modified
- *     if further role specifications require to have campaignId stored in User documents or
- *     vice versa.
+ * The `super_admin` role is handled via custom claims, avoiding the need for additional database reads.
+ *
+ * Structural Segregation:
+ * This ruleset assumes a flat data structure within each top-level collection, without mixing private and public data in the same documents.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the current user is signed in.
+     * @description Checks if the user is signed in.
+     * @path N/A (Helper function)
+     * @allow N/A (Helper function)
+     * @deny N/A (Helper function)
+     * @principle Authentication is required for many operations.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Checks if the current user is the owner of the resource.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+     /**
+      * @description Checks if the user is a super admin based on custom claims.
+      * @path N/A (Helper function)
+      * @allow N/A (Helper function)
+      * @deny N/A (Helper function)
+      * @principle Role-based access control.
+      */
+    function isSuperAdmin() {
+        return isSignedIn() && request.auth.token.super_admin == true;
     }
 
-     /**
-     * @description Checks if the current user is the owner of the resource and the resource exists.
+    /**
+     * @description Checks if the request is made by the owner of the document.
+     * @path N/A (Helper function)
+     * @allow N/A (Helper function)
+     * @deny N/A (Helper function)
+     * @principle Enforces document ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the request is made by the existing owner of the document.
+     * @path N/A (Helper function)
+     * @allow N/A (Helper function)
+     * @deny N/A (Helper function)
+     * @principle Enforces document ownership for destructive operations (update, delete).
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Rule for the /users/{userId} collection.
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) User s031sQgjugYha5RcuBDeZzZnwnX2 can create their own user document.
-     * @allow (get, update, delete) User s031sQgjugYha5RcuBDeZzZnwnX2 can get, update, and delete their own user document.
-     * @deny (create) User s031sQgjugYha5RcuBDeZzZnwnX2 cannot create a user document with a different userId.
-     * @deny (get, update, delete) User s031sQgjugYha5RcuBDeZzZnwnX2 cannot get, update or delete other users' documents.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Signed-in user can create their own profile.
+     * @allow (get, list) Signed-in user can read their own profile.
+     * @allow (update, delete) Signed-in user can update their own profile.
+     * @deny (create) User tries to create a profile with a mismatched user ID.
+     * @deny (get, list) User tries to read another user's profile.
+     * @deny (update, delete) User tries to modify another user's profile.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isSuperAdmin();
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.idNumber == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.idNumber == resource.data.idNumber;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId) || isSuperAdmin();
+      allow delete: if isExistingOwner(userId) || isSuperAdmin();
     }
 
     /**
-     * @description Rule for the /roles/{roleId} collection.
+     * @description Rules for roles.
      * @path /roles/{roleId}
-     * @allow (get, list) Any signed-in user can read roles.
-     * @deny (create, update, delete) No one can create, update, or delete roles (for prototyping).
-     * @principle Restricts role management.
+     * @allow (create, update, delete) Only super admins can manage roles.
+     * @allow (get, list) Anyone can read role definitions.
+     * @deny (create, update, delete) Non-super admins cannot manage roles.
+     * @principle Restricts role management to super admins.
      */
     match /roles/{roleId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow get, list: if true;
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     /**
-     * @description Rule for the /campaigns/{campaignId} collection.
+     * @description Rules for campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any user can read campaign information.
-     * @deny (create, update, delete) No one can create, update, or delete campaigns (for prototyping).
-     * @principle Public read with restricted writes (TODO: Implement role-based write access).
+     * @allow (get, list) Anyone can read campaign information.
+     * @allow (create, update, delete) Only super admins can manage campaigns.
+     * @deny (create, update, delete) Non-super admins cannot manage campaigns.
+     * @principle Restricts campaign management to super admins.
      */
     match /campaigns/{campaignId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+
+       /**
+         * @description Rules for AI-generated strategies for a specific campaign.
+         * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
+         * @allow (create, update, delete) Only super admins can manage generated strategies.
+         * @allow (get, list) Anyone can read generated strategies.
+         * @deny (create, update, delete) Non-super admins cannot manage generated strategies.
+         * @principle Restricts strategy management to super admins.
+         */
+      match /generatedStrategies/{strategyId} {
+        allow get, list: if true;
+        allow create: if isSuperAdmin();
+        allow update: if isSuperAdmin();
+        allow delete: if isSuperAdmin();
+      }
     }
 
     /**
-     * @description Rule for the /campaigns/{campaignId}/generatedStrategies/{strategyId} subcollection.
-     * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
-     *  @allow (get, list) Any user can read campaign strategies.
-     * @deny (create, update, delete) No one can create, update, or delete strategies (for prototyping).
-     * @principle Public read with restricted writes (TODO: Implement role-based write access).
-     */
-    match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
-       allow get, list: if true;
-       allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-    /**
-     * @description Rule for the /voters/{voterId} collection.
+     * @description Rules for voters.
      * @path /voters/{voterId}
-     * @allow (get, list) Any user can read voter information.
-     * @deny (create, update, delete) No one can create, update, or delete voters (for prototyping).
-     * @principle Public read with restricted writes (TODO: Implement role-based write access).
+     * @allow (get, list) Anyone can read voter information.
+     * @allow (create, update, delete) Only super admins can manage voter data.
+     * @deny (create, update, delete) Non-super admins cannot manage voter data.
+     * @principle Restricts voter management to super admins.
      */
     match /voters/{voterId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     /**
-     * @description Rule for the /cities/{cityId} collection.
+     * @description Rules for cities.
      * @path /cities/{cityId}
-     * @allow (get, list) Any user can read city information.
-     * @deny (create, update, delete) No one can create, update, or delete cities (for prototyping).
-     * @principle Public read with restricted writes (TODO: Implement role-based write access).
+     * @allow (get, list) Anyone can read city information.
+     * @allow (create, update, delete) Only super admins can manage city data.
+     * @deny (create, update, delete) Non-super admins cannot manage city data.
+     * @principle Restricts city management to super admins.
      */
     match /cities/{cityId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     /**
-     * @description Rule for the /tasks/{taskId} collection.
+     * @description Rules for tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any user can read task information.
-     * @deny (create, update, delete) No one can create, update, or delete tasks (for prototyping).
-     * @principle Public read with restricted writes (TODO: Implement role-based write access).
+     * @allow (get, list) Anyone can read task information.
+     * @allow (create, update, delete) Only super admins can manage tasks.
+     * @deny (create, update, delete) Non-super admins cannot manage tasks.
+     * @principle Restricts task management to super admins.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-     /**
-     * @description Rule for the /calls/{callId} collection.
-     * @path /calls/{callId}
-     * @allow (get, list) Any user can read call information.
-     * @deny (create, update, delete) No one can create, update, or delete calls (for prototyping).
-     * @principle Public read with restricted writes (TODO: Implement role-based write access).
-     */
-    match /calls/{callId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     /**
-     * @description Rule for the /settings/branding document.
+     * @description Rules for calls.
+     * @path /calls/{callId}
+     * @allow (get, list) Anyone can read call information.
+     * @allow (create, update, delete) Only super admins can manage calls.
+     * @deny (create, update, delete) Non-super admins cannot manage calls.
+     * @principle Restricts call management to super admins.
+     */
+    match /calls/{callId} {
+      allow get, list: if true;
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    /**
+     * @description Rules for branding settings.
      * @path /settings/branding
-     * @allow (get) Any user can read branding settings.
-     * @deny (create, update, delete) No one can create, update, or delete branding settings (for prototyping).
-     * @principle Restricts branding settings modification.
+     * @allow (get) Anyone can read the branding settings.
+     * @allow (update) Only super admins can update branding settings.
+     * @deny (create, delete) Not applicable for a single document.
+     * @deny (update) Non-super admins cannot update branding settings.
+     * @principle Restricts branding settings updates to super admins.
      */
     match /settings/branding {
       allow get: if true;
       allow list: if false;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if isSuperAdmin();
+      allow delete: if false;
     }
 
     /**
-     * @description Rule for the /lists/{listId} collection.
+     * @description Rules for managed lists.
      * @path /lists/{listId}
-     * @allow (get, list) Any signed-in user can read lists.
-     * @deny (create, update, delete) No one can create, update, or delete lists (for prototyping).
+     * @allow (get, list) Anyone can read the lists.
+     * @allow (create, update, delete) Only super admins can manage the lists.
+     * @deny (create, update, delete) Non-super admins cannot manage the lists.
+     * @principle Restricts managed lists to super admins.
      */
     match /lists/{listId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
   }
 }
