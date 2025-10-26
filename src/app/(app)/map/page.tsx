@@ -40,8 +40,9 @@ export default function MapPage() {
   const voterCountsByCity = React.useMemo(() => {
     if (!voters || !cities) return [];
     
+    const activeVoters = voters.filter(v => v.status === 'activo');
     const counts = new Map<string, number>();
-    voters.forEach(voter => {
+    activeVoters.forEach(voter => {
       counts.set(voter.cityId, (counts.get(voter.cityId) || 0) + 1);
     });
 
@@ -58,8 +59,9 @@ export default function MapPage() {
   
   const votersWithLocation: VoterWithColor[] = React.useMemo(() => {
     if (!voters) return [];
+    const activeVoters = voters.filter(v => v.status === 'activo');
     const cityColorMap = new Map(voterCountsByCity.map(c => [c.id, c.color]));
-    return voters
+    return activeVoters
       .filter(voter => voter.latitude && voter.longitude)
       .map(voter => ({
           ...voter,
