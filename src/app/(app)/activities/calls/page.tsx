@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -93,7 +94,8 @@ export default function CallsPage() {
 
 
   const calls = React.useMemo(() => {
-    return callsData?.filter(c => c.status_call !== 'inactivo');
+    if (!callsData) return [];
+    return callsData.filter(c => c.status_call !== 'inactivo');
   }, [callsData]);
 
   React.useEffect(() => {
@@ -108,12 +110,12 @@ export default function CallsPage() {
 
   React.useEffect(() => {
     const syncCallList = async () => {
-      if (!firestore || !voters || !calls) return;
+      if (!firestore || !voters || !callsData) return;
 
       setIsSyncing(true);
       try {
-        const existingCallVoterIds = new Set(calls.map(c => c.voterId));
-        const votersToCall = voters.filter(v => !existingCallVoterIds.has(v.id));
+        const existingCallVoterIds = new Set(callsData.map(c => c.voterId));
+        const votersToCall = voters.filter(v => v.status === 'activo' && !existingCallVoterIds.has(v.id));
 
         if (votersToCall.length > 0) {
           const batch = writeBatch(firestore);
@@ -589,3 +591,5 @@ export default function CallsPage() {
     </div>
   )
 }
+
+    
