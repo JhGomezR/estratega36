@@ -1,9 +1,9 @@
 
 "use client"
 import { StrategiesClient } from "@/components/strategies-client";
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useAuth, useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Campaign, User } from "@/lib/types";
-import { collection } from "firebase/firestore";
+import { collection, doc } from "firebase/firestore";
 import React from "react";
 
 export const maxDuration = 120; // Aumenta el timeout a 2 minutos
@@ -16,20 +16,16 @@ export default function StrategiesPage() {
     useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
   );
   
-  const { data: currentUserData, isLoading: userLoading } = useCollection<User>(
-    useMemoFirebase(() => (firestore && user) ? collection(firestore, 'users') : null, [firestore, user])
-  );
+  const userRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: currentUserData, isLoading: userLoading } = useDoc<User>(userRef);
 
   const activeCampaigns = React.useMemo(() => {
-    if (!campaignsData || !currentUserData || !user) return [];
-    
-    const userProfile = currentUserData.find(u => u.id === user.uid);
-    if (!userProfile) return [];
+    if (!campaignsData || !currentUserData) return [];
     
     return campaignsData.filter(c => 
-      c.status === 'En Campaña' && userProfile.campaignIds.includes(c.id)
+      c.status === 'En Campaña' && currentUserData.campaignIds.includes(c.id)
     );
-  }, [campaignsData, currentUserData, user]);
+  }, [campaignsData, currentUserData]);
 
   return (
     <div className="flex flex-col gap-8">
