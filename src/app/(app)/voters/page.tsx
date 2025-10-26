@@ -37,7 +37,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
@@ -175,6 +174,10 @@ export default function VotersPage() {
     if (voterToDelete && firestore) {
       setDocumentNonBlocking(doc(firestore, 'voters', voterToDelete.id), { status: 'inactivo' }, { merge: true });
       setVoterToDelete(null)
+      toast({
+          title: "Votante Archivado",
+          description: "El votante ha sido marcado como inactivo.",
+      });
     }
   }
 
@@ -351,7 +354,7 @@ export default function VotersPage() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setVoterToDelete(null)}>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
+                          <AlertDialogAction onClick={handleDelete}>Archivar</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
