@@ -78,11 +78,19 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            {allStatuses.filter(s => s !== task.status).map(status => (
-                                <DropdownMenuItem key={status} onClick={() => onStatusChange(status)} className="capitalize">
-                                    {status.replace(/_/g, ' ')}
-                                </DropdownMenuItem>
-                            ))}
+                            {allStatuses.filter(s => s !== task.status).map(status => {
+                                const isMoveDisabled = !task.assignedToId && (status === 'en_curso' || status === 'finalizada');
+                                return (
+                                    <DropdownMenuItem 
+                                        key={status} 
+                                        onClick={() => onStatusChange(status)} 
+                                        className="capitalize"
+                                        disabled={isMoveDisabled}
+                                    >
+                                        {status.replace(/_/g, ' ')}
+                                    </DropdownMenuItem>
+                                )
+                            })}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
