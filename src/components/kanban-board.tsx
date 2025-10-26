@@ -119,7 +119,7 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
              toast({
                 variant: 'destructive',
                 title: 'Acción no permitida',
-                description: 'La tarea debe tener un usuario asignado para poder moverla a "En Curso" o "Finalizada".',
+                description: 'La tarea debe ser asignada a alguien más para poder moverla.',
             });
             return;
         }
@@ -147,6 +147,17 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
                         </Card>
                      </div>
                 ))}
+            </div>
+        )
+    }
+
+    if (tasks.length === 0) {
+        return (
+            <div className="text-center py-10 border rounded-lg">
+                <p className="font-medium">No hay tareas para mostrar.</p>
+                <p className="text-sm text-muted-foreground">
+                    Crea una nueva tarea para empezar.
+                </p>
             </div>
         )
     }
