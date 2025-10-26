@@ -26,11 +26,19 @@ import { Textarea } from "./ui/textarea"
 const taskFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres.").max(50, "El título no puede tener más de 50 caracteres."),
   description: z.string().optional(),
-  assignedToId: z.string({ required_error: "Debes asignar la tarea a un usuario." }),
+  assignedToId: z.string().optional(),
   startDate: z.string().optional(),
   dueDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "La fecha límite es inválida." }),
   priority: z.string({ required_error: "Debes seleccionar una prioridad." }),
   status: z.string({ required_error: "Debes seleccionar un estado." }),
+}).refine(data => {
+    if ((data.status === 'en_curso' || data.status === 'finalizada') && !data.assignedToId) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Se debe asignar un usuario para los estados 'En Curso' o 'Finalizada'.",
+    path: ["assignedToId"],
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -49,7 +57,7 @@ export function TaskForm({ task, users, lists, onSubmit, onCancel }: TaskFormPro
     defaultValues: {
       title: task?.title ?? "",
       description: task?.description ?? "",
-      assignedToId: task?.assignedToId ?? undefined,
+      assignedToId: task?.assignedToId,
       startDate: task?.startDate ?? "",
       dueDate: task?.dueDate ?? "",
       priority: task?.priority,
