@@ -37,7 +37,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
@@ -144,6 +143,10 @@ export default function UsersPage() {
         toast({ title: "Usuario Actualizado", description: "Los datos del usuario han sido actualizados." });
 
       } else {
+        if (!data.password) {
+            toast({ variant: "destructive", title: "Error al crear usuario", description: "La contraseña es obligatoria para nuevos usuarios." });
+            return;
+        }
         // Create auth user first
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
         const newAuthUser = userCredential.user;
@@ -161,12 +164,12 @@ export default function UsersPage() {
         toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
       }
     } catch (error: any) {
-        console.error("Error creating user:", error);
+        console.error("Error handling user form:", error);
         let description = "Ocurrió un error inesperado.";
         if (error.code === 'auth/email-already-in-use') {
             description = "El correo electrónico ya está en uso por otra cuenta.";
         } else if (error.code === 'auth/weak-password') {
-            description = "La contraseña es demasiado débil.";
+            description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
         }
         toast({ variant: "destructive", title: "Error al crear usuario", description });
     }
@@ -292,4 +295,4 @@ export default function UsersPage() {
   )
 }
 
-  
+    

@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -32,7 +33,7 @@ const userFormSchema = z.object({
   idNumber: z.string().min(5, "El número de documento es requerido."),
   email: z.string().email("El correo electrónico no es válido."),
   username: z.string().optional(),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres."),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   phone: z.string().min(7, "El celular no es válido."),
   roleId: z.string({ required_error: "Debe seleccionar un rol." }),
   cityIds: z.array(z.string()).min(1, "Debe seleccionar al menos una ciudad."),
@@ -49,7 +50,7 @@ interface UserFormProps {
   campaigns: Campaign[];
   lists: Record<string, ManagedList | undefined>;
   allUsers: User[];
-  onSubmit: (data: Omit<UserFormValues, 'status'>) => void;
+  onSubmit: (data: UserFormValues) => void;
   onCancel: () => void;
 }
 
@@ -91,7 +92,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
     if (finalData.parentId === 'none') {
         delete finalData.parentId;
     }
-    onSubmit(finalData as Omit<UserFormValues, 'status'>);
+    onSubmit(finalData as UserFormValues);
   }
 
   return (
@@ -182,7 +183,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
             <FormItem>
               <FormLabel>Correo Electrónico (para acceso)</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="ejemplo@correo.com" {...field} />
+                <Input type="email" placeholder="ejemplo@correo.com" {...field} disabled={!!user}/>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -204,19 +205,21 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                 </FormItem>
                 )}
             />
-            <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Contraseña</FormLabel>
-                    <FormControl>
-                    <Input type="password" placeholder="Mínimo 8 caracteres" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
+            {!user && (
+              <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Contraseña</FormLabel>
+                      <FormControl>
+                      <Input type="password" placeholder="Mínimo 6 caracteres" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                  </FormItem>
+                  )}
+              />
+            )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -311,7 +314,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                                                     checked={field.value?.includes(city.id)}
                                                     onCheckedChange={(checked) => {
                                                         return checked
-                                                        ? field.onChange([...field.value, city.id])
+                                                        ? field.onChange([...(field.value || []), city.id])
                                                         : field.onChange(field.value?.filter((value) => value !== city.id))
                                                     }}
                                                 />
@@ -348,7 +351,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                                                     checked={field.value?.includes(campaign.id)}
                                                     onCheckedChange={(checked) => {
                                                         return checked
-                                                        ? field.onChange([...field.value, campaign.id])
+                                                        ? field.onChange([...(field.value || []), campaign.id])
                                                         : field.onChange(field.value?.filter((value) => value !== campaign.id))
                                                     }}
                                                 />
@@ -376,3 +379,5 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
     </Form>
   )
 }
+
+    
