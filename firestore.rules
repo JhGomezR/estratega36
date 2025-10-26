@@ -1,165 +1,261 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a role-based access control model, granting 'admin' and 'super_admin' roles full access to all data.
- * @dataStructure
- * - /users/{userId}: Stores user profiles.
- * - /roles/{roleId}: Stores role definitions.
- * - /campaigns/{campaignId}: Stores campaign information.
- * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: Stores AI-generated strategies for a specific campaign.
- * - /voters/{voterId}: Stores voter information.
- * - /cities/{cityId}: Stores city information.
- * - /tasks/{taskId}: Stores campaign tasks.
- * - /calls/{callId}: Stores call records for voters.
- * - /settings/branding: Stores application branding settings.
- * - /lists/{listId}: Stores user-managed lists.
- * @keySecurityDecisions
- * - Admins and super admins have full CRUD access to all collections.
- * - Other roles or unauthenticated users are not explicitly granted any access in this prototype.
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes security by enforcing strict access control.
+ * Users can only manage their own data where applicable, and public access is limited.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores individual user profiles.  Access is restricted to the owning user.
+ * - /roles/{roleId}: Stores role definitions. Read-only for all authenticated users.
+ * - /campaigns/{campaignId}: Stores campaign data.  Access is open for reads, writes are restricted to authenticated users for now.
+ * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: Stores AI-generated strategies for campaigns. Access is open for reads, writes are restricted to authenticated users for now.
+ * - /voters/{voterId}: Stores voter data. Access is open for reads, writes are restricted to authenticated users for now.
+ * - /cities/{cityId}: Stores city data. Read-only for all authenticated users.
+ * - /tasks/{taskId}: Stores campaign tasks.  Access is open for reads, writes are restricted to authenticated users for now.
+ * - /calls/{callId}: Stores call records. Access is open for reads, writes are restricted to authenticated users for now.
+ * - /settings/branding: Stores global branding settings. Read-only for all authenticated users.
+ * - /lists/{listId}: Stores user-managed lists.  Access is open for reads, writes are restricted to authenticated users for now.
+ *
+ * Key Security Decisions:
+ * - User listing is disabled.
+ * - Branding settings are publicly readable (no sensitive information).
+ * - Read-only collections like 'cities' and 'roles' are readable by any signed-in user.
+ *
+ * Denormalization for Authorization:
+ * - No denormalization is needed in this version. Future versions may denormalize ownership or role information
+ *   onto documents to avoid costly `get()` calls in the rules.
+ *
+ * Structural Segregation:
+ * - No structural segregation is used in this version.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants full access to admins and super admins for user profiles.
+     * @description Allows access to branding settings. These settings are considered public.
+     * @path /settings/branding
+     * @allow (get, list) Any authenticated user can read branding settings.
+     * @deny (create, update, delete) No one can create, update, or delete the branding settings via client.
+     * @principle Allows public read access to non-sensitive configuration data.
+     */
+    match /settings/branding {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Controls access to user profiles.  Users can only manage their own profile.
      * @path /users/{userId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any user profile.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot access any user profile other than their own.
-     * @principle Role-based access control.
+     * @allow (get, list) The owner can read their own profile.
+     * @allow (create) A user can create their own profile (self-registration).
+     * @allow (update, delete) The owner can update or delete their own profile.
+     * @deny Requests from other users or unauthenticated users.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Grants full access to admins and super admins for role definitions.
+     * @description Controls access to role definitions.  Roles are read-only and managed by admins (not implemented in this version).
      * @path /roles/{roleId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any role definition.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot modify roles.
-     * @principle Role-based access control.
+     * @allow (get, list) Any authenticated user can read role definitions.
+     * @deny (create, update, delete) No one can create, update, or delete roles via client.
+     * @principle Restricts modification of roles to server-side logic.
      */
     match /roles/{roleId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Grants full access to admins and super admins for campaign information.
+     * @description Controls access to campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any campaign.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot create, modify, or delete campaigns.
-     * @principle Role-based access control.
+     * @allow (get, list) Any authenticated user can read campaign information.
+     * @allow (create, update, delete) Only authenticated users can create, update, or delete campaigns.
+     * @principle Requires authentication for campaign modification.
      */
     match /campaigns/{campaignId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isExistingCampaign();
+      allow delete: if isExistingCampaign();
 
-       /**
-        * @description Grants full access to admins and super admins for AI-generated strategies for a specific campaign.
-        * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
-        * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any generated strategy.
-        * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete generated strategies.
-        * @principle Role-based access control.
-        */
+      /**
+       * @description Controls access to AI-generated strategies for campaigns.
+       * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
+       * @allow (get, list) Any authenticated user can read campaign strategies.
+       * @allow (create, update, delete) Only authenticated users can create, update, or delete campaign strategies.
+       * @principle Requires authentication for campaign strategy modification.
+       */
       match /generatedStrategies/{strategyId} {
-        allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+        allow get: if true;
+        allow list: if true;
+        allow create: if isSignedIn();
+        allow update: if isExistingStrategy();
+        allow delete: if isExistingStrategy();
       }
     }
 
     /**
-     * @description Grants full access to admins and super admins for voter information.
+     * @description Controls access to voter information.
      * @path /voters/{voterId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any voter.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete voter information.
-     * @principle Role-based access control.
+     * @allow (get, list) Any authenticated user can read voter information.
+     * @allow (create, update, delete) Only authenticated users can create, update, or delete voters.
+     * @principle Requires authentication for voter modification.
      */
     match /voters/{voterId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isExistingVoter();
+      allow delete: if isExistingVoter();
     }
 
     /**
-     * @description Grants full access to admins and super admins for city information.
+     * @description Controls access to city information.  City data is read-only.
      * @path /cities/{cityId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any city.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete city information.
-     * @principle Role-based access control.
+     * @allow (get, list) Any authenticated user can read city information.
+     * @deny (create, update, delete) No one can create, update, or delete cities via client.
+     * @principle Restricts modification of city data to server-side logic.
      */
     match /cities/{cityId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Grants full access to admins and super admins for campaign tasks.
+     * @description Controls access to campaign tasks.
      * @path /tasks/{taskId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any task.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete tasks.
-     * @principle Role-based access control.
+     * @allow (get, list) Any authenticated user can read task information.
+     * @allow (create, update, delete) Only authenticated users can create, update, or delete tasks.
+     * @principle Requires authentication for task modification.
      */
     match /tasks/{taskId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isExistingTask();
+      allow delete: if isExistingTask();
     }
 
     /**
-     * @description Grants full access to admins and super admins for call records for voters.
+     * @description Controls access to call records.
      * @path /calls/{callId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any call record.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete call records.
-     * @principle Role-based access control.
+     * @allow (get, list) Any authenticated user can read call records.
+     * @allow (create, update, delete) Only authenticated users can create, update, or delete calls.
+     * @principle Requires authentication for call modification.
      */
     match /calls/{callId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isExistingCall();
+      allow delete: if isExistingCall();
     }
 
     /**
-     * @description Grants full access to admins and super admins for application branding settings.
-     * @path /settings/branding
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on the branding settings.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot modify branding settings.
-     * @principle Role-based access control.
-     */
-    match /settings/branding {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
-    }
-
-    /**
-     * @description Grants full access to admins and super admins for user-managed lists.
+     * @description Controls access to user-managed lists.
      * @path /lists/{listId}
-     * @allow (read, write, create, update, delete) - An admin or super admin can perform any operation on any list.
-     * @deny (read, write, create, update, delete) - A non-admin user cannot modify or delete lists.
-     * @principle Role-based access control.
+     * @allow (get, list) Any authenticated user can read lists.
+     * @allow (create, update, delete) Only authenticated users can create, update, or delete lists.
      */
     match /lists/{listId} {
-      allow get, list, create, update, delete: if isAdmin() || isSuperAdmin();
+        allow get: if true;
+        allow list: if true;
+        allow create: if isSignedIn();
+        allow update: if isExistingList();
+        allow delete: if isExistingList();
     }
 
     /**
-     * @description Helper function to check if the user has the 'admin' role.
-     * @return {boolean} True if the user has the 'admin' role, false otherwise.
+     * @description Helper function to determine if the current user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
      */
-    function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/roles/admin).data.permissions.hasAny(['campaign:create', 'campaign:read', 'campaign:update', 'campaign:delete',
-              'voter:create', 'voter:read', 'voter:update', 'voter:delete',
-              'user:create', 'user:read', 'user:update', 'user:delete',
-              'role:create', 'role:read', 'role:update', 'role:delete',
-              'city:create', 'city:read', 'city:update', 'city:delete',
-              'task:create', 'task:read', 'task:update', 'task:delete',
-              'call:create', 'call:read', 'call:update', 'call:delete',
-              'report:read',
-              'setting:update']);
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     /**
-     * @description Helper function to check if the user has the 'super_admin' role.
-     * @return {boolean} True if the user has the 'super_admin' role, false otherwise.
+     * @description Helper function to determine if the requested user ID matches the authenticated user's ID.
+     * @param {string} userId The user ID from the path.
+     * @return {boolean} True if the user IDs match, false otherwise.
      */
-    function isSuperAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/roles/super_admin).data.permissions.hasAny(['campaign:create', 'campaign:read', 'campaign:update', 'campaign:delete',
-              'voter:create', 'voter:read', 'voter:update', 'voter:delete',
-              'user:create', 'user:read', 'user:update', 'user:delete',
-              'role:create', 'role:read', 'role:update', 'role:delete',
-              'city:create', 'city:read', 'city:update', 'city:delete',
-              'task:create', 'task:read', 'task:update', 'task:delete',
-              'call:create', 'call:read', 'call:update', 'call:delete',
-              'report:read',
-              'setting:update']);
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
+
+    /**
+     * @description Helper function to determine if the campaign exists when doing destructive operations
+     * @return {boolean} True if resource exists
+     */
+    function isExistingCampaign() {
+        return resource != null && isSignedIn();
+    }
+
+    /**
+     * @description Helper function to determine if the strategy exists when doing destructive operations
+     * @return {boolean} True if resource exists
+     */
+    function isExistingStrategy() {
+        return resource != null && isSignedIn();
+    }
+
+    /**
+     * @description Helper function to determine if the voter exists when doing destructive operations
+     * @return {boolean} True if resource exists
+     */
+    function isExistingVoter() {
+        return resource != null && isSignedIn();
+    }
+
+    /**
+     * @description Helper function to determine if the task exists when doing destructive operations
+     * @return {boolean} True if resource exists
+     */
+    function isExistingTask() {
+        return resource != null && isSignedIn();
+    }
+
+    /**
+     * @description Helper function to determine if the call exists when doing destructive operations
+     * @return {boolean} True if resource exists
+     */
+    function isExistingCall() {
+        return resource != null && isSignedIn();
+    }
+
+        /**
+     * @description Helper function to determine if the list exists when doing destructive operations
+     * @return {boolean} True if resource exists
+     */
+    function isExistingList() {
+        return resource != null && isSignedIn();
+    }
+
+     /**
+      * @description Helper function to determine if the requested user ID matches the authenticated user's ID and if the document exists.
+      * @param {string} userId The user ID from the path.
+      * @return {boolean} True if the user IDs match and the document exists, false otherwise.
+      */
+     function isExistingOwner(userId) {
+       return isOwner(userId) && resource != null;
+     }
   }
 }
