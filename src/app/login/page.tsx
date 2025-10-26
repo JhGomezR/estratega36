@@ -120,12 +120,18 @@ export default function LoginPage() {
           router.push("/");
 
         } catch (creationError: any) {
-          // Handle case where creation also fails (e.g., email already exists with different credential)
-           console.error("Admin creation error:", creationError);
+           // Handle case where creation also fails (e.g., email already exists with different credential, or weak password)
+           console.error("Admin creation/login error:", creationError);
+           let description = "No se pudo iniciar sesión ni crear la cuenta de administrador.";
+           if (creationError.code === 'auth/email-already-in-use') {
+               description = "El email ya está registrado. Si olvidaste la contraseña, contacta a soporte.";
+           } else if (creationError.code === 'auth/wrong-password') {
+                description = "La contraseña es incorrecta. Por favor, inténtalo de nuevo.";
+           }
            toast({
             variant: "destructive",
             title: "Error Crítico",
-            description: "No se pudo iniciar sesión ni crear la cuenta de administrador.",
+            description: description,
           });
         }
       } else {
