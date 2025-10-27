@@ -50,6 +50,7 @@ import type { BrandingSettings } from "@/lib/types"
 import Image from "next/image"
 import { signOut } from "firebase/auth"
 import { usePermissions } from "@/hooks/usePermissions"
+import { useMemo } from "react"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -73,6 +74,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.push('/login');
     }
   }, [isUserLoading, user, router]);
+
+  const navLinks = useMemo(() => {
+    const links = [];
+    if (hasPermission("campaign:read")) links.push("/campaigns");
+    if (hasPermission("voter:read")) {
+      links.push("/voters");
+      links.push("/map");
+    }
+    if (hasPermission("user:read")) links.push("/network");
+    if (hasAnyPermission(["task:read", "call:read"])) {
+        if(hasPermission("task:read")) links.push("/activities/calendar");
+        if(hasPermission("call:read")) links.push("/activities/calls");
+        if(hasPermission("task:read")) links.push("/activities/tasks");
+    }
+    if(hasPermission("report:read")) {
+        links.push("/analysis");
+        links.push("/strategies");
+    }
+    // Admin links are not primary navigation targets for auto-redirect
+
+    return links.sort();
+  }, [hasPermission, hasAnyPermission]);
+
+  React.useEffect(() => {
+      if (!permissionsLoading && navLinks.length > 0 && pathname === '/') {
+          router.replace(navLinks[0]);
+      }
+  }, [permissionsLoading, navLinks, pathname, router]);
 
 
   const isActive = (path: string, exact: boolean = false) => {
