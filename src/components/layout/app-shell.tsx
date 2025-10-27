@@ -49,6 +49,7 @@ import { doc } from "firebase/firestore"
 import type { BrandingSettings } from "@/lib/types"
 import Image from "next/image"
 import { signOut } from "firebase/auth"
+import { usePermissions } from "@/hooks/usePermissions"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -62,6 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
 
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
   const { data: settings } = useDoc<BrandingSettings>(settingsRef);
@@ -91,7 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push('/login');
   }
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || !user || permissionsLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin" />
@@ -118,110 +120,142 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/campaigns")} tooltip="Campañas">
-                <Link href="/campaigns">
-                  <Target />
-                  <span>Campañas</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/voters")} tooltip="Votantes">
-                <Link href="/voters">
-                  <Users />
-                  <span>Votantes</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/map")} tooltip="Mapa de Votantes">
-                <Link href="/map">
-                  <Map />
-                  <span>Mapa de Votantes</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/network")} tooltip="Mapa de Red">
-                <Link href="/network">
-                  <GitFork />
-                  <span>Mapa de Red</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             
-            <AppShellCollapsibleGroup
-              icon={<Activity />}
-              label="Actividades"
-              isActive={isActive("/activities")}
-            >
+            {hasPermission("campaign:read") && (
               <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/calendar")} tooltip="Calendario">
-                  <Link href="/activities/calendar"><Calendar className="size-3.5"/><span>Calendario</span></Link>
+                <SidebarMenuButton asChild isActive={isActive("/campaigns")} tooltip="Campañas">
+                  <Link href="/campaigns">
+                    <Target />
+                    <span>Campañas</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/calls")} tooltip="Llamadas">
-                  <Link href="/activities/calls"><Phone className="size-3.5"/><span>Llamadas</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/tasks")} tooltip="Tareas">
-                  <Link href="/activities/tasks"><ListChecks className="size-3.5"/><span>Tareas</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </AppShellCollapsibleGroup>
+            )}
 
-            <SidebarGroup>
-              <SidebarGroupLabel>Análisis IA</SidebarGroupLabel>
+            {hasPermission("voter:read") && (
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/analysis")} tooltip="Análisis de Campaña">
-                  <Link href="/analysis">
-                    <BrainCircuit />
-                    <span>Análisis de Campaña</span>
+                <SidebarMenuButton asChild isActive={isActive("/voters")} tooltip="Votantes">
+                  <Link href="/voters">
+                    <Users />
+                    <span>Votantes</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            )}
+            
+            {hasPermission("voter:read") && (
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/strategies")} tooltip="Estrategias">
-                  <Link href="/strategies">
-                    <Lightbulb />
-                    <span>Generador de Estrategias</span>
+                <SidebarMenuButton asChild isActive={isActive("/map")} tooltip="Mapa de Votantes">
+                  <Link href="/map">
+                    <Map />
+                    <span>Mapa de Votantes</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </SidebarGroup>
+            )}
+
+            {hasPermission("user:read") && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive("/network")} tooltip="Mapa de Red">
+                  <Link href="/network">
+                    <GitFork />
+                    <span>Mapa de Red</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+            
+            {hasAnyPermission(["task:read", "call:read"]) && (
+              <AppShellCollapsibleGroup
+                icon={<Activity />}
+                label="Actividades"
+                isActive={isActive("/activities")}
+              >
+                {hasPermission("task:read") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/calendar")} tooltip="Calendario">
+                      <Link href="/activities/calendar"><Calendar className="size-3.5"/><span>Calendario</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {hasPermission("call:read") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/calls")} tooltip="Llamadas">
+                      <Link href="/activities/calls"><Phone className="size-3.5"/><span>Llamadas</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {hasPermission("task:read") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/tasks")} tooltip="Tareas">
+                      <Link href="/activities/tasks"><ListChecks className="size-3.5"/><span>Tareas</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+              </AppShellCollapsibleGroup>
+            )}
+
+            {hasPermission("report:read") && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Análisis IA</SidebarGroupLabel>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/analysis")} tooltip="Análisis de Campaña">
+                    <Link href="/analysis">
+                      <BrainCircuit />
+                      <span>Análisis de Campaña</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/strategies")} tooltip="Estrategias">
+                    <Link href="/strategies">
+                      <Lightbulb />
+                      <span>Generador de Estrategias</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarGroup>
+            )}
 
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-            <AppShellCollapsibleGroup
-              icon={<Settings />}
-              label="Administración"
-              isActive={isActive("/administration")}
-            >
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/roles")} tooltip="Roles">
-                  <Link href="/administration/roles"><Shield className="size-3.5"/><span>Roles</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/users")} tooltip="Usuarios">
-                  <Link href="/administration/users"><UserCog className="size-3.5"/><span>Usuarios</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/cities")} tooltip="Ciudades">
-                  <Link href="/administration/cities"><Building className="size-3.5"/><span>Ciudades</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-               <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/settings")} tooltip="Configuración">
-                  <Link href="/administration/settings"><Palette className="size-3.5"/><span>Configuración</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </AppShellCollapsibleGroup>
+            {hasAnyPermission(["role:read", "user:read", "city:read", "setting:update"]) && (
+              <AppShellCollapsibleGroup
+                icon={<Settings />}
+                label="Administración"
+                isActive={isActive("/administration")}
+              >
+                {hasPermission("role:read") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/roles")} tooltip="Roles">
+                      <Link href="/administration/roles"><Shield className="size-3.5"/><span>Roles</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {hasPermission("user:read") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/users")} tooltip="Usuarios">
+                      <Link href="/administration/users"><UserCog className="size-3.5"/><span>Usuarios</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {hasPermission("city:read") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/cities")} tooltip="Ciudades">
+                      <Link href="/administration/cities"><Building className="size-3.5"/><span>Ciudades</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {hasPermission("setting:update") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/settings")} tooltip="Configuración">
+                      <Link href="/administration/settings"><Palette className="size-3.5"/><span>Configuración</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+              </AppShellCollapsibleGroup>
+            )}
              <SidebarMenuItem>
                 <SidebarMenuButton onClick={handleLogout} tooltip="Cerrar Sesión">
                     <LogOut />
@@ -260,6 +294,11 @@ function AppShellCollapsibleGroup({ children, icon, label, isActive }: { childre
     }
   }, [state]);
 
+  const visibleChildren = React.Children.toArray(children).filter(Boolean);
+  if (visibleChildren.length === 0) {
+    return null;
+  }
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
       <CollapsibleTrigger asChild>
@@ -275,7 +314,7 @@ function AppShellCollapsibleGroup({ children, icon, label, isActive }: { childre
       </CollapsibleTrigger>
       <CollapsibleContent>
         <SidebarMenu className="mx-3.5 border-l border-sidebar-border py-2 pl-2.5">
-          {children}
+          {visibleChildren}
         </SidebarMenu>
       </CollapsibleContent>
     </Collapsible>
