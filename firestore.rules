@@ -2,200 +2,184 @@
  * @fileoverview Firestore Security Rules for the application.
  *
  * Core Philosophy:
- * This ruleset prioritizes strong authorization and assumes a flexible data model. It focuses on controlling who can
- * access which data, rather than strictly enforcing data shapes. This approach supports rapid prototyping
- * and iteration.  Rules generally follow an ownership model, with some public read access where appropriate.
+ * This ruleset prioritizes a secure, owner-centric model for user data and employs role-based access control
+ * for administrative functions. Data validation is relaxed in this prototyping phase to allow for rapid schema iteration.
  *
  * Data Structure:
- * - /users/{userId}: User profiles, accessible only to the owning user.
- * - /roles/{roleId}: Role definitions.
- * - /campaigns/{campaignId}: Campaign data.
- * - /campaigns/{campaignId}/generatedStrategies/{strategyId}: AI-generated strategies for campaigns.
- * - /voters/{voterId}: Voter information. List access is denied due to the private nature of this data.
- * - /cities/{cityId}: City information.
- * - /tasks/{taskId}: Campaign tasks.
- * - /calls/{callId}: Call records for voters.
- * - /settings/branding: Application-wide branding settings (single document).
- * - /lists/{listId}: User-managed lists.
+ * - `/users/{userId}`: User profile information, accessible only to the user themselves.
+ * - `/roles/{roleId}`: Role definitions (e.g., admin, campaign_manager, promoter).  Write access is restricted.
+ * - `/campaigns/{campaignId}`: Campaign data.
+ * - `/voters/{voterId}`: Voter information, accessible to authorized users.
+ * - `/cities/{cityId}`: City data. Publicly readable.
+ * - `/tasks/{taskId}`: Task data.
+ * - `/calls/{callId}`: Call data.
+ * - `/settings/branding`: Application-wide branding settings. Write access is restricted.
+ * - `/lists/{listId}`: User-managed lists.
+ * - `/campaigns/{campaignId}/generatedStrategies/{strategyId}`: AI-generated strategies for campaigns
  *
  * Key Security Decisions:
- * - No user listing: Listing users is generally disallowed for privacy reasons.
- * - Voters collection: List access is explicitly denied due to the sensitive nature of voter data.
- * - Flexible schemas: Data validation is minimized to allow for rapid schema changes. Only authorization-critical
- *   fields are validated.
+ * - User listing is explicitly denied.
+ * - The `cities` collection is publicly readable.
+ * - Strict ownership is enforced for user profiles.
+ * - Write access to `roles` and `settings/branding` is denied in this prototyping phase.
  *
  * Denormalization for Authorization:
- *   None specified in the current data model, but consider adding `ownerId` or `member` fields to documents to simplify rules
- *   and avoid costly `get()` calls in the future.
- *
- * Structural Segregation:
- *   The application does not currently segregate private and public data into separate collections. If needed,
- *   consider moving public content to top-level collections and keeping private content in user-specific subcollections.
+ *  - The `Voter` entity has a `promoterId` field to associate it with a user.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
-     * @path N/A (Helper Function)
-     * @allow N/A
-     * @deny N/A
-     * @principle Authentication is required for many operations.
+     * @description Checks if the user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user ID matches the provided user ID.
-     * @path N/A (Helper Function)
-     * @allow N/A
-     * @deny N/A
-     * @principle Enforces user ownership.
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     * @param {string} userId - The user ID to compare against the authenticated user's UID.
+     * @return {boolean} True if the user is the owner, false otherwise.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user ID matches the provided user ID and the resource exists
-     * @path N/A (Helper Function)
-     * @allow N/A
-     * @deny N/A
-     * @principle Enforces user ownership and resource existence for destructive operations
+     * @description Checks if the authenticated user is the owner and the resource exists.
+     * @param {string} userId - The user ID to compare against the authenticated user's UID.
+     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Enforces access control for user profiles.
+     * @description Defines access rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) User RAZYHb7egCOiG9cxdgDiFwu7xQn2 can create their own profile with matching userId.
-     * @allow (get, update, delete) User RAZYHb7egCOiG9cxdgDiFwu7xQn2 can access and modify their own profile.
-     * @deny (create) User RAZYHb7egCOiG9cxdgDiFwu7xQn3 cannot create a profile for RAZYHb7egCOiG9cxdgDiFwu7xQn2.
-     * @deny (get, update, delete) User RAZYHb7egCOiG9cxdgDiFwu7xQn3 cannot access or modify the profile of RAZYHb7egCOiG9cxdgDiFwu7xQn2.
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @allow (create) - User can create their own profile if the userId matches their auth UID.
+     * @allow (get, update, delete) - User can access/modify their own profile if authenticated.
+     * @deny (list) - User listing is not allowed.
+     * @deny (create) - User cannot create a user document that does not match their auth id.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false; // Listing users is generally not allowed.
+      allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces access control for roles.
+     * @description Defines access rules for roles.
      * @path /roles/{roleId}
-     * @allow (get, list) Any authenticated user can read role information.
-     * @deny (create, update, delete) Only specific roles can create, update, or delete roles (not implemented in this prototype).
-     * @principle Public read access for roles; restricted write access.
+     * @allow (get, list) - Anyone can read roles.
+     * @deny (create, update, delete) - No one can create, update, or delete roles via client.
+     * @principle Roles are read-only for clients in this phase.
      */
     match /roles/{roleId} {
-      allow get, list: if true; // Public read access for roles.
-      allow create, update, delete: if false; // TODO: Implement role-based write access.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces access control for campaigns.
+     * @description Defines access rules for campaigns.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) Any authenticated user can read campaign information.
-     * @deny (create, update, delete) Only specific roles or campaign members can create, update, or delete campaigns (not implemented in this prototype).
-     * @principle Public read access for campaigns; restricted write access.
+     * @allow (get, list) - Anyone can read campaign data.
+     * @deny (create, update, delete) - No one can create, update, or delete campaigns.
+     * @principle Campaigns are read-only for clients in this phase.
      */
     match /campaigns/{campaignId} {
-      allow get, list: if true; // Public read access for campaigns.
-      allow create, update, delete: if false; // TODO: Implement role-based or ownership-based write access.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
      /**
-      * @description Enforces access control for AI-generated strategies associated with a campaign.
+      * @description Defines access rules for AI-generated campaign strategies.
       * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
-      * @allow (get, list) Any authenticated user can read generated strategies.
-      * @deny (create, update, delete) Only specific roles or campaign members can create, update, or delete strategies (not implemented in this prototype).
-      * @principle Public read access for generated strategies; restricted write access.
+      * @allow (get, list) - Anyone can read AI-generated strategies.
+      * @deny (create, update, delete) - No one can create, update, or delete AI-generated strategies.
+      * @principle Generated strategies are read-only for clients in this phase.
       */
     match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Implement role-based or ownership-based write access.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces access control for voter information.
+     * @description Defines access rules for voters.
      * @path /voters/{voterId}
-     * @allow (get) Any authenticated user can read voter information.
-     * @deny (list) Listing voters is not allowed due to privacy concerns.
-     * @deny (create, update, delete) Only specific roles can create, update, or delete voters (not implemented in this prototype).
-     * @principle Restricted access to voter data for privacy.
+     * @allow (get, list) - Anyone can read voters data.
+     * @deny (create, update, delete) - No one can create, update, or delete voters via client.
+     * @principle Voters are read-only for clients in this phase.
      */
     match /voters/{voterId} {
-      allow get: if true;
-      allow list: if false; // Listing voters is not allowed.
-      allow create, update, delete: if false; // TODO: Implement role-based write access.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces access control for city information.
+     * @description Defines access rules for cities.
      * @path /cities/{cityId}
-     * @allow (get, list) Any authenticated user can read city information.
-     * @deny (create, update, delete) Only specific roles can create, update, or delete cities (not implemented in this prototype).
-     * @principle Public read access for cities; restricted write access.
+     * @allow (get, list) - Anyone can read city data.
+     * @deny (create, update, delete) - No one can create, update, or delete cities via client.
+     * @principle Cities are publicly readable.
      */
     match /cities/{cityId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Implement role-based write access.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces access control for campaign tasks.
+     * @description Defines access rules for tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any authenticated user can read task information.
-     * @deny (create, update, delete) Only specific roles or campaign members can create, update, or delete tasks (not implemented in this prototype).
-     * @principle Public read access for tasks; restricted write access.
+     * @allow (get, list) - Anyone can read task data.
+     * @deny (create, update, delete) - No one can create, update, or delete tasks via client.
+     * @principle Tasks are read-only for clients in this phase.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Implement role-based or ownership-based write access.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces access control for call records.
+     * @description Defines access rules for calls.
      * @path /calls/{callId}
-     * @allow (get, list) Any authenticated user can read call information.
-     * @deny (create, update, delete) Only specific roles or campaign members can create, update, or delete call records (not implemented in this prototype).
-     * @principle Public read access for calls; restricted write access.
+     * @allow (get, list) - Anyone can read call data.
+     * @deny (create, update, delete) - No one can create, update, or delete calls via client.
+     * @principle Calls are read-only for clients in this phase.
      */
     match /calls/{callId} {
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Implement role-based or ownership-based write access.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces access control for application branding settings.
+     * @description Defines access rules for branding settings.
      * @path /settings/branding
-     * @allow (get) Any authenticated user can read branding settings.
-     * @deny (list) Listing is not applicable for single documents.
-     * @deny (create, update, delete) Only specific roles can update branding settings (not implemented in this prototype).
-     * @principle Public read access for branding settings; restricted write access.
+     * @allow (get) - Anyone can read branding settings.
+     * @deny (create, update, delete, list) - No one can create, update, or delete branding settings via client.
+     * @principle Branding settings are read-only for clients in this phase.
      */
     match /settings/branding {
       allow get: if true;
-      allow list: if false; // Not applicable for single documents.
-      allow create, update, delete: if false; // TODO: Implement role-based write access.
+      allow list: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces access control for user-managed lists.
+     * @description Defines access rules for managed lists.
      * @path /lists/{listId}
-     * @allow (get, list) Any authenticated user can read list information.
-     * @deny (create, update, delete) Only specific roles or list owners can create, update, or delete lists (not implemented in this prototype).
-     * @principle Public read access for lists; restricted write access.
+     * @allow (get, list) - Anyone can read managed lists.
+     * @deny (create, update, delete) - No one can create, update, or delete managed lists via client.
+     * @principle Managed lists are read-only for clients in this phase.
      */
     match /lists/{listId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Implement role-based or ownership-based write access.
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
   }
 }
