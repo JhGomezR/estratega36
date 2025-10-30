@@ -23,9 +23,8 @@ export default function NetworkPage() {
     );
 
     const activeUsers = React.useMemo(() => {
-        // Superadmin doesn't need to be filtered out from the tree data itself.
-        // The tree starts from campaigns and their assigned root users.
-        return usersData?.filter(user => user.status === 'activo');
+        // Exclude the super admin from the tree data, as they are not part of any specific campaign hierarchy
+        return usersData?.filter(user => user.status === 'activo' && user.email !== 'axdrcys@gmail.com');
     }, [usersData]);
 
     const isLoading = usersLoading || rolesLoading || campaignsLoading;
