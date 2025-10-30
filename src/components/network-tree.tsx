@@ -66,7 +66,6 @@ const VoterNode = ({ voter }: { voter: Voter }) => {
 
 
 const Node = ({ node }: { node: TreeNode; }) => {
-    const isPromoter = node.roleName?.toLowerCase().includes('promotor');
 
     return (
         <div className="flex flex-col items-center relative">
@@ -83,55 +82,70 @@ const Node = ({ node }: { node: TreeNode; }) => {
                             <Badge variant="secondary" className="capitalize mt-1 text-xs">{node.roleName}</Badge>
                         </div>
                         <div className="flex flex-col items-end gap-1 text-muted-foreground">
-                            {!isPromoter && (
-                                <div className="flex items-center gap-1.5" title="Reportes directos">
+                            {node.directChildrenCount > 0 && (
+                                <div className="flex items-center gap-1.5" title="Equipo directo">
                                     <Users className="h-4 w-4" />
                                     <span className="font-bold text-sm">{node.directChildrenCount}</span>
                                 </div>
                             )}
-                            <div className="flex items-center gap-1.5" title="Votantes registrados">
-                                <UserCheck className="h-4 w-4" />
-                                <span className="font-bold text-sm">{node.voters.length}</span>
-                            </div>
+                            {node.voters.length > 0 && (
+                                <div className="flex items-center gap-1.5" title="Votantes registrados">
+                                    <UserCheck className="h-4 w-4" />
+                                    <span className="font-bold text-sm">{node.voters.length}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
             {/* Connecting lines and children */}
-            {(node.children.length > 0 || (isPromoter && node.voters.length > 0)) && (
+            {(node.children.length > 0 || node.voters.length > 0) && (
                 <div className="flex justify-center pt-8 relative">
                     {/* Vertical line from parent */}
                     <div className="absolute top-0 h-8 w-px bg-border" />
 
-                    {/* Horizontal line connecting children */}
-                    {node.children.length > 1 && (
-                         <div className="absolute top-8 left-1/2 right-1/2 h-px bg-border" style={{left: 'calc(50% - (100% / 2 /' + node.children.length + '))', right: 'calc(50% - (100% / 2 /' + node.children.length + '))'}} />
+                     {/* Horizontal line connecting all children groups */}
+                    {(node.children.length > 0 && node.voters.length > 0) && (
+                       <div className="absolute top-8 left-1/4 right-1/4 h-px bg-border" />
                     )}
 
-                    {/* Render user children */}
-                    {node.children.length > 0 && (
-                        <div className="flex gap-x-8">
-                            {node.children.map((child) => (
-                                <div key={child.id} className="flex flex-col items-center relative">
-                                    <div className="absolute top-0 h-8 w-px bg-border" />
-                                    <Node node={child} />
+                    <div className="flex gap-x-8">
+                        {/* Render user children */}
+                        {node.children.length > 0 && (
+                            <div className="flex flex-col items-center">
+                                <div className="absolute top-8 h-px bg-border" style={{ 
+                                    left: node.children.length > 1 ? '50%' : '50%',
+                                    right: node.children.length > 1 ? '50%' : '50%',
+                                    width: node.children.length > 1 ? `calc(${node.children.length-1} * (280px + 32px))` : '0',
+                                    transform: 'translateX(-50%)'
+                                 }}/>
+                                <div className="flex gap-x-8">
+                                    {node.children.map((child) => (
+                                        <div key={child.id} className="flex flex-col items-center relative">
+                                            <div className="absolute top-0 h-8 w-px bg-border" />
+                                            <Node node={child} />
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                    
-                    {/* Render voter children for promoters */}
-                    {isPromoter && node.voters.length > 0 && (
-                       <div className="flex flex-wrap justify-center gap-x-4 gap-y-8">
-                            {node.voters.map((voter) => (
-                                 <div key={voter.id} className="flex flex-col items-center relative">
-                                    <div className="absolute top-0 h-8 w-px bg-border" />
-                                    <VoterNode voter={voter} />
+                            </div>
+                        )}
+                        
+                        {/* Render voter children */}
+                        {node.voters.length > 0 && (
+                           <div className="flex flex-col items-center">
+                                <div className="absolute top-0 h-8 w-px bg-border" />
+                                <div className="flex flex-wrap justify-center gap-x-4 gap-y-8">
+                                    {node.voters.map((voter) => (
+                                        <div key={voter.id} className="flex flex-col items-center relative">
+                                            <div className="absolute top-0 h-8 w-px bg-border" />
+                                            <VoterNode voter={voter} />
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                       </div>
-                    )}
+                           </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
