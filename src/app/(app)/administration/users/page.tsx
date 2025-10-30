@@ -37,14 +37,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, doc, setDoc } from "firebase/firestore"
+import { collection, doc } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { createUserWithEmailAndPassword } from "firebase/auth"
 import { useToast } from "@/hooks/use-toast"
+import { createUser } from "./actions"
+
 
 export default function UsersPage() {
   const firestore = useFirestore();
@@ -84,13 +84,16 @@ export default function UsersPage() {
     const currentUserData = usersData.find(u => u.id === currentUser.uid);
     if (!currentUserData) return [];
     
-    const currentUserRole = roles.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
+    const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
+    const adminRoleIds = roles
+        .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
+        .map(r => r.id);
 
-    if (currentUserRole === 'admin') {
+    if (adminRoleIds.includes(currentUserData.roleId)) {
         return activeUsers;
     }
 
-    if (currentUserRole === 'lider') {
+    if (currentUserData.roleId === 'lider') {
         const teamMemberIds = usersData.filter(u => u.parentId === currentUser.uid).map(u => u.id);
         const allTeamIds = [currentUser.uid, ...teamMemberIds];
         return activeUsers.filter(u => allTeamIds.includes(u.id));
@@ -148,29 +151,22 @@ export default function UsersPage() {
             toast({ variant: "destructive", title: "Error al crear usuario", description: "La contraseña es obligatoria para nuevos usuarios." });
             return;
         }
-        // Create auth user first
-        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-        const newAuthUser = userCredential.user;
         
-        const { password, ...restOfData } = data;
+        const result = await createUser(data);
 
-        const newUserProfile: Omit<User, 'id'> = {
-          ...restOfData,
-          avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-          status: 'activo',
-        };
-        
-        // Then create firestore document with the same UID
-        await setDoc(doc(firestore, 'users', newAuthUser.uid), newUserProfile);
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
         toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
       }
       setIsFormOpen(false);
     } catch (error: any) {
         console.error("Error handling user form:", error);
         let description = "Ocurrió un error inesperado.";
-        if (error.code === 'auth/email-already-in-use') {
+        if (error.message.includes('auth/email-already-exists')) {
             description = "El correo electrónico ya está en uso por otra cuenta.";
-        } else if (error.code === 'auth/weak-password') {
+        } else if (error.message.includes('auth/weak-password')) {
             description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
         }
         toast({ variant: "destructive", title: "Error al crear usuario", description });
