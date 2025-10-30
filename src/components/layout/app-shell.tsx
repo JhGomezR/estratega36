@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [isUserLoading, user, router]);
 
   const navLinks = useMemo(() => {
-    const links = [];
+    const links = ["/"]; // Start with Dashboard as the base link
     if (hasPermission("campaign:read")) links.push("/campaigns");
     if (hasPermission("voter:read")) {
       links.push("/voters");
@@ -92,16 +92,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         links.push("/analysis");
         links.push("/strategies");
     }
-    // Admin links are not primary navigation targets for auto-redirect
-
-    return links.sort();
+    // Admin links are sorted separately and not used for auto-redirect
+    if (hasPermission("role:read")) links.push("/administration/roles");
+    if (hasPermission("user:read")) links.push("/administration/users");
+    if (hasPermission("city:read")) links.push("/administration/cities");
+    if (hasPermission("setting:update")) links.push("/administration/settings");
+    
+    return links;
   }, [hasPermission, hasAnyPermission]);
 
   React.useEffect(() => {
-      if (!permissionsLoading && navLinks.length > 0 && pathname === '/') {
-          router.replace(navLinks[0]);
-      }
-  }, [permissionsLoading, navLinks, pathname, router]);
+    if (!permissionsLoading && navLinks.length > 1 && pathname === '/') {
+        const firstModule = navLinks.filter(p => p !== '/').sort()[0];
+        if (firstModule) {
+            router.replace(firstModule);
+        }
+    }
+}, [permissionsLoading, navLinks, pathname, router]);
 
 
   const isActive = (path: string, exact: boolean = false) => {
