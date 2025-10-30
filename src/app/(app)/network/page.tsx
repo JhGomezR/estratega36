@@ -2,14 +2,13 @@
 import React from 'react';
 import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import type { User, Role, Campaign } from '@/lib/types';
+import type { User, Role, Campaign, Voter } from '@/lib/types';
 import { NetworkTree } from '@/components/network-tree';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export default function NetworkPage() {
     const firestore = useFirestore();
-    const auth = useAuth();
 
     const { data: usersData, isLoading: usersLoading } = useCollection<User>(
         useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
@@ -19,6 +18,9 @@ export default function NetworkPage() {
     );
     const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(
         useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
+    );
+    const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
+        useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
     );
 
     const activeUsers = React.useMemo(() => {
@@ -35,7 +37,16 @@ export default function NetworkPage() {
         );
     }, [usersData, roles]);
 
-    const isLoading = usersLoading || rolesLoading || campaignsLoading;
+    const voterCounts = React.useMemo(() => {
+        if (!voters) return new Map<string, number>();
+        const counts = new Map<string, number>();
+        voters.forEach(voter => {
+            counts.set(voter.promoterId, (counts.get(voter.promoterId) || 0) + 1);
+        });
+        return counts;
+    }, [voters]);
+
+    const isLoading = usersLoading || rolesLoading || campaignsLoading || votersLoading;
 
     return (
         <div className="flex flex-col gap-8">
@@ -54,7 +65,12 @@ export default function NetworkPage() {
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <NetworkTree users={activeUsers || []} roles={roles || []} campaigns={campaigns || []} />
+                        <NetworkTree 
+                            users={activeUsers || []} 
+                            roles={roles || []} 
+                            campaigns={campaigns || []}
+                            voterCounts={voterCounts}
+                        />
                     )}
                 </CardContent>
             </Card>

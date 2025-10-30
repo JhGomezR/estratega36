@@ -4,20 +4,27 @@ import type { User, Role, Campaign } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users } from 'lucide-react';
+import { Users, UserCheck } from 'lucide-react';
 
 interface TreeNode extends User {
     children: TreeNode[];
     roleName?: string;
     directChildrenCount: number;
+    voterCount: number;
 }
 
-const buildTree = (users: User[], roles: Role[]): Map<string, TreeNode> => {
+const buildTree = (users: User[], roles: Role[], voterCounts: Map<string, number>): Map<string, TreeNode> => {
     const userMap = new Map<string, TreeNode>();
     const roleMap = new Map(roles.map(r => [r.id, r.name]));
 
     users.forEach(user => {
-        userMap.set(user.id, { ...user, children: [], roleName: roleMap.get(user.roleId) || user.roleId, directChildrenCount: 0 });
+        userMap.set(user.id, { 
+            ...user, 
+            children: [], 
+            roleName: roleMap.get(user.roleId) || user.roleId, 
+            directChildrenCount: 0,
+            voterCount: voterCounts.get(user.id) || 0
+        });
     });
 
     userMap.forEach(node => {
@@ -26,9 +33,12 @@ const buildTree = (users: User[], roles: Role[]): Map<string, TreeNode> => {
         }
     });
     
-    // Calculate direct children count after building the tree structure
     userMap.forEach(node => {
         node.directChildrenCount = node.children.length;
+        // Recursively add children's voter counts to the parent
+        node.children.forEach(child => {
+            node.voterCount += child.voterCount;
+        });
     });
 
     userMap.forEach(node => {
@@ -51,8 +61,7 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => (
 const Node = ({ node }: { node: TreeNode; }) => {
     return (
         <div className="flex flex-col items-center relative">
-            {/* The User Card */}
-            <Card className="min-w-[250px] w-fit max-w-sm z-10 bg-card shadow-md border-2 border-primary/20">
+            <Card className="min-w-[280px] w-fit max-w-sm z-10 bg-card shadow-md border-2 border-primary/20">
                 <CardContent className="p-3">
                     <div className="flex items-center gap-4">
                         <Avatar className="h-12 w-12 border">
@@ -63,30 +72,31 @@ const Node = ({ node }: { node: TreeNode; }) => {
                             <p className="font-semibold">{node.firstName} {node.lastName}</p>
                             <Badge variant="secondary" className="capitalize mt-1 text-xs">{node.roleName}</Badge>
                         </div>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Users className="h-4 w-4" />
-                            <span className="font-bold text-sm">{node.directChildrenCount}</span>
+                        <div className="flex flex-col items-end gap-1 text-muted-foreground">
+                            <div className="flex items-center gap-1.5" title="Reportes directos">
+                                <Users className="h-4 w-4" />
+                                <span className="font-bold text-sm">{node.directChildrenCount}</span>
+                            </div>
+                             <div className="flex items-center gap-1.5" title="Votantes en la red">
+                                <UserCheck className="h-4 w-4" />
+                                <span className="font-bold text-sm">{node.voterCount}</span>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Render children if they exist */}
             {node.children.length > 0 && (
                 <div className="flex justify-center pt-8 relative">
-                    {/* Vertical line from parent to horizontal connector */}
                     <div className="absolute top-0 h-8 w-px bg-border -translate-y-px" />
 
-                    {/* Horizontal line connecting all children */}
                     {node.children.length > 1 && (
-                         <div className="absolute top-8 left-0 right-0 h-px bg-border" />
+                         <div className="absolute top-8 left-1/2 right-1/2 h-px bg-border" style={{left: 'calc(50% - (100% / 2 /' + node.children.length + '))', right: 'calc(50% - (100% / 2 /' + node.children.length + '))'}} />
                     )}
                     
-                    {/* Children nodes */}
                     <div className="flex gap-x-8">
                         {node.children.map((child) => (
                             <div key={child.id} className="flex flex-col items-center relative">
-                                {/* Vertical line from horizontal connector to child */}
                                 <div className="absolute top-0 h-8 w-px bg-border" />
                                 <Node node={child} />
                             </div>
@@ -98,14 +108,13 @@ const Node = ({ node }: { node: TreeNode; }) => {
     );
 };
 
-export const NetworkTree = ({ users, roles, campaigns }: { users: User[], roles: Role[], campaigns: Campaign[] }) => {
-    const userMap = React.useMemo(() => buildTree(users, roles), [users, roles]);
+export const NetworkTree = ({ users, roles, campaigns, voterCounts }: { users: User[], roles: Role[], campaigns: Campaign[], voterCounts: Map<string, number> }) => {
+    const userMap = React.useMemo(() => buildTree(users, roles, voterCounts), [users, roles, voterCounts]);
 
     const campaignsWithUsers = campaigns
         .map(campaign => {
             const campaignUsers = users.filter(user => user.campaignIds.includes(campaign.id));
             const rootUsers = campaignUsers.filter(user => {
-                // A root user is one who has no parent, or whose parent is not in the same campaign
                  if (!user.parentId) return true;
                  const parent = userMap.get(user.parentId);
                  return !parent || !parent.campaignIds.includes(campaign.id);
@@ -125,10 +134,8 @@ export const NetworkTree = ({ users, roles, campaigns }: { users: User[], roles:
                     <div key={campaign.id} className="flex flex-col items-center">
                         <CampaignCard campaign={campaign} />
                          <div className="flex justify-center relative pt-8">
-                             {/* Vertical line from campaign to horizontal connector */}
                             <div className="absolute top-0 h-8 w-px bg-border" />
 
-                            {/* Horizontal line for root users */}
                             {campaign.rootUsers.length > 1 && (
                                 <div className="absolute top-8 left-0 right-0 h-px bg-border" />
                             )}
@@ -139,7 +146,6 @@ export const NetworkTree = ({ users, roles, campaigns }: { users: User[], roles:
                                     if (!node) return null;
                                     return (
                                         <div key={node.id} className="flex flex-col items-center relative">
-                                            {/* Vertical line from horizontal connector to node */}
                                             <div className="absolute top-0 h-8 w-px bg-border" />
                                             <Node node={node} />
                                         </div>
