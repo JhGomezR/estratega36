@@ -9,40 +9,26 @@ import { Users } from 'lucide-react';
 interface TreeNode extends User {
     children: TreeNode[];
     roleName?: string;
-    descendantCount: number;
+    directChildrenCount: number;
 }
-
-const getDescendantCount = (nodeId: string, userMap: Map<string, TreeNode>): number => {
-    const node = userMap.get(nodeId);
-    if (!node || node.children.length === 0) {
-        return 0;
-    }
-    let count = node.children.length;
-    for (const child of node.children) {
-        count += getDescendantCount(child.id, userMap);
-    }
-    return count;
-};
-
 
 const buildTree = (users: User[], roles: Role[]): Map<string, TreeNode> => {
     const userMap = new Map<string, TreeNode>();
     const roleMap = new Map(roles.map(r => [r.id, r.name]));
 
     users.forEach(user => {
-        userMap.set(user.id, { ...user, children: [], roleName: roleMap.get(user.roleId) || user.roleId, descendantCount: 0 });
+        userMap.set(user.id, { ...user, children: [], roleName: roleMap.get(user.roleId) || user.roleId, directChildrenCount: 0 });
     });
 
-    const roots: TreeNode[] = [];
     userMap.forEach(node => {
         if (node.parentId && userMap.has(node.parentId)) {
             userMap.get(node.parentId)!.children.push(node);
         }
     });
     
-    // Calculate descendant counts after building the tree structure
+    // Calculate direct children count after building the tree structure
     userMap.forEach(node => {
-        node.descendantCount = getDescendantCount(node.id, userMap);
+        node.directChildrenCount = node.children.length;
     });
 
     userMap.forEach(node => {
@@ -79,7 +65,7 @@ const Node = ({ node }: { node: TreeNode; }) => {
                         </div>
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Users className="h-4 w-4" />
-                            <span className="font-bold text-sm">{node.descendantCount}</span>
+                            <span className="font-bold text-sm">{node.directChildrenCount}</span>
                         </div>
                     </div>
                 </CardContent>
