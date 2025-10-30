@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
-  const { hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
+  const { role, hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
 
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
   const { data: settings } = useDoc<BrandingSettings>(settingsRef);
@@ -101,14 +101,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return links;
   }, [hasPermission, hasAnyPermission]);
 
-  React.useEffect(() => {
-    if (!permissionsLoading && navLinks.length > 1 && pathname === '/') {
-        const firstModule = navLinks.filter(p => p !== '/').sort()[0];
-        if (firstModule) {
-            router.replace(firstModule);
-        }
+ React.useEffect(() => {
+    if (permissionsLoading) return;
+
+    const adminRoles = ['admin', 'super', 'super_admin', 'administrador'];
+    const isAdmin = role?.name && adminRoles.includes(role.name.toLowerCase());
+    
+    // Only redirect if it's not an admin and they are on the dashboard
+    if (!isAdmin && navLinks.length > 1 && pathname === '/') {
+      const firstModule = navLinks.filter(p => p !== '/').sort()[0];
+      if (firstModule) {
+        router.replace(firstModule);
+      }
     }
-}, [permissionsLoading, navLinks, pathname, router]);
+  }, [permissionsLoading, navLinks, pathname, router, role]);
 
 
   const isActive = (path: string, exact: boolean = false) => {
