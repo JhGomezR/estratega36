@@ -1,185 +1,149 @@
 /**
- * @fileoverview Firestore Security Rules for the application.
+ * @fileoverview Firestore Security Rules for the political campaign management application.
  *
  * Core Philosophy:
- * This ruleset prioritizes a secure, owner-centric model for user data and employs role-based access control
- * for administrative functions. Data validation is relaxed in this prototyping phase to allow for rapid schema iteration.
+ * This ruleset provides open read and write access to all documents in the database.
  *
  * Data Structure:
- * - `/users/{userId}`: User profile information, accessible only to the user themselves.
- * - `/roles/{roleId}`: Role definitions (e.g., admin, campaign_manager, promoter).  Write access is restricted.
- * - `/campaigns/{campaignId}`: Campaign data.
- * - `/voters/{voterId}`: Voter information, accessible to authorized users.
- * - `/cities/{cityId}`: City data. Publicly readable.
- * - `/tasks/{taskId}`: Task data.
- * - `/calls/{callId}`: Call data.
- * - `/settings/branding`: Application-wide branding settings. Write access is restricted.
- * - `/lists/{listId}`: User-managed lists.
- * - `/campaigns/{campaignId}/generatedStrategies/{strategyId}`: AI-generated strategies for campaigns
+ * The database is organized into top-level collections for users, roles, campaigns, voters, cities, tasks, calls, settings, and lists.
+ * Some collections (e.g., `/campaigns/{campaignId}/generatedStrategies/{strategyId}`) nest data.
  *
  * Key Security Decisions:
- * - User listing is explicitly denied.
- * - The `cities` collection is publicly readable.
- * - Strict ownership is enforced for user profiles.
- * - Write access to `roles` and `settings/branding` is denied in this prototyping phase.
- *
- * Denormalization for Authorization:
- *  - The `Voter` entity has a `promoterId` field to associate it with a user.
+ * - All `get` and `list` operations are allowed for everyone.
+ * - All `create`, `update` and `delete` operations are allowed for everyone.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
-     * @return {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user's UID matches the provided userId.
-     * @param {string} userId - The user ID to compare against the authenticated user's UID.
-     * @return {boolean} True if the user is the owner, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user is the owner and the resource exists.
-     * @param {string} userId - The user ID to compare against the authenticated user's UID.
-     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Defines access rules for user profiles.
+     * @description Allows read and write access to user profiles.
      * @path /users/{userId}
-     * @allow (create) - User can create their own profile if the userId matches their auth UID.
-     * @allow (get, update, delete) - User can access/modify their own profile if authenticated.
-     * @deny (list) - User listing is not allowed.
-     * @deny (create) - User cannot create a user document that does not match their auth id.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     * @allow (get, list) Any user can read user profiles.
+     * @allow (create, update, delete) Any user can modify user profiles.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for roles.
+     * @description Allows read and write access to role definitions.
      * @path /roles/{roleId}
-     * @allow (get, list) - Anyone can read roles.
-     * @deny (create, update, delete) - No one can create, update, or delete roles via client.
-     * @principle Roles are read-only for clients in this phase.
+     * @allow (get, list) Any user can read role definitions.
+     * @allow (create, update, delete) Any user can modify role definitions.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /roles/{roleId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for campaigns.
+     * @description Allows read and write access to campaign information.
      * @path /campaigns/{campaignId}
-     * @allow (get, list) - Anyone can read campaign data.
-     * @deny (create, update, delete) - No one can create, update, or delete campaigns.
-     * @principle Campaigns are read-only for clients in this phase.
+     * @allow (get, list) Any user can read campaign information.
+     * @allow (create, update, delete) Any user can modify campaign information.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /campaigns/{campaignId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-     /**
-      * @description Defines access rules for AI-generated campaign strategies.
-      * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
-      * @allow (get, list) - Anyone can read AI-generated strategies.
-      * @deny (create, update, delete) - No one can create, update, or delete AI-generated strategies.
-      * @principle Generated strategies are read-only for clients in this phase.
-      */
-    match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for voters.
+     * @description Allows read and write access to AI-generated campaign strategies.
+     * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
+     * @allow (get, list) Any user can read campaign strategies.
+     * @allow (create, update, delete) Any user can modify campaign strategies.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
+     */
+    match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows read and write access to voter information.
      * @path /voters/{voterId}
-     * @allow (get, list) - Anyone can read voters data.
-     * @deny (create, update, delete) - No one can create, update, or delete voters via client.
-     * @principle Voters are read-only for clients in this phase.
+     * @allow (get, list) Any user can read voter information.
+     * @allow (create, update, delete) Any user can modify voter information.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /voters/{voterId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for cities.
+     * @description Allows read and write access to city information.
      * @path /cities/{cityId}
-     * @allow (get, list) - Anyone can read city data.
-     * @deny (create, update, delete) - No one can create, update, or delete cities via client.
-     * @principle Cities are publicly readable.
+     * @allow (get, list) Any user can read city information.
+     * @allow (create, update, delete) Any user can modify city information.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /cities/{cityId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for tasks.
+     * @description Allows read and write access to campaign tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) - Anyone can read task data.
-     * @deny (create, update, delete) - No one can create, update, or delete tasks via client.
-     * @principle Tasks are read-only for clients in this phase.
+     * @allow (get, list) Any user can read campaign tasks.
+     * @allow (create, update, delete) Any user can modify campaign tasks.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for calls.
+     * @description Allows read and write access to call records for voters.
      * @path /calls/{callId}
-     * @allow (get, list) - Anyone can read call data.
-     * @deny (create, update, delete) - No one can create, update, or delete calls via client.
-     * @principle Calls are read-only for clients in this phase.
+     * @allow (get, list) Any user can read call records.
+     * @allow (create, update, delete) Any user can modify call records.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /calls/{callId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for branding settings.
+     * @description Allows read and write access to application branding settings.
      * @path /settings/branding
-     * @allow (get) - Anyone can read branding settings.
-     * @deny (create, update, delete, list) - No one can create, update, or delete branding settings via client.
-     * @principle Branding settings are read-only for clients in this phase.
+     * @allow (get, list) Any user can read branding settings.
+     * @allow (create, update, delete) Any user can modify branding settings.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /settings/branding {
-      allow get: if true;
-      allow list: if false;
-      allow create, update, delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Defines access rules for managed lists.
+     * @description Allows read and write access to user-managed lists.
      * @path /lists/{listId}
-     * @allow (get, list) - Anyone can read managed lists.
-     * @deny (create, update, delete) - No one can create, update, or delete managed lists via client.
-     * @principle Managed lists are read-only for clients in this phase.
+     * @allow (get, list) Any user can read user-managed lists.
+     * @allow (create, update, delete) Any user can modify user-managed lists.
+     * @deny (none) This rule provides completely open access.
+     * @principle Open access for prototyping.
      */
     match /lists/{listId} {
-        allow get, list: if true;
-        allow create, update, delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
   }
 }
