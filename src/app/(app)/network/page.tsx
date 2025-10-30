@@ -1,4 +1,3 @@
-
 "use client"
 import React from 'react';
 import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -23,9 +22,17 @@ export default function NetworkPage() {
     );
 
     const activeUsers = React.useMemo(() => {
-        // Exclude the super admin from the tree data, as they are not part of any specific campaign hierarchy
-        return usersData?.filter(user => user.status === 'activo' && user.email !== 'axdrcys@gmail.com');
-    }, [usersData]);
+        if (!usersData || !roles) return [];
+        
+        const adminRole = roles.find(r => r.name.toLowerCase() === 'admin');
+        const adminRoleId = adminRole ? adminRole.id : null;
+
+        return usersData.filter(user => 
+            user.status === 'activo' && 
+            user.email !== 'axdrcys@gmail.com' &&
+            user.roleId !== adminRoleId
+        );
+    }, [usersData, roles]);
 
     const isLoading = usersLoading || rolesLoading || campaignsLoading;
 
