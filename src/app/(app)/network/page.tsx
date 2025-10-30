@@ -36,28 +36,19 @@ export default function NetworkPage() {
             !adminRoleIds.includes(user.roleId)
         );
     }, [usersData, roles]);
-
-    const voterCounts = React.useMemo(() => {
-        if (!voters) return new Map<string, number>();
-        const counts = new Map<string, number>();
-        voters.forEach(voter => {
-            counts.set(voter.promoterId, (counts.get(voter.promoterId) || 0) + 1);
-        });
-        return counts;
-    }, [voters]);
-
+    
     const isLoading = usersLoading || rolesLoading || campaignsLoading || votersLoading;
 
     return (
         <div className="flex flex-col gap-8">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Mapa de Red Jerárquico</h1>
-                <p className="text-muted-foreground">Visualiza la estructura completa de tu equipo de campaña.</p>
+                <p className="text-muted-foreground">Visualiza la estructura completa de tu equipo de campaña y sus resultados.</p>
             </div>
             <Card>
                 <CardHeader>
                     <CardTitle>Estructura del Equipo</CardTitle>
-                    <CardDescription>Organigrama desde la dirección hasta los voluntarios.</CardDescription>
+                    <CardDescription>Organigrama desde la dirección hasta los votantes registrados.</CardDescription>
                 </CardHeader>
                 <CardContent className="overflow-x-auto p-8">
                     {isLoading ? (
@@ -69,7 +60,7 @@ export default function NetworkPage() {
                             users={activeUsers || []} 
                             roles={roles || []} 
                             campaigns={campaigns || []}
-                            voterCounts={voterCounts}
+                            voters={voters || []}
                         />
                     )}
                 </CardContent>

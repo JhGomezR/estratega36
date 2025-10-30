@@ -1,6 +1,6 @@
 "use client"
 import * as React from 'react';
-import type { User, Role, Campaign } from '@/lib/types';
+import type { User, Role, Campaign, Voter } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -10,20 +10,21 @@ interface TreeNode extends User {
     children: TreeNode[];
     roleName?: string;
     directChildrenCount: number;
-    voterCount: number;
+    voters: Voter[];
 }
 
-const buildTree = (users: User[], roles: Role[], voterCounts: Map<string, number>): Map<string, TreeNode> => {
+const buildTree = (users: User[], roles: Role[], voters: Voter[]): Map<string, TreeNode> => {
     const userMap = new Map<string, TreeNode>();
     const roleMap = new Map(roles.map(r => [r.id, r.name]));
 
     users.forEach(user => {
+        const userVoters = voters.filter(v => v.promoterId === user.id);
         userMap.set(user.id, { 
             ...user, 
             children: [], 
             roleName: roleMap.get(user.roleId) || user.roleId, 
             directChildrenCount: 0,
-            voterCount: voterCounts.get(user.id) || 0
+            voters: userVoters
         });
     });
 
@@ -35,13 +36,6 @@ const buildTree = (users: User[], roles: Role[], voterCounts: Map<string, number
     
     userMap.forEach(node => {
         node.directChildrenCount = node.children.length;
-        // Recursively add children's voter counts to the parent
-        node.children.forEach(child => {
-            node.voterCount += child.voterCount;
-        });
-    });
-
-    userMap.forEach(node => {
         node.children.sort((a, b) => a.firstName.localeCompare(b.firstName));
     });
 
@@ -58,9 +52,25 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => (
 );
 
 
+const VoterNode = ({ voter }: { voter: Voter }) => {
+    return (
+        <div className="flex flex-col items-center">
+            <div className="flex items-center gap-2">
+                <div className="size-8 rounded-full bg-secondary flex items-center justify-center border-2 border-secondary-foreground/20">
+                    <UserCheck className="h-4 w-4 text-secondary-foreground" />
+                </div>
+            </div>
+        </div>
+    )
+};
+
+
 const Node = ({ node }: { node: TreeNode; }) => {
+    const isPromoter = node.roleName?.toLowerCase().includes('promotor');
+
     return (
         <div className="flex flex-col items-center relative">
+            {/* The main user card */}
             <Card className="min-w-[280px] w-fit max-w-sm z-10 bg-card shadow-md border-2 border-primary/20">
                 <CardContent className="p-3">
                     <div className="flex items-center gap-4">
@@ -73,43 +83,63 @@ const Node = ({ node }: { node: TreeNode; }) => {
                             <Badge variant="secondary" className="capitalize mt-1 text-xs">{node.roleName}</Badge>
                         </div>
                         <div className="flex flex-col items-end gap-1 text-muted-foreground">
-                            <div className="flex items-center gap-1.5" title="Reportes directos">
-                                <Users className="h-4 w-4" />
-                                <span className="font-bold text-sm">{node.directChildrenCount}</span>
-                            </div>
-                             <div className="flex items-center gap-1.5" title="Votantes en la red">
+                            {!isPromoter && (
+                                <div className="flex items-center gap-1.5" title="Reportes directos">
+                                    <Users className="h-4 w-4" />
+                                    <span className="font-bold text-sm">{node.directChildrenCount}</span>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-1.5" title="Votantes registrados">
                                 <UserCheck className="h-4 w-4" />
-                                <span className="font-bold text-sm">{node.voterCount}</span>
+                                <span className="font-bold text-sm">{node.voters.length}</span>
                             </div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {node.children.length > 0 && (
+            {/* Connecting lines and children */}
+            {(node.children.length > 0 || (isPromoter && node.voters.length > 0)) && (
                 <div className="flex justify-center pt-8 relative">
-                    <div className="absolute top-0 h-8 w-px bg-border -translate-y-px" />
+                    {/* Vertical line from parent */}
+                    <div className="absolute top-0 h-8 w-px bg-border" />
 
+                    {/* Horizontal line connecting children */}
                     {node.children.length > 1 && (
                          <div className="absolute top-8 left-1/2 right-1/2 h-px bg-border" style={{left: 'calc(50% - (100% / 2 /' + node.children.length + '))', right: 'calc(50% - (100% / 2 /' + node.children.length + '))'}} />
                     )}
+
+                    {/* Render user children */}
+                    {node.children.length > 0 && (
+                        <div className="flex gap-x-8">
+                            {node.children.map((child) => (
+                                <div key={child.id} className="flex flex-col items-center relative">
+                                    <div className="absolute top-0 h-8 w-px bg-border" />
+                                    <Node node={child} />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     
-                    <div className="flex gap-x-8">
-                        {node.children.map((child) => (
-                            <div key={child.id} className="flex flex-col items-center relative">
-                                <div className="absolute top-0 h-8 w-px bg-border" />
-                                <Node node={child} />
-                            </div>
-                        ))}
-                    </div>
+                    {/* Render voter children for promoters */}
+                    {isPromoter && node.voters.length > 0 && (
+                       <div className="flex flex-wrap justify-center gap-x-4 gap-y-8">
+                            {node.voters.map((voter) => (
+                                 <div key={voter.id} className="flex flex-col items-center relative">
+                                    <div className="absolute top-0 h-8 w-px bg-border" />
+                                    <VoterNode voter={voter} />
+                                </div>
+                            ))}
+                       </div>
+                    )}
                 </div>
             )}
         </div>
     );
 };
 
-export const NetworkTree = ({ users, roles, campaigns, voterCounts }: { users: User[], roles: Role[], campaigns: Campaign[], voterCounts: Map<string, number> }) => {
-    const userMap = React.useMemo(() => buildTree(users, roles, voterCounts), [users, roles, voterCounts]);
+export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[], roles: Role[], campaigns: Campaign[], voters: Voter[] }) => {
+    const userMap = React.useMemo(() => buildTree(users, roles, voters), [users, roles, voters]);
 
     const campaignsWithUsers = campaigns
         .map(campaign => {
