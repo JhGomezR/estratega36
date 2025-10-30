@@ -24,13 +24,14 @@ export default function NetworkPage() {
     const activeUsers = React.useMemo(() => {
         if (!usersData || !roles) return [];
         
-        const adminRole = roles.find(r => r.name.toLowerCase() === 'admin');
-        const adminRoleId = adminRole ? adminRole.id : null;
+        const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
+        const adminRoleIds = roles
+            .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
+            .map(r => r.id);
 
         return usersData.filter(user => 
             user.status === 'activo' && 
-            user.email !== 'axdrcys@gmail.com' &&
-            user.roleId !== adminRoleId
+            !adminRoleIds.includes(user.roleId)
         );
     }, [usersData, roles]);
 
