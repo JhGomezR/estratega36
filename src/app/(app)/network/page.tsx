@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { User, Role, Campaign, Voter } from '@/lib/types';
 import { NetworkTree } from '@/components/network-tree';
@@ -50,9 +50,9 @@ export default function NetworkPage() {
                     <CardTitle>Estructura del Equipo</CardTitle>
                     <CardDescription>Organigrama desde la dirección hasta los votantes registrados.</CardDescription>
                 </CardHeader>
-                <CardContent className="overflow-x-auto p-8">
+                <CardContent className="h-[80vh] min-h-[600px] w-full p-0">
                     {isLoading ? (
-                        <div className="flex items-center justify-center h-96">
+                        <div className="flex items-center justify-center h-full">
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
                     ) : (
