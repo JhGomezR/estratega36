@@ -1,18 +1,20 @@
 "use client"
-import React, { useEffect, useState } from 'react';
-import type { User, Role, Campaign, Voter } from '@/lib/types';
-import { ResponsiveTree, type TreeDatum } from '@nivo/tree';
+import React from 'react';
+import type { User, Voter } from '@/lib/types';
+import { ResponsiveTreeMap, type ComputedNode } from '@nivo/treemap';
 
-interface TreeNode extends TreeDatum {
+interface TreeNode {
     id: string;
-    voterCount?: number;
-    user?: User;
+    value?: number;
     children?: TreeNode[];
+    name: string;
+    color?: string;
 }
 
-export const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): TreeNode => {
+export const buildTreeData = (users: User[], voters: Voter[]): TreeNode => {
     const root: TreeNode = {
         id: "EstrategaCRM",
+        name: "EstrategaCRM",
         children: [],
     };
 
@@ -28,37 +30,30 @@ export const buildTreeData = (campaigns: Campaign[], users: User[], voters: Vote
     const userNodes = new Map<string, TreeNode>();
     const rootChildren: TreeNode[] = [];
 
-    // 1. Create a node for each user and add it to the map.
+    // 1. Create a node for each user
     users.forEach(user => {
-        const voterCount = voterCounts.get(user.id) || 0;
-        const children: TreeNode[] = [];
-        
-        // Add a child node representing the voters for this user, if any.
-        if (voterCount > 0) {
-            children.push({ 
-                id: `Votantes de ${user.id}`, // Unique ID for the voter node
-                voterCount 
-            });
-        }
-        
+        const totalVoters = voterCounts.get(user.id) || 0;
+        const name = `${user.firstName} ${user.lastName}`;
         userNodes.set(user.id, {
             id: user.id,
-            voterCount: voterCount,
-            user,
-            children,
+            name: `${name} (${totalVoters} votantes)`,
+            value: totalVoters > 0 ? totalVoters : 1, // Treemap needs a value
+            children: [],
         });
     });
 
     // 2. Link nodes to their parents or to the root.
     userNodes.forEach(node => {
-        const parentId = node.user?.parentId;
+        const user = users.find(u => u.id === node.id);
+        const parentId = user?.parentId;
         
         if (parentId && userNodes.has(parentId)) {
-            // This node has a parent, so add it to the parent's children array.
             const parentNode = userNodes.get(parentId)!;
-            parentNode.children?.unshift(node); // Add user nodes at the beginning
+            if (!parentNode.children) {
+                parentNode.children = [];
+            }
+            parentNode.children.push(node);
         } else {
-            // This is a top-level node, so add it to the root's children.
             rootChildren.push(node);
         }
     });
@@ -68,54 +63,73 @@ export const buildTreeData = (campaigns: Campaign[], users: User[], voters: Vote
     return root;
 };
 
+const CustomNode = ({ node }: { node: ComputedNode<TreeNode> }) => {
+    // Only show labels for nodes that are large enough
+    if (node.width < 60 || node.height < 30) {
+        return null;
+    }
+    return (
+        <div
+            style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: node.width,
+                height: node.height,
+                background: node.color,
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: `1px solid ${node.borderColor}`,
+                color: 'white',
+                boxSizing: 'border-box'
+            }}
+        >
+            <div className="p-1 text-center text-xs font-semibold overflow-hidden text-ellipsis">
+                {node.data.name}
+            </div>
+        </div>
+    );
+};
+
 
 export const NetworkTree = ({ data }: { data: TreeNode }) => {
-
     if (!data.children || data.children.length === 0) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground text-center pt-10">No hay datos de red para mostrar.</p></div>
     }
 
     return (
-        <div style={{ height: '100%', width: '100%' }}>
-            <ResponsiveTree
-                data={data}
-                identity="id"
-                nodeSize={30}
-                nodeColor={node => node.data.user ? 'hsl(var(--primary))' : 'hsl(var(--accent))'}
-                linkThickness={2}
-                linkColor={{ from: 'source.color', modifiers: [] }}
-                theme={{
-                    labels: {
-                        text: {
-                            fill: 'hsl(var(--foreground))',
-                            fontSize: 14,
-                        }
+        <ResponsiveTreeMap
+            data={data}
+            identity="id"
+            value="value"
+            nodeComponent={CustomNode}
+            colors={{ scheme: 'nivo' }}
+            labelSkipSize={12}
+            parentLabelPosition="left"
+            parentLabelTextColor={{
+                from: 'color',
+                modifiers: [
+                    [ 'darker', 2 ]
+                ]
+            }}
+            borderColor={{
+                from: 'color',
+                modifiers: [
+                    [ 'darker', 0.1 ]
+                ]
+            }}
+            theme={{
+                tooltip: {
+                    container: {
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))',
+                        border: '1px solid hsl(var(--border))',
                     },
-                    tooltip: {
-                        container: {
-                            background: 'hsl(var(--background))',
-                            color: 'hsl(var(--foreground))',
-                            border: '1px solid hsl(var(--border))',
-                        },
-                    },
-                }}
-                label={node => {
-                    if (node.data.user) {
-                        const userName = `${node.data.user.firstName} ${node.data.user.lastName}`;
-                        const totalVoters = node.data.voterCount || 0;
-                        return `${userName} (${totalVoters})`;
-                    }
-                    if (node.id.toString().startsWith('Votantes')) {
-                        return `Votantes (${node.data.voterCount || 0})`
-                    }
-                    return node.id.toString();
-                }}
-                layout="vertical"
-                labelPosition="right"
-                labelOffset={10}
-                margin={{ top: 20, right: 120, bottom: 20, left: 120 }}
-                motionConfig="stiff"
-            />
-        </div>
+                },
+            }}
+        />
     );
 };
+

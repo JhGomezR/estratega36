@@ -7,7 +7,7 @@ import type { User, Role, Campaign, Voter } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-// Carga dinámica del componente del árbol sin SSR
+// Dynamic import for the client component, disabling SSR
 const NetworkTreeClient = dynamic(() => import('@/components/network-tree-client').then(mod => mod.NetworkTreeClient), {
     ssr: false,
     loading: () => (

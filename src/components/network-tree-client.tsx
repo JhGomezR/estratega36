@@ -12,6 +12,6 @@ interface NetworkTreeClientProps {
 }
 
 export const NetworkTreeClient = ({ users, roles, campaigns, voters }: NetworkTreeClientProps) => {
-    const data = React.useMemo(() => buildTreeData(campaigns, users, voters), [campaigns, users, voters]);
+    const data = React.useMemo(() => buildTreeData(users, voters), [users, voters]);
     return <NetworkTree data={data} />;
 };
