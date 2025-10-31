@@ -107,7 +107,8 @@ export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[]
     const { theme } = useTheme();
     const data = React.useMemo(() => buildSankeyData(campaigns, users, roles, voters), [campaigns, users, roles, voters]);
 
-    const getUserName = (id: string) => {
+    const getUserName = (id: string | undefined) => {
+        if (!id) return '';
         const user = users.find(u => u.id === id);
         if (user) {
             return `${user.firstName} ${user.lastName}`;
@@ -195,4 +196,3 @@ export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[]
         />
     );
 };
-
