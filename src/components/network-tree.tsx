@@ -1,182 +1,229 @@
 "use client"
 import * as React from 'react';
 import type { User, Role, Campaign, Voter } from '@/lib/types';
-import { ResponsiveOrganizationChart, type OrganizationChartDatum } from '@nivo/org-chart';
+import { ResponsiveContainer, Treemap, Tooltip } from 'recharts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, UserCheck } from 'lucide-react';
-import { useTheme } from 'next-themes';
 
-interface CustomDatum extends OrganizationChartDatum {
-    data: {
-        type: 'campaign' | 'user' | 'voter';
-        id: string;
-        name: string;
-        subLabel?: string;
-        avatar?: string;
-        directChildrenCount?: number;
-        voterCount?: number;
-    };
+interface CustomTreemapProps {
+    depth: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    index: number;
+    payload: any;
+    name: string;
+    // Custom properties
+    type: 'campaign' | 'user' | 'voter';
+    avatar?: string;
+    subLabel?: string;
+    directChildrenCount?: number;
+    voterCount?: number;
+    color: string;
 }
 
-const Node = ({ node, style, onNodeClick }: { node: any; style: any; onNodeClick: (node: any) => void }) => {
-    const { type, name, subLabel, avatar, directChildrenCount, voterCount } = node.data.data;
-    const { resolvedTheme } = useTheme();
-    const isDark = resolvedTheme === 'dark';
+const COLORS = ['#8889DD', '#9597E4', '#8DC77B', '#A5D297', '#E2CF45', '#F8C12D'];
 
-    if (type === 'campaign') {
+const CustomTreemapContent = (props: CustomTreemapProps) => {
+    const { depth, x, y, width, height, name, type, avatar, subLabel, directChildrenCount, voterCount, color } = props;
+    
+    // Don't render text for very small boxes or for voters
+    if (width < 80 || height < 40 || type === 'voter') {
         return (
-            <div style={style} onClick={() => onNodeClick(node)}>
-                <Card className="min-w-[200px] max-w-xs shadow-lg bg-primary text-primary-foreground text-center">
-                    <CardContent className="p-3">
-                        <p className="font-bold text-lg">{name}</p>
-                        {subLabel && <p className="text-sm opacity-90 capitalize">{subLabel}</p>}
-                    </CardContent>
-                </Card>
-            </div>
+            <g>
+                <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    style={{
+                        fill: color,
+                        stroke: '#fff',
+                        strokeWidth: 2 / (depth + 1e-10),
+                        strokeOpacity: 1 / (depth + 1e-10),
+                    }}
+                />
+            </g>
         );
     }
     
-    if (type === 'voter') {
+    if (type === 'campaign') {
          return (
-            <div style={style} onClick={() => onNodeClick(node)}>
-                <div className={`flex items-center justify-center size-10 rounded-full ${isDark ? 'bg-muted/80 border-border' : 'bg-secondary border-secondary-foreground/20'} border-2`}>
-                    <UserCheck className={`h-5 w-5 ${isDark ? 'text-foreground' : 'text-secondary-foreground'}`} />
-                </div>
-            </div>
-        );
+             <g>
+                <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    style={{
+                        fill: 'hsl(var(--primary))',
+                        stroke: '#fff',
+                        strokeWidth: 2,
+                        strokeOpacity: 1,
+                    }}
+                />
+                <foreignObject x={x + 5} y={y + 5} width={width - 10} height={height - 10}>
+                    <div className="text-primary-foreground text-center flex flex-col justify-center h-full">
+                         <p className="font-bold text-lg leading-tight">{name}</p>
+                         {subLabel && <p className="text-sm opacity-90 capitalize">{subLabel}</p>}
+                    </div>
+                </foreignObject>
+             </g>
+         )
     }
 
     return (
-        <div style={style} onClick={() => onNodeClick(node)}>
-             <Card className="min-w-[280px] w-fit max-w-sm z-10 shadow-lg border-2 border-primary/30">
-                <CardContent className="p-3">
-                    <div className="flex items-center gap-4">
-                        <Avatar className="h-14 w-14 border-2">
-                            <AvatarImage src={avatar} alt={`${name} avatar`} data-ai-hint="person portrait"/>
-                            <AvatarFallback className="text-xl">{name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-grow">
-                            <p className="font-semibold text-base">{name}</p>
-                            <Badge variant="secondary" className="capitalize mt-1 font-medium">{subLabel}</Badge>
-                        </div>
-                        <div className="flex flex-col items-end gap-2 text-muted-foreground self-start">
-                             {(directChildrenCount ?? 0) > 0 && (
-                                <div className="flex items-center gap-1.5" title="Equipo directo">
-                                    <Users className="h-4 w-4" />
-                                    <span className="font-bold text-sm">{directChildrenCount}</span>
-                                </div>
-                            )}
-                             {(voterCount ?? 0) > 0 && (
-                                <div className="flex items-center gap-1.5" title="Votantes registrados">
-                                    <UserCheck className="h-4 w-4" />
-                                    <span className="font-bold text-sm">{voterCount}</span>
-                                </div>
-                            )}
-                        </div>
+        <g>
+            <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                style={{
+                    fill: color,
+                    stroke: '#fff',
+                    strokeWidth: 2 / (depth + 1e-10),
+                    strokeOpacity: 1 / (depth + 1e-10),
+                }}
+            />
+            <foreignObject x={x + 5} y={y + 5} width={width - 10} height={height - 10} className="overflow-hidden">
+                <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8 border-2 bg-background/50">
+                        <AvatarImage src={avatar} alt={`${name} avatar`} data-ai-hint="person portrait"/>
+                        <AvatarFallback>{name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-grow truncate">
+                        <p className="font-semibold text-sm truncate">{name}</p>
+                        <Badge variant="secondary" className="capitalize mt-1 font-medium text-xs">{subLabel}</Badge>
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+                </div>
+                 <div className="flex items-center gap-4 text-muted-foreground mt-2 pl-1">
+                     {(directChildrenCount ?? 0) > 0 && (
+                        <div className="flex items-center gap-1" title="Equipo directo">
+                            <Users className="h-3 w-3" />
+                            <span className="font-bold text-xs">{directChildrenCount}</span>
+                        </div>
+                    )}
+                     {(voterCount ?? 0) > 0 && (
+                        <div className="flex items-center gap-1" title="Votantes registrados">
+                            <UserCheck className="h-3 w-3" />
+                            <span className="font-bold text-xs">{voterCount}</span>
+                        </div>
+                    )}
+                </div>
+            </foreignObject>
+        </g>
     );
 };
 
-
-const buildTreeData = (campaigns: Campaign[], users: User[], roles: Role[], voters: Voter[]): CustomDatum[] => {
-    const roleMap = new Map(roles.map(r => [r.id, r.name]));
-
-    const userNodes = new Map<string, CustomDatum>();
-    
-    // Create nodes for all users
-    users.forEach(user => {
-        const userVoters = voters.filter(v => v.promoterId === user.id);
-        const node: CustomDatum = {
-            id: user.id,
-            data: {
-                type: 'user',
-                id: user.id,
-                name: `${user.firstName} ${user.lastName}`,
-                subLabel: roleMap.get(user.roleId) || user.roleId,
-                avatar: user.avatar,
-                voterCount: userVoters.length,
-            },
-            children: userVoters.map(v => ({
-                id: `voter-${v.id}`,
-                data: {
-                    type: 'voter',
-                    id: v.id,
-                    name: `Votante ${v.id}`
-                },
-                children: []
-            })),
-        };
-        userNodes.set(user.id, node);
-    });
-
-    // Link children to parents
-    users.forEach(user => {
-        if (user.parentId && userNodes.has(user.parentId)) {
-            const parentNode = userNodes.get(user.parentId);
-            const childNode = userNodes.get(user.id);
-            if (parentNode && childNode) {
-                parentNode.children.push(childNode);
-            }
+const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        if (data.type === 'voter') {
+             return (
+                 <Card>
+                    <CardContent className="p-2">
+                        <div className="flex items-center gap-2">
+                           <UserCheck className="h-4 w-4 text-muted-foreground" />
+                           <p className="text-sm font-medium">Votante Registrado</p>
+                        </div>
+                    </CardContent>
+                </Card>
+             )
         }
-    });
-
-    // Update direct children count
-    userNodes.forEach(node => {
-        node.data.directChildrenCount = node.children.filter(c => c.data.type === 'user').length;
-    });
-
-    // Create campaign nodes
-    return campaigns
-        .filter(c => c.status === 'En Campaña')
-        .map(campaign => {
-            const campaignUsers = users.filter(user => user.campaignIds.includes(campaign.id));
-            const rootUserIds = new Set(campaignUsers.filter(user => !user.parentId || !campaignUsers.some(u => u.id === user.parentId)).map(u => u.id));
-            
-            return {
-                id: campaign.id,
-                data: {
-                    type: 'campaign',
-                    id: campaign.id,
-                    name: campaign.name,
-                    subLabel: campaign.campaignType,
-                },
-                children: Array.from(rootUserIds).map(id => userNodes.get(id)).filter(Boolean) as CustomDatum[],
-            };
-        });
+         if (data.type === 'user') {
+             return (
+                <Card>
+                    <CardContent className="p-3">
+                         <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border-2">
+                                <AvatarImage src={data.avatar} alt={`${data.name} avatar`} data-ai-hint="person portrait"/>
+                                <AvatarFallback>{data.name.split(' ').map((n:string) => n[0]).join('').slice(0, 2)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold">{data.name}</p>
+                                <Badge variant="secondary" className="capitalize mt-1 font-medium">{data.subLabel}</Badge>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            );
+        }
+    }
+    return null;
 };
 
 
+const buildTreeData = (campaigns: Campaign[], users: User[], roles: Role[], voters: Voter[]) => {
+    const roleMap = new Map(roles.map(r => [r.id, r.name]));
+
+    const buildHierarchy = (userId: string) => {
+        const user = users.find(u => u.id === userId)!;
+        const directChildren = users.filter(u => u.parentId === userId);
+        const directVoters = voters.filter(v => v.promoterId === userId);
+
+        const childrenNodes = directChildren.map(child => buildHierarchy(child.id));
+        const voterNodes = directVoters.map(voter => ({
+            id: voter.id,
+            name: `${voter.firstName} ${voter.lastName}`,
+            size: 1, // Voters are the smallest unit
+            type: 'voter'
+        }));
+        
+        const allChildren = [...childrenNodes, ...voterNodes];
+
+        return {
+            id: user.id,
+            name: `${user.firstName} ${user.lastName}`,
+            subLabel: roleMap.get(user.roleId) || user.roleId,
+            avatar: user.avatar,
+            type: 'user',
+            directChildrenCount: directChildren.length,
+            voterCount: directVoters.length,
+            children: allChildren.length > 0 ? allChildren : undefined,
+            size: allChildren.reduce((acc, child) => acc + (child.size || 1), 1) // User has size + size of children
+        };
+    };
+
+    const activeCampaigns = campaigns.filter(c => c.status === 'En Campaña');
+
+    if (activeCampaigns.length === 0) return null;
+
+    const campaignUsers = users.filter(user => activeCampaigns.some(c => user.campaignIds.includes(c.id)));
+    const rootUsers = campaignUsers.filter(user => !user.parentId || !campaignUsers.some(u => u.id === user.parentId));
+    
+    const rootNodes = rootUsers.map(user => buildHierarchy(user.id));
+    
+    return {
+        name: activeCampaigns.map(c => c.name).join(' & '),
+        type: 'campaign',
+        subLabel: activeCampaigns.map(c => c.campaignType).join(' / '),
+        children: rootNodes,
+    };
+};
+
 export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[], roles: Role[], campaigns: Campaign[], voters: Voter[] }) => {
     const treeData = React.useMemo(() => buildTreeData(campaigns, users, roles, voters), [campaigns, users, roles, voters]);
-    const { resolvedTheme } = useTheme();
 
-    if (treeData.length === 0) {
-        return <p className="text-muted-foreground text-center pt-10">No hay campañas con usuarios para mostrar en la red.</p>
+    if (!treeData) {
+        return <p className="text-muted-foreground text-center pt-10">No hay campañas activas con usuarios para mostrar en la red.</p>
     }
 
-    // Since we can have multiple campaigns, we'll render a chart for each
     return (
-        <div className="w-full h-full flex flex-col items-center gap-16 overflow-auto p-8">
-            {treeData.map(rootNode => (
-                <div key={rootNode.id} className="w-full h-[600px]">
-                    <ResponsiveOrganizationChart
-                        data={rootNode}
-                        identity="id"
-                        nodeComponent={Node}
-                        linkColor={() => (resolvedTheme === 'dark' ? '#3e4b5f' : '#cbd5e1')}
-                        linkThickness={2}
-                        nodeColor={() => 'transparent'}
-                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                        animate={true}
-                        motionConfig="gentle"
-                    />
-                </div>
-            ))}
-        </div>
+        <ResponsiveContainer width="100%" height="100%">
+            <Treemap
+                data={[treeData]}
+                dataKey="size"
+                aspectRatio={4 / 3}
+                stroke="#fff"
+                content={<CustomTreemapContent color={COLORS[0]} />}
+                isAnimationActive={false} // Animation can be buggy with complex custom content
+            >
+                <Tooltip content={<CustomTooltip />} />
+            </Treemap>
+        </ResponsiveContainer>
     );
 };
