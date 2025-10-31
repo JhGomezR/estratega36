@@ -26,45 +26,39 @@ export const buildTreeData = (campaigns: Campaign[], users: User[], voters: Vote
     });
 
     const userNodes = new Map<string, TreeNode>();
+    const rootChildren: TreeNode[] = [];
 
-    // Create a node for each user
+    // 1. Create a node for each user and add it to the map.
     users.forEach(user => {
         const voterCount = voterCounts.get(user.id) || 0;
         const children: TreeNode[] = [];
+        
+        // Add a child node representing the voters for this user, if any.
         if (voterCount > 0) {
             children.push({ 
-                id: `Votantes de ${user.id}`, 
+                id: `Votantes de ${user.id}`, // Unique ID for the voter node
                 voterCount 
             });
         }
+        
         userNodes.set(user.id, {
             id: user.id,
-            voterCount,
+            voterCount: voterCount,
             user,
             children,
         });
     });
 
-    const rootChildren: TreeNode[] = [];
-    
-    // Link nodes to their parents
+    // 2. Link nodes to their parents or to the root.
     userNodes.forEach(node => {
         const parentId = node.user?.parentId;
+        
         if (parentId && userNodes.has(parentId)) {
+            // This node has a parent, so add it to the parent's children array.
             const parentNode = userNodes.get(parentId)!;
-            // Ensure children array exists
-            if (!parentNode.children) {
-                parentNode.children = [];
-            }
-            // Add user node, ensuring voter nodes stay at the end.
-            const existingVoterNode = parentNode.children.find(c => c.id.startsWith('Votantes de'));
-            if(existingVoterNode) {
-                 parentNode.children.splice(parentNode.children.indexOf(existingVoterNode), 0, node);
-            } else {
-                 parentNode.children.push(node);
-            }
+            parentNode.children?.unshift(node); // Add user nodes at the beginning
         } else {
-            // If no parent, this is a top-level node under the root
+            // This is a top-level node, so add it to the root's children.
             rootChildren.push(node);
         }
     });
