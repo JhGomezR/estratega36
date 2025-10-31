@@ -11,14 +11,12 @@ interface TreeNode extends TreeDatum {
 }
 
 const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): TreeNode => {
-    const activeCampaigns = campaigns.filter(c => c.status === 'En Campaña');
-
     const root: TreeNode = {
         id: "EstrategaCRM",
         children: [],
     };
 
-    if (activeCampaigns.length === 0 || users.length === 0) {
+    if (users.length === 0) {
         return root;
     }
 
@@ -29,11 +27,15 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
 
     const userNodes = new Map<string, TreeNode>();
 
+    // Create a node for each user
     users.forEach(user => {
         const voterCount = voterCounts.get(user.id) || 0;
         const children: TreeNode[] = [];
         if (voterCount > 0) {
-            children.push({ id: `Votantes de ${user.id}`, voterCount });
+            children.push({ 
+                id: `Votantes de ${user.id}`, 
+                voterCount 
+            });
         }
         userNodes.set(user.id, {
             id: user.id,
@@ -43,7 +45,7 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
         });
     });
 
-    const topLevelNodes: TreeNode[] = [];
+    // Link nodes to their parents
     userNodes.forEach(node => {
         const parentId = node.user?.parentId;
         if (parentId && userNodes.has(parentId)) {
@@ -51,7 +53,7 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
             if (!parentNode.children) {
                 parentNode.children = [];
             }
-            // Add user node, but also voter nodes if they exist
+            // Add user node, ensuring voter nodes stay if they exist.
             const existingVoterNode = parentNode.children.find(c => c.id.startsWith('Votantes de'));
             if(existingVoterNode) {
                  parentNode.children.splice(parentNode.children.indexOf(existingVoterNode), 0, node);
@@ -59,11 +61,10 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
                  parentNode.children.push(node);
             }
         } else {
-            topLevelNodes.push(node);
+            // If no parent, this is a top-level node under the root
+            root.children!.push(node);
         }
     });
-
-    root.children = topLevelNodes;
 
     return root;
 };
