@@ -10,7 +10,7 @@ interface TreeNode extends TreeDatum {
     children?: TreeNode[];
 }
 
-const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): TreeNode => {
+export const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): TreeNode => {
     const root: TreeNode = {
         id: "EstrategaCRM",
         children: [],
@@ -45,15 +45,18 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
         });
     });
 
+    const rootChildren: TreeNode[] = [];
+    
     // Link nodes to their parents
     userNodes.forEach(node => {
         const parentId = node.user?.parentId;
         if (parentId && userNodes.has(parentId)) {
             const parentNode = userNodes.get(parentId)!;
+            // Ensure children array exists
             if (!parentNode.children) {
                 parentNode.children = [];
             }
-            // Add user node, ensuring voter nodes stay if they exist.
+            // Add user node, ensuring voter nodes stay at the end.
             const existingVoterNode = parentNode.children.find(c => c.id.startsWith('Votantes de'));
             if(existingVoterNode) {
                  parentNode.children.splice(parentNode.children.indexOf(existingVoterNode), 0, node);
@@ -62,26 +65,17 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
             }
         } else {
             // If no parent, this is a top-level node under the root
-            root.children!.push(node);
+            rootChildren.push(node);
         }
     });
+
+    root.children = rootChildren;
 
     return root;
 };
 
 
-export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[], roles: Role[], campaigns: Campaign[], voters: Voter[] }) => {
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    const data = React.useMemo(() => buildTreeData(campaigns, users, voters), [campaigns, users, voters]);
-    
-    if (!isClient) {
-        return null;
-    }
+export const NetworkTree = ({ data }: { data: TreeNode }) => {
 
     if (!data.children || data.children.length === 0) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground text-center pt-10">No hay datos de red para mostrar.</p></div>

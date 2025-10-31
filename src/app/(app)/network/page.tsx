@@ -1,11 +1,21 @@
 "use client"
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { User, Role, Campaign, Voter } from '@/lib/types';
-import { NetworkTree } from '@/components/network-tree';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
+// Carga dinámica del componente del árbol sin SSR
+const NetworkTreeClient = dynamic(() => import('@/components/network-tree-client').then(mod => mod.NetworkTreeClient), {
+    ssr: false,
+    loading: () => (
+        <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    )
+});
 
 export default function NetworkPage() {
     const firestore = useFirestore();
@@ -56,7 +66,7 @@ export default function NetworkPage() {
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <NetworkTree 
+                        <NetworkTreeClient 
                             users={activeUsers || []} 
                             roles={roles || []} 
                             campaigns={campaigns || []}
