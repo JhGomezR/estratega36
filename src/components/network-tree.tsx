@@ -16,11 +16,12 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
     const activeCampaigns = campaigns.filter(c => c.status === 'En Campaña');
 
     const root: TreeNode = {
-        id: "Campañas Activas",
+        id: "EstrategaCRM",
+        children: [],
     };
 
     if (activeCampaigns.length === 0) {
-        return root;
+        return { id: "No hay campañas activas", children: [] };
     }
 
     const userMap = new Map(users.map(u => [u.id, { ...u, children: [] as TreeNode[] }]));
@@ -75,21 +76,22 @@ export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[]
     const data = React.useMemo(() => buildTreeData(campaigns, users, voters), [campaigns, users, voters]);
 
     if (!data.children || data.children.length === 0) {
-        return <p className="text-muted-foreground text-center pt-10">No hay campañas activas con usuarios para mostrar en la red.</p>
+        return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground text-center pt-10">No hay datos de red para mostrar.</p></div>
     }
 
     return (
         <ResponsiveTree
             data={data}
             identity="id"
-            nodeSize={20}
+            layout="vertical"
+            nodeSize={30}
             nodeColor={node => node.data.user ? 'hsl(var(--primary))' : 'hsl(var(--accent))'}
             linkThickness={2}
-            linkColor={{ from: 'source.color' }}
+            linkColor={{ from: 'source.color', modifiers: [] }}
             theme={{
                 labels: {
                     text: {
-                        fill: theme === 'dark' ? '#fff' : '#000',
+                        fill: 'var(--foreground)',
                         fontSize: 14,
                     }
                 },
@@ -103,7 +105,8 @@ export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[]
             }}
             label={node => {
                 if (node.data.user) {
-                    return `${node.data.user.firstName} ${node.data.user.lastName} (${node.data.voterCount || 0})`;
+                    const userName = `${node.data.user.firstName} ${node.data.user.lastName}`;
+                    return `${userName} (${node.data.voterCount || 0})`;
                 }
                 if (node.id.toString().startsWith('Votantes')) {
                     return `Votantes (${node.data.voterCount})`
@@ -112,7 +115,6 @@ export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[]
             }}
             labelOffset={10}
             labelPosition="right"
-            layout="vertical"
             margin={{ top: 20, right: 120, bottom: 20, left: 120 }}
             motionConfig="stiff"
         />
