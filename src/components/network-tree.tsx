@@ -93,7 +93,7 @@ const CustomTreemapContent = (props: CustomTreemapProps) => {
                 <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8 border-2 bg-background/50">
                         <AvatarImage src={avatar} alt={`${name} avatar`} data-ai-hint="person portrait"/>
-                        <AvatarFallback>{name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback>
+                        <AvatarFallback>{name ? name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'NN'}</AvatarFallback>
                     </Avatar>
                     <div className="flex-grow truncate">
                         <p className="font-semibold text-sm truncate">{name}</p>
@@ -141,7 +141,7 @@ const CustomTooltip = ({ active, payload }: any) => {
                          <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10 border-2">
                                 <AvatarImage src={data.avatar} alt={`${data.name} avatar`} data-ai-hint="person portrait"/>
-                                <AvatarFallback>{data.name.split(' ').map((n:string) => n[0]).join('').slice(0, 2)}</AvatarFallback>
+                                <AvatarFallback>{data.name ? data.name.split(' ').map((n:string) => n[0]).join('').slice(0, 2) : 'NN'}</AvatarFallback>
                             </Avatar>
                             <div>
                                 <p className="font-semibold">{data.name}</p>
