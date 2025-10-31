@@ -1,3 +1,4 @@
+
 "use client"
 import React from 'react';
 import type { User, Role, Campaign, Voter } from '@/lib/types';
