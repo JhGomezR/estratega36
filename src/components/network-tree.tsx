@@ -1,9 +1,7 @@
-
 "use client"
 import React from 'react';
 import type { User, Role, Campaign, Voter } from '@/lib/types';
 import { ResponsiveTree, type TreeDatum } from '@nivo/tree';
-import { useTheme } from 'next-themes';
 
 interface TreeNode extends TreeDatum {
     id: string;
@@ -72,7 +70,6 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
 
 
 export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[], roles: Role[], campaigns: Campaign[], voters: Voter[] }) => {
-    const { theme } = useTheme();
     const data = React.useMemo(() => buildTreeData(campaigns, users, voters), [campaigns, users, voters]);
 
     if (!data.children || data.children.length === 0) {
@@ -91,7 +88,7 @@ export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[]
             theme={{
                 labels: {
                     text: {
-                        fill: 'var(--foreground)',
+                        fill: 'hsl(var(--foreground))',
                         fontSize: 14,
                     }
                 },
