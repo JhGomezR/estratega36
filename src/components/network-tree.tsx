@@ -18,52 +18,50 @@ const buildTreeData = (campaigns: Campaign[], users: User[], voters: Voter[]): T
         children: [],
     };
 
-    if (activeCampaigns.length === 0) {
-        return { id: "No hay campañas activas", children: [] };
+    if (activeCampaigns.length === 0 || users.length === 0) {
+        return { id: "No hay datos de red para mostrar", children: [] };
     }
 
-    const userMap = new Map(users.map(u => [u.id, { ...u, children: [] as TreeNode[] }]));
     const voterCounts = new Map<string, number>();
-
     voters.forEach(voter => {
         voterCounts.set(voter.promoterId, (voterCounts.get(voter.promoterId) || 0) + 1);
     });
 
     const userNodes = new Map<string, TreeNode>();
 
+    // 1. Create a node for each user
     users.forEach(user => {
         const voterCount = voterCounts.get(user.id) || 0;
-        const node: TreeNode = {
+        const children: TreeNode[] = [];
+        if (voterCount > 0) {
+            children.push({ id: `Votantes de ${user.id}`, voterCount });
+        }
+        userNodes.set(user.id, {
             id: user.id,
-            voterCount: voterCount,
-            user: user,
-            children: voterCount > 0 ? [{ id: `Votantes de ${user.id}`, voterCount: voterCount }] : undefined
-        };
-        userNodes.set(user.id, node);
+            voterCount,
+            user,
+            children,
+        });
     });
 
-    const topLevelUsers: TreeNode[] = [];
+    // 2. Link nodes to their parents
+    const topLevelNodes: TreeNode[] = [];
     userNodes.forEach(node => {
         const parentId = node.user?.parentId;
-        const parentNode = parentId ? userNodes.get(parentId) : null;
-
-        if (parentNode) {
+        if (parentId && userNodes.has(parentId)) {
+            const parentNode = userNodes.get(parentId)!;
+            // Ensure children array exists
             if (!parentNode.children) {
                 parentNode.children = [];
             }
-            // Ensure voters stay as leaf nodes
-            const voterChild = parentNode.children.find(c => c.id.startsWith('Votantes de'));
-            if (voterChild) {
-                 parentNode.children.unshift(node);
-            } else {
-                 parentNode.children.push(node);
-            }
+            parentNode.children.push(node);
         } else {
-            topLevelUsers.push(node);
+            // This is a top-level user (no parent or parent not found)
+            topLevelNodes.push(node);
         }
     });
-    
-    root.children = topLevelUsers;
+
+    root.children = topLevelNodes;
 
     return root;
 };
@@ -102,10 +100,11 @@ export const NetworkTree = ({ users, roles, campaigns, voters }: { users: User[]
             label={node => {
                 if (node.data.user) {
                     const userName = `${node.data.user.firstName} ${node.data.user.lastName}`;
-                    return `${userName} (${node.data.voterCount || 0})`;
+                    const totalVoters = node.data.voterCount || 0;
+                    return `${userName} (${totalVoters})`;
                 }
                 if (node.id.toString().startsWith('Votantes')) {
-                    return `Votantes (${node.data.voterCount})`
+                    return `Votantes (${node.data.voterCount || 0})`
                 }
                 return node.id.toString();
             }}
