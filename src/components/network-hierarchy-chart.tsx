@@ -121,45 +121,37 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 topDown: true,
                 downDepth: 1,
                 initialDepth: 5,
-                singleBranchOnly: false
+                singleBranchOnly: false,
             })
         );
         
-        // --- Configure Node Interactivity and Appearance ---
-
-        // Make nodes interactive: click to expand/collapse
         series.nodes.template.setAll({
             toggleKey: "active",
             cursorOverStyle: "pointer",
         });
 
-        // Hide default circles
         series.circles.template.set("radius", 0);
         series.outerCircles.template.set("radius", 0);
+        series.icons.template.set("forceHidden", true);
 
-        // Configure labels to have a larger font size
         series.labels.template.setAll({
             text: "{name}\n[fontSize:12px]{roleName}[/]",
             populateText: true,
             textAlign: "center",
             centerY: am5.p50,
             centerX: am5.p50,
-            fontSize: 14, // Increased font size for name
+            fontSize: 14,
         });
         
-        // This event fires for each node that is created.
-        // We use it to add custom shapes like rectangles.
         series.nodes.template.events.on("dataitemchanged", function(ev) {
             const target = ev.target;
             const dataItem = target.dataItem;
             if (!dataItem) return;
 
-            // Clear any previous custom children to prevent duplicates on redraw
             while(target.children.length > 1) {
                 target.children.removeIndex(0);
             }
 
-            // Create a rectangle for the node background
             const rect = am5.Rectangle.new(root, {
                 width: 180,
                 height: 60,
@@ -174,7 +166,6 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 strokeOpacity: 0.5,
             });
 
-            // Insert the rectangle at the bottom layer of the node
             target.children.unshift(rect);
         });
 
