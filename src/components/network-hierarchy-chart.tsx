@@ -69,7 +69,11 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
     });
 
     userMap.forEach(userNode => {
-        userNode.value = userNode.children ? userNode.children.length + 1 : 1;
+        if (userNode.children && userNode.children.length > 0) {
+            userNode.value = userNode.children.reduce((acc, child) => acc + (child.value || 1), 0);
+        } else {
+            userNode.value = 1;
+        }
     });
 
     return {
@@ -134,11 +138,11 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         });
 
         series.circles.template.setAll({
-            radius: 20
+            radius: 20,
         });
 
         series.outerCircles.template.setAll({
-            radius: 20
+            radius: 20,
         });
 
         series.links.template.setAll({
@@ -181,31 +185,33 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             const dataItem = ev.target.dataItem;
             const dataContext = dataItem?.get("dataContext") as ChartData;
             
-            if (dataContext.children && dataContext.children.length > 0) {
-                 // has children
-            } else {
-                target.children.each(function(child) {
-                    if (child === plus || child === minus) {
-                        child.set("visible", false)
-                    }
-                })
-            }
-
-            if (dataContext.isVoter) {
-                const circle = dataItem.get("circle");
-                if (circle) circle.set("radius", 10);
-                const outerCircle = dataItem.get("outerCircle");
-                if (outerCircle) outerCircle.set("radius", 10);
-            } else {
-                 target.children.push(
-                    am5.Picture.new(root, {
-                        width: dataContext.isCampaign ? 24 : 20,
-                        height: dataContext.isCampaign ? 24 : 20,
-                        centerX: am5.percent(50),
-                        centerY: am5.percent(50),
-                        src: dataContext.isCampaign ? campaignIconSvg : userIconSvg
+            if (dataContext) {
+                if (dataContext.children && dataContext.children.length > 0) {
+                     // has children
+                } else {
+                    target.children.each(function(child) {
+                        if (child === plus || child === minus) {
+                            child.set("visible", false)
+                        }
                     })
-                );
+                }
+
+                if (dataContext.isVoter) {
+                    const circle = dataItem.get("circle");
+                    if (circle) circle.set("radius", 10);
+                    const outerCircle = dataItem.get("outerCircle");
+                    if (outerCircle) outerCircle.set("radius", 10);
+                } else {
+                    target.children.push(
+                        am5.Picture.new(root, {
+                            width: dataContext.isCampaign ? 24 : 20,
+                            height: dataContext.isCampaign ? 24 : 20,
+                            centerX: am5.percent(50),
+                            centerY: am5.percent(50),
+                            src: dataContext.isCampaign ? campaignIconSvg : userIconSvg
+                        })
+                    );
+                }
             }
         });
 
