@@ -86,7 +86,7 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
     const chartRef = useRef<HTMLDivElement>(null);
     const data = React.useMemo(() => buildChartData(users, voters, roles), [users, voters, roles]);
 
-    const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+    const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236B7280'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     useLayoutEffect(() => {
         if (!chartRef.current) return;
@@ -121,21 +121,47 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                 nodePaddingInner: 10,
             })
         );
-        
-        series.nodes.template.setAll({
-          tooltipText: "{name}\nRol: {roleName}"
-        });
-        
+
+        // Configure circles for all nodes
         series.circles.template.setAll({
             radius: 20,
-            fill: am5.color(0x555555),
+            fill: am5.color(0xffffff),
+            stroke: am5.color(0xcccccc),
+            strokeWidth: 2,
         });
 
+        // Use adapter to change radius for voters
+        series.circles.template.adapters.add("radius", function(radius, target) {
+            const dataContext = target.dataItem?.dataContext as ChartData | undefined;
+            return dataContext?.isVoter ? 10 : radius;
+        });
+
+        // Configure outer circles for nodes with children (for expand/collapse)
         series.outerCircles.template.setAll({
-            radius: 20,
-            strokeWidth: 2
+            strokeWidth: 2,
+            stroke: am5.color(0xcccccc)
         });
 
+        series.outerCircles.template.states.create("disabled", {
+            strokeOpacity: 0.3,
+        });
+
+        series.outerCircles.template.states.create("hover", {
+            stroke: am5.color(0xaaaaaa),
+        });
+
+        series.outerCircles.template.states.create("hoverDisabled", {
+            stroke: am5.color(0xaaaaaa),
+            strokeOpacity: 0.3
+        });
+        
+        // Use adapter to change outer circle radius for voters (they don't have one, but for safety)
+        series.outerCircles.template.adapters.add("radius", function(radius, target) {
+            const dataContext = target.dataItem?.dataContext as ChartData | undefined;
+            return dataContext?.isVoter ? 10 : radius;
+        });
+
+        
         series.labels.template.setAll({
           populateText: true,
           text: "[bold]{name}[/]\n{roleName}",
@@ -143,12 +169,12 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
           textAlign: "left",
           oversizedBehavior: "none",
         });
-        
+
         series.nodes.template.setup = function(target) {
             target.events.on("dataitemchanged", function(ev) {
                 const dataItem = ev.target.dataItem;
                 if (!dataItem) return;
-                
+
                 const dataContext = dataItem.dataContext as ChartData;
                 
                 if (!dataContext.isVoter) {
@@ -159,10 +185,6 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                         centerY: am5.percent(50),
                         src: userIconSvg,
                     }));
-                } else {
-                     // Make voter nodes smaller
-                    dataItem.get("circle").set("radius", 10);
-                    dataItem.get("outerCircle").set("radius", 10);
                 }
             });
         };
@@ -170,6 +192,7 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         series.links.template.setAll({
             strokeWidth: 1,
             strokeOpacity: 0.7,
+            stroke: am5.color(0x999999),
         });
 
         series.data.setAll([data]);
@@ -186,3 +209,4 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
 
     return <div ref={chartRef} style={{ width: "100%", height: "100%" }}></div>;
 };
+
