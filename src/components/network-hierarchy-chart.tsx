@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useLayoutEffect, useRef } from 'react';
@@ -130,9 +129,10 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             cursorOverStyle: "pointer",
         });
 
+        // Hide default circle elements
         series.circles.template.set("radius", 0);
         series.outerCircles.template.set("radius", 0);
-        series.icons.template.set("forceHidden", true);
+        series.nodes.template.get("icon")?.set("forceHidden", true);
 
         series.labels.template.setAll({
             text: "{name}\n[fontSize:12px]{roleName}[/]",
@@ -148,6 +148,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             const dataItem = target.dataItem;
             if (!dataItem) return;
 
+            // Clear any previously added custom children to avoid duplicates
             while(target.children.length > 1) {
                 target.children.removeIndex(0);
             }
@@ -166,6 +167,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 strokeOpacity: 0.5,
             });
 
+            // unshift to place it behind the label
             target.children.unshift(rect);
         });
 
