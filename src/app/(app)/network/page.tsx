@@ -3,7 +3,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import type { User, Voter } from '@/lib/types';
+import type { User, Voter, Role } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
@@ -26,8 +26,11 @@ export default function NetworkPage() {
     const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
         useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
     );
+    const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
+      useMemoFirebase(() => (firestore ? collection(firestore, 'roles') : null), [firestore])
+    );
 
-    const isLoading = usersLoading || votersLoading;
+    const isLoading = usersLoading || votersLoading || rolesLoading;
 
     return (
         <div className="flex flex-col gap-8">
@@ -49,6 +52,7 @@ export default function NetworkPage() {
                         <NetworkHierarchyChart 
                             users={users || []} 
                             voters={voters || []}
+                            roles={roles || []}
                         />
                     )}
                 </CardContent>
