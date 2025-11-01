@@ -85,6 +85,10 @@ interface NetworkHierarchyChartProps {
 export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: NetworkHierarchyChartProps) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const data = React.useMemo(() => buildChartData(campaign, users, voters, roles), [campaign, users, voters, roles]);
+    
+    const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+    const campaignIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23FFFFFF' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.236L19.03 8.5 12 12.035 4.97 8.5 12 4.236zM4 10.392l8 4.545v7.l-8-4.545v-7z'/%3E%3C/svg%3E";
+
 
     useLayoutEffect(() => {
         if (!chartRef.current) return;
@@ -116,21 +120,14 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 nodePaddingInner: 10,
             })
         );
-        
+
         series.nodes.template.setAll({
-          toggleKey: "active",
-          cursorOverStyle: "pointer"
+            toggleKey: "active",
+            cursorOverStyle: "pointer"
         });
 
-        series.circles.template.adapters.add("radius", (radius, target) => {
-            const dataContext = target.dataItem?.get("dataContext") as ChartData;
-            return dataContext?.isVoter ? 10 : 20;
-        });
-
-        series.outerCircles.template.adapters.add("radius", (radius, target) => {
-            const dataContext = target.dataItem?.get("dataContext") as ChartData;
-            return dataContext?.isVoter ? 10 : 20;
-        });
+        series.circles.template.setAll({ radius: 20 });
+        series.outerCircles.template.setAll({ radius: 20 });
         
         series.circles.template.adapters.add("fill", (fill, target) => {
              const dataContext = target.dataItem?.get("dataContext") as ChartData;
@@ -152,10 +149,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
           textAlign: "center",
           oversizedBehavior: "none",
         });
-
-        const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
-        const campaignIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23FFFFFF' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.236L19.03 8.5 12 12.035 4.97 8.5 12 4.236zM4 10.392l8 4.545v7.l-8-4.545v-7z'/%3E%3C/svg%3E";
-
+        
         let plus = am5.Picture.new(root, {
             width: 16, height: 16,
             centerX: am5.percent(100),
@@ -177,28 +171,27 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         series.nodes.template.children.push(plus);
         series.nodes.template.children.push(minus);
 
-        series.nodes.template.adapters.add("opacity", function(opacity, target) {
-            const dataContext = target.dataItem?.get("dataContext") as ChartData;
+        series.nodes.template.events.on("dataitemchanged", function(ev) {
+            const dataItem = ev.target.dataItem;
+            const dataContext = dataItem?.get("dataContext") as ChartData;
+            
             if (dataContext.children && dataContext.children.length > 0) {
-                // has children
+                 // has children
             } else {
-                target.children.each(function(child) {
+                ev.target.children.each(function(child) {
                     if (child === plus || child === minus) {
                         child.set("visible", false)
                     }
                 })
             }
-            return opacity;
-        });
 
-        series.nodes.template.adapters.add("x", function(x, target) {
-            const dataContext = target.dataItem?.get("dataContext") as ChartData;
             if (dataContext.isVoter) {
-                const icon = target.children.each(child => {
-                    if(child instanceof am5.Picture) child.set("visible", false)
-                })
+                const circle = dataItem.get("circle");
+                if (circle) circle.set("radius", 10);
+                const outerCircle = dataItem.get("outerCircle");
+                if (outerCircle) outerCircle.set("radius", 10);
             } else {
-                 target.children.push(
+                 ev.target.children.push(
                     am5.Picture.new(root, {
                         width: dataContext.isCampaign ? 24 : 20,
                         height: dataContext.isCampaign ? 24 : 20,
@@ -208,9 +201,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                     })
                 );
             }
-            return x
-        })
-
+        });
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
@@ -218,7 +209,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         return () => {
             root.dispose();
         };
-    }, [data, userIconSvg, campaignIconSvg]);
+    }, [data]);
 
     if (!data || (data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay usuarios en esta campaña para mostrar en la red.</p></div>
