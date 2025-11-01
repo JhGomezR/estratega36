@@ -9,23 +9,21 @@ import type { User, Voter, Role } from '@/lib/types';
 
 interface ChartData {
     name: string;
-    value: number;
-    avatar: string;
-    roleName: string;
-    voterCount: number;
-    childrenCount: number;
+    id: string;
+    avatar?: string;
+    roleName?: string;
+    voterCount?: number;
     children?: ChartData[];
+    childrenCount?: number;
 }
 
 const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartData => {
     const root: ChartData = {
         name: "EstrategaCRM",
-        value: 0,
-        avatar: "",
-        roleName: "Root",
-        voterCount: 0,
-        childrenCount: 0,
+        id: "root",
         children: [],
+        voterCount: 0,
+        childrenCount: 0
     };
 
     if (!users || users.length === 0) {
@@ -35,58 +33,56 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
 
-    // First pass: create all user nodes
     users.forEach(user => {
-        const voterCount = voters.filter(v => v.promoterId === user.id).length;
+        const directVoters = voters.filter(v => v.promoterId === user.id).length;
         userMap.set(user.id, {
             name: `${user.firstName} ${user.lastName}`,
-            value: 1, // Base value for visibility
+            id: user.id,
             avatar: user.avatar,
             roleName: rolesMap.get(user.roleId) || 'Sin Rol',
-            voterCount,
-            childrenCount: 0, // This will be updated in the second pass
+            voterCount: directVoters,
             children: [],
+            childrenCount: 0,
         });
     });
     
     const topLevelNodes: ChartData[] = [];
+    let totalVoters = 0;
 
-    // Second pass: build the hierarchy and update children counts
     users.forEach(user => {
         const userNode = userMap.get(user.id);
         if (!userNode) return;
+        
+        totalVoters += userNode.voterCount ?? 0;
 
         if (user.parentId && userMap.has(user.parentId)) {
             const parentNode = userMap.get(user.parentId);
             if (parentNode) {
                 parentNode.children?.push(userNode);
-                parentNode.childrenCount = parentNode.children?.length || 0;
+                parentNode.childrenCount = parentNode.children?.length;
             }
         } else {
             if (user.email !== 'axdrcys@gmail.com') {
-                 topLevelNodes.push(userNode);
+                topLevelNodes.push(userNode);
             }
         }
     });
-
-    root.children = topLevelNodes;
-    root.childrenCount = topLevelNodes.length;
     
-    // Function to recursively sum up values from children
-    const calculateValue = (node: ChartData): number => {
-        if (!node.children || node.children.length === 0) {
-            return node.voterCount > 0 ? node.voterCount : 1;
+    const adminUser = users.find(u => u.email === 'axdrcys@gmail.com');
+    if (adminUser) {
+        const adminNode = userMap.get(adminUser.id);
+        if (adminNode) {
+            adminNode.children = topLevelNodes;
+            adminNode.childrenCount = topLevelNodes.length;
+            adminNode.voterCount = totalVoters;
+            root.children = [adminNode];
+        } else {
+             root.children = topLevelNodes;
         }
-        let sum = 1; // Count the node itself
-        node.children.forEach(child => {
-            sum += calculateValue(child);
-        });
-        node.value = sum;
-        return sum;
-    };
+    } else {
+        root.children = topLevelNodes;
+    }
     
-    calculateValue(root);
-
     return root;
 };
 
@@ -107,9 +103,26 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         let root = am5.Root.new(chartRef.current);
         
         root.setThemes([ am5themes_Animated.new(root) ]);
+        
+        const chart = root.container.children.push(
+            am5.Container.new(root, {
+                width: am5.percent(100),
+                height: am5.percent(100),
+                layout: root.verticalLayout
+            })
+        );
+        
+        chart.set("wheelX", "panX");
+        chart.set("wheelY", "zoomX");
+        
+        chart.set("scrollbarX", am5.Scrollbar.new(root, {
+            orientation: "horizontal"
+        }));
 
-        let series = root.container.children.push(
+
+        let series = chart.children.push(
             am5hierarchy.Tree.new(root, {
+                singleBranchOnly: false,
                 downDepth: 1,
                 initialDepth: 5,
                 topDown: true,
@@ -117,89 +130,61 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                 valueField: "value",
                 categoryField: "name",
                 childDataField: "children",
+                idField: "id",
                 nodePaddingOuter: 30,
-                nodePaddingInner: 10,
+                nodePaddingInner: 10
             })
         );
         
         series.nodes.template.setAll({
+          toggleKey: "none",
+          cursorOverStyle: "default",
           draggable: false,
-          toggleKey: "none"
+          tooltipText: "{name}\nRol: {roleName}\nVotantes: {voterCount}"
+        });
+        
+        series.circles.template.setAll({
+            radius: 30,
+            fill: am5.color(0xcccccc)
         });
 
-        series.nodes.template.set("tooltipText", "{name}");
+        series.outerCircles.template.set("forceHidden", true);
 
-        series.nodes.template.setup = (target) => {
-            target.set("forceHidden", true);
-            
+        series.labels.template.setAll({
+          dy: 40,
+          populateText: true,
+          text: "[bold]{name}[/]\n{roleName}"
+        });
+        
+        series.nodes.template.setup = function(target) {
             target.events.on("dataitemchanged", function(ev) {
                 const dataItem = ev.target.dataItem;
                 if (!dataItem) return;
-
-                const data = dataItem.dataContext as ChartData;
-
-                if (data.name === 'EstrategaCRM') {
-                     target.set("forceHidden", true);
-                } else {
-                     target.set("forceHidden", false);
+                
+                const dataContext = dataItem.dataContext as ChartData;
+                
+                if (dataContext.id === 'root') {
+                    target.set("forceHidden", true);
+                    return;
                 }
 
-                // Node container
-                const container = am5.Container.new(root, {
-                    width: 250,
-                    height: 80,
-                    layout: root.horizontalLayout,
-                    x: am5.percent(50),
+                let picture = target.children.push(am5.Picture.new(root, {
+                    width: 50,
+                    height: 50,
                     centerX: am5.percent(50),
-                    y: am5.percent(50),
-                    centerY: am5.percent(50)
-                });
-
-                target.children.push(container);
-                
-                const htmlContent = `
-                    <div style="
-                        width: 250px; 
-                        height: 80px; 
-                        background-color: hsl(var(--card)); 
-                        border: 1px solid hsl(var(--border)); 
-                        border-radius: var(--radius);
-                        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-                        display: flex;
-                        align-items: center;
-                        padding: 12px;
-                        font-family: Inter, sans-serif;
-                        color: hsl(var(--foreground));
-                    ">
-                        <img src="${data.avatar}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;" data-ai-hint="person portrait" />
-                        <div style="margin-left: 12px; flex-grow: 1;">
-                            <div style="font-weight: 600; font-size: 14px; line-height: 1.2; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.name}</div>
-                            <div style="font-size: 11px; background-color: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); border-radius: 9999px; padding: 2px 8px; display: inline-block; margin-top: 4px; text-transform: capitalize;">${data.roleName}</div>
-                        </div>
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-size: 12px; color: hsl(var(--muted-foreground));">
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                                <span style="font-weight: 500; color: hsl(var(--foreground));">${data.voterCount}</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                                <span style="font-weight: 500; color: hsl(var(--foreground));">${data.childrenCount}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                container.children.push(am5.Label.new(root, {
-                    html: htmlContent,
-                    x: am5.p50,
-                    centerX: am5.p50,
-                    y: am5.p50,
-                    centerY: am5.p50
+                    centerY: am5.percent(50),
+                    src: dataContext.avatar,
+                    mask: am5.Circle.new(root, {
+                      radius: am5.percent(50)
+                    })
                 }));
             });
         };
         
-        series.links.template.set("strokeWidth", 2);
+        series.links.template.setAll({
+            strokeWidth: 2,
+            strokeOpacity: 0.7,
+        });
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
@@ -207,7 +192,7 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         return () => {
             root.dispose();
         };
-    }, [data, users, voters, roles]);
+    }, [data]);
 
     if (data.children?.length === 0) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay datos de red para mostrar.</p></div>
