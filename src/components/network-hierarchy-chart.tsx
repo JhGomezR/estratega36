@@ -94,6 +94,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
     const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
     const campaignIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23FFFFFF' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.236L19.03 8.5 12 12.035 4.97 8.5 12 4.236zM4 10.392l8 4.545v7.l-8-4.545v-7z'/%3E%3C/svg%3E";
 
+
     useLayoutEffect(() => {
         if (!chartRef.current) return;
 
@@ -124,30 +125,14 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 nodePaddingInner: 20,
             })
         );
-
+        
         series.nodes.template.setAll({
             toggleKey: "active",
             cursorOverStyle: "pointer",
         });
 
-        // Hide default circles
         series.circles.template.set("forceHidden", true);
         series.outerCircles.template.set("forceHidden",true);
-
-        // Add a rectangle to each node
-        series.nodes.template.children.unshift(am5.Rectangle.new(root, {
-            width: 150,
-            height: 60,
-            cornerRadiusTL: 10,
-            cornerRadiusTR: 10,
-            cornerRadiusBL: 10,
-            cornerRadiusBR: 10,
-            fillOpacity: 0.3,
-            fill: am5.color(0x3B82F6), // blue-500
-            centerX: am5.percent(50),
-            centerY: am5.percent(50),
-        }));
-
         series.links.template.setAll({
             strokeWidth: 1,
             strokeOpacity: 0.7,
@@ -181,13 +166,28 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         });
         minus.states.create("hidden", { visible: false });
         minus.states.create("active", { visible: true });
-
+        
         series.nodes.template.events.on("dataitemchanged", function(ev) {
             let target = ev.target;
+            const dataItem = ev.target.dataItem;
+            
+            // Add rectangle as background
+            target.children.unshift(am5.Rectangle.new(root, {
+                width: 150,
+                height: 60,
+                cornerRadiusTL: 10,
+                cornerRadiusTR: 10,
+                cornerRadiusBL: 10,
+                cornerRadiusBR: 10,
+                fillOpacity: 0.3,
+                fill: am5.color(0x3B82F6),
+                centerX: am5.percent(50),
+                centerY: am5.percent(50),
+            }));
+
             target.children.push(plus);
             target.children.push(minus);
-            
-            const dataItem = ev.target.dataItem;
+
             const dataContext = dataItem?.get("dataContext") as ChartData;
             
             if (dataContext) {
@@ -237,7 +237,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         return () => {
             root.dispose();
         };
-    }, [data, userIconSvg, campaignIconSvg]);
+    }, [data]);
 
     if (!data || (data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay usuarios en esta campaña para mostrar en la red.</p></div>
