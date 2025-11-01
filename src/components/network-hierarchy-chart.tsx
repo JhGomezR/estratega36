@@ -5,7 +5,7 @@ import React, { useLayoutEffect, useRef } from 'react';
 import * as am5 from "@amcharts/amcharts5";
 import * as am5hierarchy from "@amcharts/amcharts5/hierarchy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
-import { Responsive } from "@amcharts/amcharts5/plugins/responsive";
+import * as am5plugins_responsive from "@amcharts/amcharts5/plugins/responsive";
 import type { User, Voter, Role } from '@/lib/types';
 
 interface ChartData {
@@ -107,7 +107,7 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
 
         let root = am5.Root.new(chartRef.current);
         
-        const responsive = Responsive.new(root);
+        const responsive = am5plugins_responsive.Responsive.new(root);
         root.setThemes([ am5themes_Animated.new(root), responsive.newTheme() ]);
 
         let series = root.container.children.push(
