@@ -18,17 +18,11 @@ interface ChartData {
     isUser?: boolean;
 }
 
-const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
-
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
 
-    const adminRoleIds = new Set(roles.filter(r => ADMIN_ROLE_NAMES.includes(r.name.toLowerCase())).map(r => r.id));
-
-    const campaignUsers = users.filter(user => !adminRoleIds.has(user.roleId));
-
-    campaignUsers.forEach(user => {
+    users.forEach(user => {
         userMap.set(user.id, {
             name: `${user.firstName} ${user.lastName}`,
             id: user.id,
@@ -54,7 +48,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
 
     const topLevelNodes: ChartData[] = [];
     
-    campaignUsers.forEach(user => {
+    users.forEach(user => {
         const userNode = userMap.get(user.id);
         if (!userNode) return;
         
@@ -65,6 +59,11 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             topLevelNodes.push(userNode);
         }
     });
+    
+    // Add value to user nodes based on their children count for sizing
+    userMap.forEach(userNode => {
+        userNode.value = userNode.children ? userNode.children.length : 0;
+    })
 
     return {
         name: campaign.name,
@@ -86,9 +85,6 @@ interface NetworkHierarchyChartProps {
 export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: NetworkHierarchyChartProps) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const data = React.useMemo(() => buildChartData(campaign, users, voters, roles), [campaign, users, voters, roles]);
-
-    const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
-    const campaignIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23FFFFFF' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.236L19.03 8.5 12 12.035 4.97 8.5 12 4.236zM4 10.392l8 4.545v7.l-8-4.545v-7z'/%3E%3C/svg%3E";
 
     useLayoutEffect(() => {
         if (!chartRef.current) return;
@@ -116,8 +112,8 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 initialDepth: 2,
                 topDown: true,
                 orientation: "vertical",
-                nodePaddingOuter: 20,
-                nodePaddingInner: 20,
+                nodePaddingOuter: 10,
+                nodePaddingInner: 10,
             })
         );
         
@@ -157,57 +153,64 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
           oversizedBehavior: "none",
         });
 
-        series.nodes.template.setup = function(target) {
-            target.events.on("dataitemchanged", function(ev) {
-                const dataItem = ev.target.dataItem;
-                if (!dataItem) return;
+        const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+        const campaignIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23FFFFFF' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.236L19.03 8.5 12 12.035 4.97 8.5 12 4.236zM4 10.392l8 4.545v7.l-8-4.545v-7z'/%3E%3C/svg%3E";
 
-                const dataContext = dataItem.dataContext as ChartData;
-                
-                const circle = am5.Circle.new(root, { radius: 20 });
-                if (dataContext.isVoter) {
-                   dataItem.get("outerCircle")?.set("forceHidden", true);
-                   return; // No icon for voters
-                }
+        let plus = am5.Picture.new(root, {
+            width: 16, height: 16,
+            centerX: am5.percent(100),
+            centerY: am5.percent(100),
+            src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M12 6v12m-6-6h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
+        });
+        plus.states.create("hidden", { visible: true });
+        plus.states.create("active", { visible: false });
 
-                if (dataContext.children && dataContext.children.length > 0) {
-                  let plus = am5.Picture.new(root, {
-                      width: 16, height: 16,
-                      centerX: am5.percent(100),
-                      centerY: am5.percent(100),
-                      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M12 6v12m-6-6h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
-                  });
-                   let minus = am5.Picture.new(root, {
-                      width: 16, height: 16,
-                      centerX: am5.percent(100),
-                      centerY: am5.percent(100),
-                      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M6 12h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
-                  });
+        let minus = am5.Picture.new(root, {
+            width: 16, height: 16,
+            centerX: am5.percent(100),
+            centerY: am5.percent(100),
+            src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M6 12h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
+        });
+        minus.states.create("hidden", { visible: false });
+        minus.states.create("active", { visible: true });
+        
+        series.nodes.template.children.push(plus);
+        series.nodes.template.children.push(minus);
 
-                  plus.states.create("hidden", { visible: true });
-                  minus.states.create("hidden", { visible: false });
+        series.nodes.template.adapters.add("opacity", function(opacity, target) {
+            const dataContext = target.dataItem?.get("dataContext") as ChartData;
+            if (dataContext.children && dataContext.children.length > 0) {
+                // has children
+            } else {
+                target.children.each(function(child) {
+                    if (child === plus || child === minus) {
+                        child.set("visible", false)
+                    }
+                })
+            }
+            return opacity;
+        });
 
-                  plus.states.create("active", { visible: false });
-                  minus.states.create("active", { visible: true });
-                  
-                  target.children.push(plus);
-                  target.children.push(minus);
-                }
-
-                const iconSrc = dataContext.isCampaign ? campaignIconSvg : userIconSvg;
-
-                target.children.push(
+        series.nodes.template.adapters.add("x", function(x, target) {
+            const dataContext = target.dataItem?.get("dataContext") as ChartData;
+            if (dataContext.isVoter) {
+                const icon = target.children.each(child => {
+                    if(child instanceof am5.Picture) child.set("visible", false)
+                })
+            } else {
+                 target.children.push(
                     am5.Picture.new(root, {
                         width: dataContext.isCampaign ? 24 : 20,
                         height: dataContext.isCampaign ? 24 : 20,
                         centerX: am5.percent(50),
                         centerY: am5.percent(50),
-                        src: iconSrc,
-                        mask: circle
+                        src: dataContext.isCampaign ? campaignIconSvg : userIconSvg
                     })
                 );
-            });
-        };
+            }
+            return x
+        })
+
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
