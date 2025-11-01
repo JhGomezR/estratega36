@@ -13,19 +13,10 @@ interface ChartData {
     avatar?: string;
     roleName?: string;
     children?: ChartData[];
+    value?: number;
 }
 
 const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartData => {
-    const defaultRoot: ChartData = {
-        name: "EstrategaCRM",
-        id: "root",
-        children: [],
-    };
-
-    if (!users || users.length === 0) {
-        return defaultRoot;
-    }
-
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
 
@@ -38,7 +29,20 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
             children: [],
         });
     });
-    
+
+    // Add voters as children to their promoters
+    voters.forEach(voter => {
+        if (voter.promoterId && userMap.has(voter.promoterId)) {
+            const promoterNode = userMap.get(voter.promoterId);
+            promoterNode?.children?.push({
+                name: `${voter.firstName} ${voter.lastName}`,
+                id: voter.id,
+                roleName: 'Votante',
+                value: 1 // Give leaf nodes a value for layout purposes
+            });
+        }
+    });
+
     const topLevelNodes: ChartData[] = [];
     
     users.forEach(user => {
@@ -49,26 +53,27 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
             const parentNode = userMap.get(user.parentId);
             parentNode?.children?.push(userNode);
         } else {
-            // Add users without a parent (or with a non-existent parent) to the top level,
-            // except for the main admin user which will be the root.
             if (user.email !== 'axdrcys@gmail.com') {
                 topLevelNodes.push(userNode);
             }
         }
     });
-    
+
     const adminUser = users.find(u => u.email === 'axdrcys@gmail.com');
     if (adminUser) {
         const adminNode = userMap.get(adminUser.id);
         if (adminNode) {
             adminNode.children = [...(adminNode.children || []), ...topLevelNodes];
-            return adminNode; // The admin is the absolute root
+            return adminNode;
         }
     }
-
-    // Fallback if no admin user is found, use the generic root with all top-level nodes
-    defaultRoot.children = topLevelNodes;
-    return defaultRoot;
+    
+    // Fallback if no admin found
+    return {
+        name: "Estructura de Campaña",
+        id: "root",
+        children: topLevelNodes,
+    };
 };
 
 
@@ -106,42 +111,54 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
 
         let series = chart.children.push(
             am5hierarchy.Tree.new(root, {
-                singleBranchOnly: false,
-                downDepth: 1,
-                initialDepth: 5,
-                topDown: true,
-                orientation: "vertical",
                 valueField: "value",
                 categoryField: "name",
                 childDataField: "children",
                 idField: "id",
-                nodePaddingOuter: 30,
-                nodePaddingInner: 10
+                downDepth: 1,
+                initialDepth: 5,
+                topDown: true,
+                orientation: "vertical",
+                nodePaddingOuter: 20,
+                nodePaddingInner: 10,
             })
         );
         
         series.nodes.template.setAll({
-          toggleKey: "none",
-          cursorOverStyle: "default",
-          draggable: false,
           tooltipText: "{name}\nRol: {roleName}"
         });
         
+        // Use circles as background
         series.circles.template.setAll({
             radius: 30,
             fill: am5.color(0xcccccc),
         });
+        
+        // Configure outer circles for expand/collapse functionality
+        series.outerCircles.template.setAll({
+            radius: 30,
+            strokeWidth: 2,
+            stroke: am5.color(0xbbbbbb),
+        });
 
-        series.outerCircles.template.set("forceHidden", true);
+        series.outerCircles.template.states.create("disabled", {
+            strokeOpacity: 0.3,
+            strokeDasharray: [2,2]
+        });
+
+        series.outerCircles.template.states.create("hoverDisabled", {
+            strokeOpacity: 0.3,
+            strokeDasharray: [2,2]
+        });
 
         series.labels.template.setAll({
-          dy: 40,
+          dy: 45, // Position label below the node
           populateText: true,
           text: "[bold]{name}[/]\n{roleName}",
           textAlign: "center"
         });
         
-        // This is the magic part: setup is called for each node
+        // Setup images for user nodes
         series.nodes.template.setup = function(target) {
             target.events.on("dataitemchanged", function(ev) {
                 const dataItem = ev.target.dataItem;
@@ -149,22 +166,19 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                 
                 const dataContext = dataItem.dataContext as ChartData;
                 
-                // Hide the default circle, we'll use a picture instead
-                const circle = dataItem.get("circle");
-                circle?.set("forceHidden", true);
-                
-                // Create a Picture element
-                target.children.push(am5.Picture.new(root, {
-                    width: 60,
-                    height: 60,
-                    centerX: am5.percent(50),
-                    centerY: am5.percent(50),
-                    src: dataContext.avatar,
-                    // This is the key: mask the picture with a circle
-                    mask: am5.Circle.new(root, {
-                        radius: am5.percent(50)
-                    })
-                }));
+                // Only show avatar if it exists (for users)
+                if (dataContext.avatar) {
+                    target.children.push(am5.Picture.new(root, {
+                        width: 50,
+                        height: 50,
+                        centerX: am5.percent(50),
+                        centerY: am5.percent(50),
+                        src: dataContext.avatar,
+                        mask: am5.Circle.new(root, {
+                            radius: am5.percent(50)
+                        })
+                    }));
+                }
             });
         };
         
