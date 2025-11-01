@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useLayoutEffect, useRef } from 'react';
@@ -37,29 +36,27 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
                 name: `${voter.firstName} ${voter.lastName}`,
                 id: voter.id,
                 roleName: 'Votante',
-                value: 1, // Leaf nodes need a value
+                value: 1, // Leaf nodes need a value for amcharts to render them
                 isVoter: true,
             });
         }
     });
 
     const topLevelNodes: ChartData[] = [];
+    const adminUser = users.find(u => u.email === 'axdrcys@gmail.com');
     
     users.forEach(user => {
         const userNode = userMap.get(user.id);
-        if (!userNode) return;
+        if (!userNode || user.id === adminUser?.id) return;
         
         if (user.parentId && userMap.has(user.parentId)) {
             const parentNode = userMap.get(user.parentId);
             parentNode?.children?.push(userNode);
         } else {
-             if (user.email !== 'axdrcys@gmail.com') {
-                topLevelNodes.push(userNode);
-            }
+            topLevelNodes.push(userNode);
         }
     });
 
-    const adminUser = users.find(u => u.email === 'axdrcys@gmail.com');
     if (adminUser) {
         const adminNode = userMap.get(adminUser.id);
         if (adminNode) {
@@ -68,6 +65,7 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
         }
     }
     
+    // Fallback if no admin found
     return {
         name: "Campaña",
         id: "root",
@@ -86,7 +84,7 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
     const chartRef = useRef<HTMLDivElement>(null);
     const data = React.useMemo(() => buildChartData(users, voters, roles), [users, voters, roles]);
 
-    const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236B7280'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+    const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     useLayoutEffect(() => {
         if (!chartRef.current) return;
@@ -106,7 +104,15 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         
         chart.set("wheelX", "panX");
         chart.set("wheelY", "zoomX");
+
+        let scrollbarX = chart.set("scrollbarX", am5.Scrollbar.new(root, {
+          orientation: "horizontal"
+        }));
         
+        let scrollbarY = chart.set("scrollbarY", am5.Scrollbar.new(root, {
+          orientation: "vertical"
+        }));
+
         let series = chart.children.push(
             am5hierarchy.Tree.new(root, {
                 valueField: "value",
@@ -115,58 +121,42 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                 idField: "id",
                 downDepth: 1,
                 initialDepth: 5,
-                topDown: false,
-                orientation: "horizontal",
+                topDown: true,
+                orientation: "vertical",
                 nodePaddingOuter: 30,
                 nodePaddingInner: 10,
             })
         );
 
-        // Configure circles for all nodes
         series.circles.template.setAll({
             radius: 20,
-            fill: am5.color(0xffffff),
-            stroke: am5.color(0xcccccc),
-            strokeWidth: 2,
+            fill: am5.color(0x5A5A5A),
+            strokeWidth: 0,
+        });
+        
+        series.circles.template.adapters.add("radius", function (radius, target) {
+          return target.dataItem?.get("dataContext")?.isVoter ? 10 : radius;
         });
 
-        // Use adapter to change radius for voters
-        series.circles.template.adapters.add("radius", function(radius, target) {
-            const dataContext = target.dataItem?.dataContext as ChartData | undefined;
-            return dataContext?.isVoter ? 10 : radius;
-        });
-
-        // Configure outer circles for nodes with children (for expand/collapse)
         series.outerCircles.template.setAll({
             strokeWidth: 2,
             stroke: am5.color(0xcccccc)
         });
-
-        series.outerCircles.template.states.create("disabled", {
-            strokeOpacity: 0.3,
-        });
-
-        series.outerCircles.template.states.create("hover", {
-            stroke: am5.color(0xaaaaaa),
-        });
-
-        series.outerCircles.template.states.create("hoverDisabled", {
-            stroke: am5.color(0xaaaaaa),
-            strokeOpacity: 0.3
-        });
         
-        // Use adapter to change outer circle radius for voters (they don't have one, but for safety)
-        series.outerCircles.template.adapters.add("radius", function(radius, target) {
-            const dataContext = target.dataItem?.dataContext as ChartData | undefined;
-            return dataContext?.isVoter ? 10 : radius;
+         series.outerCircles.template.adapters.add("radius", function (radius, target) {
+          return target.dataItem?.get("dataContext")?.isVoter ? 10 : radius;
         });
 
+        series.outerCircles.template.states.create("disabled", { strokeOpacity: 0.3, });
+        series.outerCircles.template.states.create("hover", { stroke: am5.color(0xaaaaaa), });
+        series.outerCircles.template.states.create("hoverDisabled", { stroke: am5.color(0xaaaaaa), strokeOpacity: 0.3 });
         
         series.labels.template.setAll({
           populateText: true,
           text: "[bold]{name}[/]\n{roleName}",
-          dx: 30,
-          textAlign: "left",
+          dy: 30,
+          centerX: am5.percent(50),
+          textAlign: "center",
           oversizedBehavior: "none",
         });
 
@@ -209,4 +199,3 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
 
     return <div ref={chartRef} style={{ width: "100%", height: "100%" }}></div>;
 };
-
