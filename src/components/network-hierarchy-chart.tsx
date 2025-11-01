@@ -82,8 +82,8 @@ export const NetworkHierarchyChart = ({ users, voters }: NetworkHierarchyChartPr
             am5hierarchy.Tree.new(root, {
                 downDepth: 1,
                 initialDepth: 5,
-                topDown: false,
-                orientation: "horizontal",
+                topDown: true,
+                orientation: "vertical",
                 valueField: "value",
                 categoryField: "name",
                 childDataField: "children",
