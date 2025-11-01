@@ -102,9 +102,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         let root = am5.Root.new(chartRef.current);
 
-        root.setThemes([
-            am5themes_Animated.new(root)
-        ]);
+        root.setThemes([am5themes_Animated.new(root)]);
 
         let container = root.container.children.push(
             am5.Container.new(root, {
@@ -122,47 +120,67 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 orientation: "vertical",
                 topDown: true,
                 downDepth: 1,
-                initialDepth: 5, 
+                initialDepth: 5,
+                singleBranchOnly: false
             })
         );
         
+        // --- Configure Node Interactivity and Appearance ---
+
+        // Make nodes interactive: click to expand/collapse
         series.nodes.template.setAll({
             toggleKey: "active",
-            cursorOverStyle: "pointer"
+            cursorOverStyle: "pointer",
         });
 
-        series.nodes.template.setup = function(target) {
-            target.events.on("dataitemchanged", function(ev) {
-                let dataItem = ev.target.dataItem;
-                if(dataItem){
-                    let dataContext = dataItem.dataContext as ChartData;
-                    if(dataContext && dataContext.isVoter){
-                         dataItem.set("disabled", true);
-                         dataItem.set("forceHidden", false);
-                    }
-                }
-            });
-        }
+        // Hide default circles
+        series.circles.template.set("radius", 0);
+        series.outerCircles.template.set("radius", 0);
 
-        series.circles.template.adapters.add("radius", function(radius, target) {
-            const dataContext = target.dataItem?.dataContext as ChartData;
-            return dataContext?.isVoter ? 10 : 20;
-        });
-        
-        series.outerCircles.template.adapters.add("radius", function(radius, target) {
-            const dataContext = target.dataItem?.dataContext as ChartData;
-            return dataContext?.isVoter ? 10 : 20;
-        });
-        
+        // Configure labels to have a larger font size
         series.labels.template.setAll({
-            text: "{name}\n[fontSize:10px]{roleName}[/]",
-            centerY: am5.p50,
+            text: "{name}\n[fontSize:12px]{roleName}[/]",
             populateText: true,
-            textAlign: "center"
+            textAlign: "center",
+            centerY: am5.p50,
+            centerX: am5.p50,
+            fontSize: 14, // Increased font size for name
+        });
+        
+        // This event fires for each node that is created.
+        // We use it to add custom shapes like rectangles.
+        series.nodes.template.events.on("dataitemchanged", function(ev) {
+            const target = ev.target;
+            const dataItem = target.dataItem;
+            if (!dataItem) return;
+
+            // Clear any previous custom children to prevent duplicates on redraw
+            while(target.children.length > 1) {
+                target.children.removeIndex(0);
+            }
+
+            // Create a rectangle for the node background
+            const rect = am5.Rectangle.new(root, {
+                width: 180,
+                height: 60,
+                cornerRadiusTL: 10,
+                cornerRadiusTR: 10,
+                cornerRadiusBL: 10,
+                cornerRadiusBR: 10,
+                fill: am5.color(0x007bff), 
+                fillOpacity: 0.1,
+                stroke: am5.color(0x007bff),
+                strokeWidth: 1,
+                strokeOpacity: 0.5,
+            });
+
+            // Insert the rectangle at the bottom layer of the node
+            target.children.unshift(rect);
         });
 
         series.links.template.setAll({
-            strokeWidth: 1.5
+            strokeWidth: 1.5,
+            stroke: am5.color(0xcccccc)
         });
 
         series.data.setAll([data]);
@@ -179,4 +197,3 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
     return <div ref={chartRef} style={{ width: "100%", height: "100%" }}></div>;
 };
-
