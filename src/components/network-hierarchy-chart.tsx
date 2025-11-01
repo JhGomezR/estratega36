@@ -21,8 +21,14 @@ interface ChartData {
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
+    const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
+    const adminRoleIds = new Set(roles.filter(r => ADMIN_ROLE_NAMES.includes(r.name.toLowerCase())).map(r => r.id));
 
-    users.forEach(user => {
+    const campaignUsers = users.filter(user => 
+        user.campaignIds.includes(campaign.id) && !adminRoleIds.has(user.roleId)
+    );
+
+    campaignUsers.forEach(user => {
         userMap.set(user.id, {
             name: `${user.firstName} ${user.lastName}`,
             id: user.id,
@@ -33,14 +39,16 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         });
     });
 
-    voters.forEach(voter => {
+    const campaignVoters = voters.filter(voter => userMap.has(voter.promoterId));
+
+    campaignVoters.forEach(voter => {
         if (voter.promoterId && userMap.has(voter.promoterId)) {
             const promoterNode = userMap.get(voter.promoterId);
             promoterNode?.children?.push({
                 name: `${voter.firstName} ${voter.lastName}`,
                 id: voter.id,
                 roleName: 'Votante',
-                value: 1, 
+                value: 1,
                 isVoter: true,
             });
         }
@@ -48,7 +56,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
 
     const topLevelNodes: ChartData[] = [];
     
-    users.forEach(user => {
+    campaignUsers.forEach(user => {
         const userNode = userMap.get(user.id);
         if (!userNode) return;
         
@@ -59,11 +67,10 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             topLevelNodes.push(userNode);
         }
     });
-    
-    // Add value to user nodes based on their children count for sizing
+
     userMap.forEach(userNode => {
-        userNode.value = userNode.children ? userNode.children.length : 0;
-    })
+        userNode.value = userNode.children ? userNode.children.length + 1 : 1;
+    });
 
     return {
         name: campaign.name,
@@ -116,8 +123,8 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 initialDepth: 2,
                 topDown: true,
                 orientation: "vertical",
-                nodePaddingOuter: 10,
-                nodePaddingInner: 10,
+                nodePaddingOuter: 20,
+                nodePaddingInner: 20,
             })
         );
 
@@ -126,14 +133,12 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             cursorOverStyle: "pointer"
         });
 
-        series.circles.template.setAll({ radius: 20 });
-        series.outerCircles.template.setAll({ radius: 20 });
-        
-        series.circles.template.adapters.add("fill", (fill, target) => {
-             const dataContext = target.dataItem?.get("dataContext") as ChartData;
-             if (dataContext?.isCampaign) return am5.color(0x3B82F6);
-             if (dataContext?.isVoter) return am5.color(0x9CA3AF);
-             return am5.color(0x10B981);
+        series.circles.template.setAll({
+            radius: 20
+        });
+
+        series.outerCircles.template.setAll({
+            radius: 20
         });
 
         series.links.template.setAll({
@@ -149,7 +154,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
           textAlign: "center",
           oversizedBehavior: "none",
         });
-        
+
         let plus = am5.Picture.new(root, {
             width: 16, height: 16,
             centerX: am5.percent(100),
@@ -167,18 +172,19 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         });
         minus.states.create("hidden", { visible: false });
         minus.states.create("active", { visible: true });
-        
-        series.nodes.template.children.push(plus);
-        series.nodes.template.children.push(minus);
 
         series.nodes.template.events.on("dataitemchanged", function(ev) {
+            let target = ev.target;
+            target.children.push(plus);
+            target.children.push(minus);
+            
             const dataItem = ev.target.dataItem;
             const dataContext = dataItem?.get("dataContext") as ChartData;
             
             if (dataContext.children && dataContext.children.length > 0) {
                  // has children
             } else {
-                ev.target.children.each(function(child) {
+                target.children.each(function(child) {
                     if (child === plus || child === minus) {
                         child.set("visible", false)
                     }
@@ -191,7 +197,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 const outerCircle = dataItem.get("outerCircle");
                 if (outerCircle) outerCircle.set("radius", 10);
             } else {
-                 ev.target.children.push(
+                 target.children.push(
                     am5.Picture.new(root, {
                         width: dataContext.isCampaign ? 24 : 20,
                         height: dataContext.isCampaign ? 24 : 20,
@@ -209,7 +215,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         return () => {
             root.dispose();
         };
-    }, [data]);
+    }, [data, userIconSvg, campaignIconSvg]);
 
     if (!data || (data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay usuarios en esta campaña para mostrar en la red.</p></div>
