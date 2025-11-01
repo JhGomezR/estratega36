@@ -27,8 +27,8 @@ export const buildTreeData = (users: User[], voters: Voter[]): TreeNode => {
     });
 
     const userMap = new Map<string, TreeNode>();
-    
-    // First pass: create all user nodes
+
+    // 1. First pass: Create a node for each user and store it in a map.
     users.forEach(user => {
         const totalVoters = voterCounts.get(user.id) || 0;
         const name = `${user.firstName} ${user.lastName}`;
@@ -38,19 +38,29 @@ export const buildTreeData = (users: User[], voters: Voter[]): TreeNode => {
             children: [],
         });
     });
+    
+    const processedUsers = new Set<string>();
 
-    // Second pass: build the hierarchy
+    // 2. Second pass: Build the hierarchy.
     users.forEach(user => {
+        if (processedUsers.has(user.id)) return;
+
         const userNode = userMap.get(user.id);
         if (!userNode) return;
 
         if (user.parentId && userMap.has(user.parentId)) {
             const parentNode = userMap.get(user.parentId);
-            parentNode?.children?.push(userNode);
+            // Ensure child is not already added
+            if (!parentNode?.children?.some(child => child.id === userNode.id)) {
+                 parentNode?.children?.push(userNode);
+            }
         } else {
             // If no parent or parent not found, add to root
-            root.children?.push(userNode);
+            if (!root.children?.some(child => child.id === userNode.id)) {
+                root.children?.push(userNode);
+            }
         }
+        processedUsers.add(user.id);
     });
 
     return root;
