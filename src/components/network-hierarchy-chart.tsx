@@ -12,56 +12,45 @@ interface ChartData {
     id: string;
     avatar?: string;
     roleName?: string;
-    voterCount?: number;
     children?: ChartData[];
-    childrenCount?: number;
 }
 
 const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartData => {
-    const root: ChartData = {
+    const defaultRoot: ChartData = {
         name: "EstrategaCRM",
         id: "root",
         children: [],
-        voterCount: 0,
-        childrenCount: 0
     };
 
     if (!users || users.length === 0) {
-        return root;
+        return defaultRoot;
     }
 
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
 
     users.forEach(user => {
-        const directVoters = voters.filter(v => v.promoterId === user.id).length;
         userMap.set(user.id, {
             name: `${user.firstName} ${user.lastName}`,
             id: user.id,
             avatar: user.avatar,
             roleName: rolesMap.get(user.roleId) || 'Sin Rol',
-            voterCount: directVoters,
             children: [],
-            childrenCount: 0,
         });
     });
     
     const topLevelNodes: ChartData[] = [];
-    let totalVoters = 0;
-
+    
     users.forEach(user => {
         const userNode = userMap.get(user.id);
         if (!userNode) return;
         
-        totalVoters += userNode.voterCount ?? 0;
-
         if (user.parentId && userMap.has(user.parentId)) {
             const parentNode = userMap.get(user.parentId);
-            if (parentNode) {
-                parentNode.children?.push(userNode);
-                parentNode.childrenCount = parentNode.children?.length;
-            }
+            parentNode?.children?.push(userNode);
         } else {
+            // Add users without a parent (or with a non-existent parent) to the top level,
+            // except for the main admin user which will be the root.
             if (user.email !== 'axdrcys@gmail.com') {
                 topLevelNodes.push(userNode);
             }
@@ -72,18 +61,14 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
     if (adminUser) {
         const adminNode = userMap.get(adminUser.id);
         if (adminNode) {
-            adminNode.children = topLevelNodes;
-            adminNode.childrenCount = topLevelNodes.length;
-            adminNode.voterCount = totalVoters;
-            root.children = [adminNode];
-        } else {
-             root.children = topLevelNodes;
+            adminNode.children = [...(adminNode.children || []), ...topLevelNodes];
+            return adminNode; // The admin is the absolute root
         }
-    } else {
-        root.children = topLevelNodes;
     }
-    
-    return root;
+
+    // Fallback if no admin user is found, use the generic root with all top-level nodes
+    defaultRoot.children = topLevelNodes;
+    return defaultRoot;
 };
 
 
@@ -119,7 +104,6 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
             orientation: "horizontal"
         }));
 
-
         let series = chart.children.push(
             am5hierarchy.Tree.new(root, {
                 singleBranchOnly: false,
@@ -140,12 +124,12 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
           toggleKey: "none",
           cursorOverStyle: "default",
           draggable: false,
-          tooltipText: "{name}\nRol: {roleName}\nVotantes: {voterCount}"
+          tooltipText: "{name}\nRol: {roleName}"
         });
         
         series.circles.template.setAll({
             radius: 30,
-            fill: am5.color(0xcccccc)
+            fill: am5.color(0xcccccc),
         });
 
         series.outerCircles.template.set("forceHidden", true);
@@ -153,9 +137,11 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         series.labels.template.setAll({
           dy: 40,
           populateText: true,
-          text: "[bold]{name}[/]\n{roleName}"
+          text: "[bold]{name}[/]\n{roleName}",
+          textAlign: "center"
         });
         
+        // This is the magic part: setup is called for each node
         series.nodes.template.setup = function(target) {
             target.events.on("dataitemchanged", function(ev) {
                 const dataItem = ev.target.dataItem;
@@ -163,19 +149,20 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                 
                 const dataContext = dataItem.dataContext as ChartData;
                 
-                if (dataContext.id === 'root') {
-                    target.set("forceHidden", true);
-                    return;
-                }
-
-                let picture = target.children.push(am5.Picture.new(root, {
-                    width: 50,
-                    height: 50,
+                // Hide the default circle, we'll use a picture instead
+                const circle = dataItem.get("circle");
+                circle?.set("forceHidden", true);
+                
+                // Create a Picture element
+                target.children.push(am5.Picture.new(root, {
+                    width: 60,
+                    height: 60,
                     centerX: am5.percent(50),
                     centerY: am5.percent(50),
                     src: dataContext.avatar,
+                    // This is the key: mask the picture with a circle
                     mask: am5.Circle.new(root, {
-                      radius: am5.percent(50)
+                        radius: am5.percent(50)
                     })
                 }));
             });
@@ -194,7 +181,7 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         };
     }, [data]);
 
-    if (data.children?.length === 0) {
+    if (!data || (data.id === 'root' && data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay datos de red para mostrar.</p></div>
     }
 
