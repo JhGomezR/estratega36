@@ -1,3 +1,4 @@
+
 "use client"
 import React from 'react';
 import dynamic from 'next/dynamic';
@@ -18,11 +19,13 @@ const NetworkHierarchyChart = dynamic(() => import('@/components/network-hierarc
     )
 });
 
+const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
+
 export default function NetworkPage() {
     const firestore = useFirestore();
     const { user: authUser, isLoading: permissionsLoading, hasPermission } = usePermissions();
 
-    const { data: users, isLoading: usersLoading } = useCollection<User>(
+    const { data: usersData, isLoading: usersLoading } = useCollection<User>(
         useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
     );
     const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
@@ -38,12 +41,11 @@ export default function NetworkPage() {
     const [selectedCampaignId, setSelectedCampaignId] = React.useState<string | null>(null);
 
     const activeCampaigns = React.useMemo(() => {
-        if (!campaigns || !authUser || !users || !hasPermission('campaign:read')) return [];
-        const currentUserData = users.find(u => u.id === authUser.id);
+        if (!campaigns || !authUser || !usersData || !hasPermission('campaign:read')) return [];
+        const currentUserData = usersData.find(u => u.id === authUser.id);
         
-        const adminRoles = ['admin', 'super_admin', 'super', 'administrador'];
         const userRole = roles?.find(r => r.id === currentUserData?.roleId)?.name.toLowerCase();
-        const isAdmin = userRole && adminRoles.includes(userRole);
+        const isAdmin = userRole && ADMIN_ROLE_NAMES.includes(userRole);
 
         const allActive = campaigns.filter(c => c.status === 'En Campaña');
 
@@ -52,7 +54,7 @@ export default function NetworkPage() {
         }
 
         return allActive.filter(c => currentUserData?.campaignIds.includes(c.id));
-    }, [campaigns, authUser, users, roles, hasPermission]);
+    }, [campaigns, authUser, usersData, roles, hasPermission]);
     
     React.useEffect(() => {
         if (!selectedCampaignId && activeCampaigns.length > 0) {
@@ -60,16 +62,23 @@ export default function NetworkPage() {
         }
     }, [activeCampaigns, selectedCampaignId]);
     
-    const filteredUsers = React.useMemo(() => {
-        if (!users || !selectedCampaignId) return [];
-        return users.filter(user => user.campaignIds.includes(selectedCampaignId));
-    }, [users, selectedCampaignId]);
-    
-    const filteredVoters = React.useMemo(() => {
-        if (!voters || !filteredUsers) return [];
-        const campaignUserIds = new Set(filteredUsers.map(u => u.id));
-        return voters.filter(voter => campaignUserIds.has(voter.promoterId));
-    }, [voters, filteredUsers]);
+    const { filteredUsers, filteredVoters } = React.useMemo(() => {
+        if (!usersData || !voters || !roles || !selectedCampaignId) {
+            return { filteredUsers: [], filteredVoters: [] };
+        }
+
+        const adminRoleIds = new Set(roles.filter(r => ADMIN_ROLE_NAMES.includes(r.name.toLowerCase())).map(r => r.id));
+
+        const campaignUsers = usersData.filter(user => 
+            user.campaignIds.includes(selectedCampaignId) && !adminRoleIds.has(user.roleId)
+        );
+
+        const campaignUserIds = new Set(campaignUsers.map(u => u.id));
+        const campaignVoters = voters.filter(voter => campaignUserIds.has(voter.promoterId));
+        
+        return { filteredUsers: campaignUsers, filteredVoters: campaignVoters };
+
+    }, [usersData, voters, roles, selectedCampaignId]);
 
 
     const isLoading = usersLoading || votersLoading || rolesLoading || campaignsLoading || permissionsLoading;

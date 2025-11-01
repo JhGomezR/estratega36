@@ -15,19 +15,27 @@ interface ChartData {
     value?: number;
     isVoter?: boolean;
     isCampaign?: boolean;
+    isUser?: boolean;
 }
+
+const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
 
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
 
-    users.forEach(user => {
+    const adminRoleIds = new Set(roles.filter(r => ADMIN_ROLE_NAMES.includes(r.name.toLowerCase())).map(r => r.id));
+
+    const campaignUsers = users.filter(user => !adminRoleIds.has(user.roleId));
+
+    campaignUsers.forEach(user => {
         userMap.set(user.id, {
             name: `${user.firstName} ${user.lastName}`,
             id: user.id,
             roleName: rolesMap.get(user.roleId) || 'Sin Rol',
             children: [],
             isVoter: false,
+            isUser: true,
         });
     });
 
@@ -46,7 +54,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
 
     const topLevelNodes: ChartData[] = [];
     
-    users.forEach(user => {
+    campaignUsers.forEach(user => {
         const userNode = userMap.get(user.id);
         if (!userNode) return;
         
@@ -113,42 +121,33 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             })
         );
         
-        // Enable toggling on click
         series.nodes.template.setAll({
           toggleKey: "active",
           cursorOverStyle: "pointer"
         });
 
-        // Configure circles
-        series.circles.template.setAll({
-            radius: 20,
-            strokeWidth: 2,
+        series.circles.template.adapters.add("radius", (radius, target) => {
+            const dataContext = target.dataItem?.get("dataContext") as ChartData;
+            return dataContext?.isVoter ? 10 : 20;
         });
 
+        series.outerCircles.template.adapters.add("radius", (radius, target) => {
+            const dataContext = target.dataItem?.get("dataContext") as ChartData;
+            return dataContext?.isVoter ? 10 : 20;
+        });
+        
         series.circles.template.adapters.add("fill", (fill, target) => {
              const dataContext = target.dataItem?.get("dataContext") as ChartData;
              if (dataContext?.isCampaign) return am5.color(0x3B82F6);
              if (dataContext?.isVoter) return am5.color(0x9CA3AF);
              return am5.color(0x10B981);
         });
-        
-        series.outerCircles.template.setAll({
-            radius: 20,
-            strokeWidth: 2,
-        });
-        
-        // Hide outer circles for nodes without children
-        series.outerCircles.template.adapters.add("forceHidden", (hidden, target) => {
-          return !target.dataItem?.get("children")?.length;
-        });
 
-        // Configure link appearance
         series.links.template.setAll({
             strokeWidth: 1,
             strokeOpacity: 0.7,
         });
 
-        // Configure labels
         series.labels.template.setAll({
           populateText: true,
           text: "[bold]{name}[/]\n{roleName}",
@@ -158,26 +157,49 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
           oversizedBehavior: "none",
         });
 
-        // Add icons to nodes
         series.nodes.template.setup = function(target) {
             target.events.on("dataitemchanged", function(ev) {
                 const dataItem = ev.target.dataItem;
                 if (!dataItem) return;
 
                 const dataContext = dataItem.dataContext as ChartData;
-                if (dataContext.isVoter) return; // No icon for voters
+                
+                const circle = am5.Circle.new(root, { radius: 20 });
+                if (dataContext.isVoter) {
+                   dataItem.get("outerCircle")?.set("forceHidden", true);
+                   return; // No icon for voters
+                }
+
+                if (dataContext.children && dataContext.children.length > 0) {
+                  let plus = am5.Picture.new(root, {
+                      width: 16, height: 16,
+                      centerX: am5.percent(100),
+                      centerY: am5.percent(100),
+                      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M12 6v12m-6-6h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
+                  });
+                   let minus = am5.Picture.new(root, {
+                      width: 16, height: 16,
+                      centerX: am5.percent(100),
+                      centerY: am5.percent(100),
+                      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M6 12h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
+                  });
+
+                  plus.states.create("hidden", { visible: true });
+                  minus.states.create("hidden", { visible: false });
+
+                  plus.states.create("active", { visible: false });
+                  minus.states.create("active", { visible: true });
+                  
+                  target.children.push(plus);
+                  target.children.push(minus);
+                }
 
                 const iconSrc = dataContext.isCampaign ? campaignIconSvg : userIconSvg;
 
-                let circle = am5.Circle.new(root, { radius: 20 });
-                 if (dataContext.isCampaign) {
-                    circle.set("radius", 25);
-                }
-
                 target.children.push(
                     am5.Picture.new(root, {
-                        width: dataContext.isCampaign ? 28 : 22,
-                        height: dataContext.isCampaign ? 28 : 22,
+                        width: dataContext.isCampaign ? 24 : 20,
+                        height: dataContext.isCampaign ? 24 : 20,
                         centerX: am5.percent(50),
                         centerY: am5.percent(50),
                         src: iconSrc,
@@ -186,39 +208,6 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 );
             });
         };
-
-        // Add expand/collapse symbols
-        series.nodes.template.setup = function (target) {
-            target.events.on("dataitemchanged", function (ev) {
-                let dataItem = ev.target.dataItem;
-                if (dataItem?.get("children")?.length) {
-                    let plus = am5.Picture.new(root, {
-                        width: 16, height: 16,
-                        centerX: am5.percent(100),
-                        centerY: am5.percent(100),
-                        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M12 6v12m-6-6h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
-                    });
-                     let minus = am5.Picture.new(root, {
-                        width: 16, height: 16,
-                        centerX: am5.percent(100),
-                        centerY: am5.percent(100),
-                        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Ccircle cx='12' cy='12' r='11' fill='%236b7280'/%3E%3Cpath d='M6 12h12' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
-                    });
-
-                    dataItem.get("outerCircle")?.set("forceHidden", true);
-                    plus.states.create("hidden", { visible: true });
-                    minus.states.create("hidden", { visible: false });
-
-                    dataItem.get("circle")?.states.create("active", {});
-                    plus.states.create("active", { visible: false });
-                    minus.states.create("active", { visible: true });
-                    
-                    target.children.push(plus);
-                    target.children.push(minus);
-                }
-            });
-        };
-        
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
