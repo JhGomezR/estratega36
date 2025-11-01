@@ -10,10 +10,10 @@ import type { User, Voter, Role } from '@/lib/types';
 interface ChartData {
     name: string;
     id: string;
-    avatar?: string;
     roleName?: string;
     children?: ChartData[];
     value?: number;
+    isVoter?: boolean;
 }
 
 const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartData => {
@@ -24,13 +24,12 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
         userMap.set(user.id, {
             name: `${user.firstName} ${user.lastName}`,
             id: user.id,
-            avatar: user.avatar,
             roleName: rolesMap.get(user.roleId) || 'Sin Rol',
             children: [],
+            isVoter: false,
         });
     });
 
-    // Add voters as children to their promoters
     voters.forEach(voter => {
         if (voter.promoterId && userMap.has(voter.promoterId)) {
             const promoterNode = userMap.get(voter.promoterId);
@@ -38,7 +37,8 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
                 name: `${voter.firstName} ${voter.lastName}`,
                 id: voter.id,
                 roleName: 'Votante',
-                value: 1 // Give leaf nodes a value for layout purposes
+                value: 1, // Leaf nodes need a value
+                isVoter: true,
             });
         }
     });
@@ -53,7 +53,7 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
             const parentNode = userMap.get(user.parentId);
             parentNode?.children?.push(userNode);
         } else {
-            if (user.email !== 'axdrcys@gmail.com') {
+             if (user.email !== 'axdrcys@gmail.com') {
                 topLevelNodes.push(userNode);
             }
         }
@@ -68,9 +68,8 @@ const buildChartData = (users: User[], voters: Voter[], roles: Role[]): ChartDat
         }
     }
     
-    // Fallback if no admin found
     return {
-        name: "Estructura de Campaña",
+        name: "Campaña",
         id: "root",
         children: topLevelNodes,
     };
@@ -87,12 +86,15 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
     const chartRef = useRef<HTMLDivElement>(null);
     const data = React.useMemo(() => buildChartData(users, voters, roles), [users, voters, roles]);
 
+    const userIconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+
     useLayoutEffect(() => {
         if (!chartRef.current) return;
 
         let root = am5.Root.new(chartRef.current);
         
-        root.setThemes([ am5themes_Animated.new(root) ]);
+        const theme = am5themes_Animated.new(root);
+        root.setThemes([theme]);
         
         const chart = root.container.children.push(
             am5.Container.new(root, {
@@ -105,10 +107,6 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         chart.set("wheelX", "panX");
         chart.set("wheelY", "zoomX");
         
-        chart.set("scrollbarX", am5.Scrollbar.new(root, {
-            orientation: "horizontal"
-        }));
-
         let series = chart.children.push(
             am5hierarchy.Tree.new(root, {
                 valueField: "value",
@@ -117,9 +115,9 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                 idField: "id",
                 downDepth: 1,
                 initialDepth: 5,
-                topDown: true,
-                orientation: "vertical",
-                nodePaddingOuter: 20,
+                topDown: false,
+                orientation: "horizontal",
+                nodePaddingOuter: 30,
                 nodePaddingInner: 10,
             })
         );
@@ -128,37 +126,24 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
           tooltipText: "{name}\nRol: {roleName}"
         });
         
-        // Use circles as background
         series.circles.template.setAll({
-            radius: 30,
-            fill: am5.color(0xcccccc),
+            radius: 20,
+            fill: am5.color(0x555555),
         });
-        
-        // Configure outer circles for expand/collapse functionality
+
         series.outerCircles.template.setAll({
-            radius: 30,
-            strokeWidth: 2,
-            stroke: am5.color(0xbbbbbb),
-        });
-
-        series.outerCircles.template.states.create("disabled", {
-            strokeOpacity: 0.3,
-            strokeDasharray: [2,2]
-        });
-
-        series.outerCircles.template.states.create("hoverDisabled", {
-            strokeOpacity: 0.3,
-            strokeDasharray: [2,2]
+            radius: 20,
+            strokeWidth: 2
         });
 
         series.labels.template.setAll({
-          dy: 45, // Position label below the node
           populateText: true,
           text: "[bold]{name}[/]\n{roleName}",
-          textAlign: "center"
+          dx: 30,
+          textAlign: "left",
+          oversizedBehavior: "none",
         });
         
-        // Setup images for user nodes
         series.nodes.template.setup = function(target) {
             target.events.on("dataitemchanged", function(ev) {
                 const dataItem = ev.target.dataItem;
@@ -166,24 +151,24 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
                 
                 const dataContext = dataItem.dataContext as ChartData;
                 
-                // Only show avatar if it exists (for users)
-                if (dataContext.avatar) {
+                if (!dataContext.isVoter) {
                     target.children.push(am5.Picture.new(root, {
-                        width: 50,
-                        height: 50,
+                        width: 25,
+                        height: 25,
                         centerX: am5.percent(50),
                         centerY: am5.percent(50),
-                        src: dataContext.avatar,
-                        mask: am5.Circle.new(root, {
-                            radius: am5.percent(50)
-                        })
+                        src: userIconSvg,
                     }));
+                } else {
+                     // Make voter nodes smaller
+                    dataItem.get("circle").set("radius", 10);
+                    dataItem.get("outerCircle").set("radius", 10);
                 }
             });
         };
         
         series.links.template.setAll({
-            strokeWidth: 2,
+            strokeWidth: 1,
             strokeOpacity: 0.7,
         });
 
@@ -193,7 +178,7 @@ export const NetworkHierarchyChart = ({ users, voters, roles }: NetworkHierarchy
         return () => {
             root.dispose();
         };
-    }, [data]);
+    }, [data, userIconSvg]);
 
     if (!data || (data.id === 'root' && data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay datos de red para mostrar.</p></div>
