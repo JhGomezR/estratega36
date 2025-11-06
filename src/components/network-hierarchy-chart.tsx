@@ -166,7 +166,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         series.labels.template.setAll({
             text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
             populateText: true,
-            fontSize: 14,
+            fontSize: 18,
             fill: am5.color(0x333333),
             centerX: am5.p50,
             textAlign: "center",
