@@ -111,9 +111,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         let root = am5.Root.new(chartRef.current);
         
-        const animatedTheme = am5themes_Animated.new(root);
-        
-        root.setThemes([animatedTheme]);
+        root.setThemes([am5themes_Animated.new(root)]);
         
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
@@ -137,48 +135,61 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             downDepth: 1,
             initialDepth: 10,
             singleBranchOnly: false,
-            toggleKey: "active",
         }));
         
         series.nodes.template.setAll({
           width: 200,
-          height: 60,
           cursorOverStyle: "pointer",
-          toggleKey: "active"
+          toggleKey: "active",
         });
 
-        series.nodes.template.events.on("dataitemchanged", function(ev) {
-            let dataItem = ev.target.dataItem;
-            if (dataItem) {
-                let node = dataItem.get("node");
-                if (node) {
-                    node.children.clear(); // Clear default visuals
-                    let rectangle = node.children.push(am5.Rectangle.new(root, {
-                        width: node.get("width"),
-                        height: node.get("height"),
-                        cornerRadiusTL: 10,
-                        cornerRadiusTR: 10,
-                        cornerRadiusBL: 10,
-                        cornerRadiusBR: 10,
-                    }));
+        series.nodes.template.set("bullet", (root, series, dataItem) => {
+            const container = am5.Container.new(root, {
+                width: am5.p100,
+                height: am5.p100,
+                cursorOverStyle: "pointer"
+            });
 
-                    rectangle.adapters.add("fill", (fill, target) => {
-                        const dataContext = dataItem.dataContext as ChartData;
-                        if (!dataContext) return am5.color(0xbb9f06);
-                        if(dataContext.isCampaign) return am5.color(0x095256);
-                        if(dataContext.roleName === 'Lider') return am5.color(0x087f8c);
-                        if(dataContext.roleName === 'Promotor') return am5.color(0x5aaa95);
-                        if(dataContext.isVoter) return am5.color(0x86a873);
-                        return am5.color(0xbb9f06);
-                    });
-                }
+            const chartData = dataItem.dataContext as ChartData;
+            
+            if (chartData.isVoter) {
+                 const circle = container.children.push(am5.Circle.new(root, {
+                    radius: 15,
+                }));
+                 circle.adapters.add("fill", () => am5.color(0x86a873));
+                 return am5.Bullet.new(root, {
+                    sprite: container
+                });
             }
+
+
+            const rectangle = container.children.push(am5.Rectangle.new(root, {
+                width: 220,
+                height: 70,
+                cornerRadiusTL: 10,
+                cornerRadiusTR: 10,
+                cornerRadiusBL: 10,
+                cornerRadiusBR: 10,
+            }));
+            
+            rectangle.adapters.add("fill", (fill, target) => {
+                if (chartData.isCampaign) return am5.color(0x095256);
+                const roleName = chartData.roleName || "";
+                if (roleName.toLowerCase().includes('director')) return am5.color(0x087f8c);
+                if (roleName.toLowerCase().includes('lider')) return am5.color(0x5aaa95);
+                if (roleName.toLowerCase().includes('promotor')) return am5.color(0x86a873);
+                return am5.color(0xbb9f06);
+            });
+            
+            return am5.Bullet.new(root, {
+                sprite: container
+            });
         });
         
         series.labels.template.setAll({
             text: "{name}\n[fontSize:14px; bold]{roleName}[/]\n[fontSize:12px]Votantes: {value}[/]",
             fill: am5.color(0xffffff),
-            fontSize: 16,
+            fontSize: 18,
             populateText: true,
             centerX: am5.p50,
             centerY: am5.p50,
