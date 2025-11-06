@@ -6,14 +6,13 @@ import * as am5 from "@amcharts/amcharts5";
 import * as am5hierarchy from "@amcharts/amcharts5/hierarchy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import type { User, Voter, Role, Campaign } from '@/lib/types';
-import { useTheme } from 'next-themes';
 
 interface ChartData {
     name: string;
     id: string;
     roleName?: string;
     children?: ChartData[];
-    value: number; // Represents total voters in the hierarchy below
+    value: number; 
     isVoter?: boolean;
     isCampaign?: boolean;
 }
@@ -105,7 +104,6 @@ interface NetworkHierarchyChartProps {
 
 export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: NetworkHierarchyChartProps) => {
     const chartRef = useRef<HTMLDivElement>(null);
-    const { resolvedTheme } = useTheme();
     const data = React.useMemo(() => buildChartData(campaign, users, voters, roles), [campaign, users, voters, roles]);
 
     useLayoutEffect(() => {
@@ -114,19 +112,9 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         let root = am5.Root.new(chartRef.current);
         
         const animatedTheme = am5themes_Animated.new(root);
-        animatedTheme.rules.push({
-            id: "classic",
-            rule: (target) => {
-                if (target instanceof am5.Label) {
-                    return {
-                        fontFamily: "Inter, sans-serif"
-                    }
-                }
-            }
-        });
-
+        
         root.setThemes([animatedTheme]);
-
+        
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
             width: am5.p100,
@@ -149,28 +137,14 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             downDepth: 1,
             initialDepth: 10,
             singleBranchOnly: false,
-            toggleKey: "active"
+            toggleKey: "active",
         }));
-
-        series.circles.template.set("forceHidden", true);
-        series.outerCircles.template.set("forceHidden", true);
-
-        series.labels.template.setAll({
-            text: "{name}\n[fontSize:12px]{roleName}[/]\n[fontSize:10px]Votantes: {value}[/]",
-            fill: am5.color(0xffffff),
-            fontSize: 14,
-            populateText: true,
-            centerX: am5.p50,
-            centerY: am5.p50,
-            textAlign: "center"
-        });
-
-        series.links.template.set("strokeWidth", 2);
-
+        
         series.nodes.template.setAll({
-            width: 150,
-            height: 80,
-            cursorOverStyle: "pointer",
+          width: 200,
+          height: 60,
+          cursorOverStyle: "pointer",
+          toggleKey: "active"
         });
 
         series.nodes.template.events.on("dataitemchanged", function(ev) {
@@ -178,6 +152,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             if (dataItem) {
                 let node = dataItem.get("node");
                 if (node) {
+                    node.children.clear(); // Clear default visuals
                     let rectangle = node.children.push(am5.Rectangle.new(root, {
                         width: node.get("width"),
                         height: node.get("height"),
@@ -189,6 +164,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
                     rectangle.adapters.add("fill", (fill, target) => {
                         const dataContext = dataItem.dataContext as ChartData;
+                        if (!dataContext) return am5.color(0xbb9f06);
                         if(dataContext.isCampaign) return am5.color(0x095256);
                         if(dataContext.roleName === 'Lider') return am5.color(0x087f8c);
                         if(dataContext.roleName === 'Promotor') return am5.color(0x5aaa95);
@@ -198,6 +174,18 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 }
             }
         });
+        
+        series.labels.template.setAll({
+            text: "{name}\n[fontSize:14px; bold]{roleName}[/]\n[fontSize:12px]Votantes: {value}[/]",
+            fill: am5.color(0xffffff),
+            fontSize: 16,
+            populateText: true,
+            centerX: am5.p50,
+            centerY: am5.p50,
+            textAlign: "center"
+        });
+
+        series.links.template.set("strokeWidth", 2);
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
@@ -205,7 +193,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         return () => {
             root.dispose();
         };
-    }, [data, resolvedTheme]);
+    }, [data]);
 
     if (!data || (data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay usuarios en esta campaña para mostrar en la red.</p></div>
