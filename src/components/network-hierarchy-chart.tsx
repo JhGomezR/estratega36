@@ -111,8 +111,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         let root = am5.Root.new(chartRef.current);
         
-        const animatedTheme = am5themes_Animated.new(root);
-        root.setThemes([animatedTheme]);
+        root.setThemes([am5themes_Animated.new(root)]);
         
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
@@ -140,17 +139,18 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         
         series.nodes.template.setAll({
             cursorOverStyle: "pointer",
-            toggleKey: "active",
+            toggleKey: "active", // This enables expand/collapse on click
         });
 
         // Hide default circle
         series.nodes.template.set("forceHidden", true);
-
-        series.nodes.template.set("bullet", (root, series, dataItem) => {
+        
+        // Custom bullet for nodes
+        series.nodes.template.set("bullet", (root, _series, dataItem) => {
             const chartData = dataItem.dataContext as ChartData;
-            
+
             if (chartData.isVoter) {
-                 return am5.Bullet.new(root, {
+                return am5.Bullet.new(root, {
                     sprite: am5.Circle.new(root, {
                         radius: 5,
                         fill: am5.color(0x86a873),
