@@ -12,23 +12,35 @@ interface ChartData {
     id: string;
     roleName?: string;
     children?: ChartData[];
-    value: number; 
+    value: number;
     isVoter?: boolean;
     isCampaign?: boolean;
+    fill?: am5.Color;
 }
 
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
 
+    const getColor = (dataContext: Partial<ChartData>): am5.Color => {
+        if (dataContext.isCampaign) return am5.color(0x1A237E); // Deep Blue for campaign
+        if (dataContext.isVoter) return am5.color(0xFFC107); // Gold for voter
+        const roleName = dataContext.roleName?.toLowerCase() || '';
+        if (roleName.includes('lider')) return am5.color(0x4CAF50); // Green for leader
+        if (roleName.includes('promotor')) return am5.color(0x2196F3); // Blue for promoter
+        return am5.color(0x9E9E9E); // Grey for others
+    };
+
     users.forEach(user => {
-        userMap.set(user.id, {
+        const chartNode: ChartData = {
             name: `${user.firstName} ${user.lastName}`,
             id: user.id,
             roleName: rolesMap.get(user.roleId) || 'Sin Rol',
             children: [],
-            value: 0,
-        });
+            value: 0
+        };
+        chartNode.fill = getColor(chartNode);
+        userMap.set(user.id, chartNode);
     });
     
     const campaignVoters = voters.filter(voter => userMap.has(voter.promoterId));
@@ -36,13 +48,15 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
     campaignVoters.forEach(voter => {
         const promoterNode = userMap.get(voter.promoterId);
         if (promoterNode && promoterNode.children) {
-            promoterNode.children.push({
+            const voterNode: ChartData = {
                 name: `${voter.firstName} ${voter.lastName}`,
                 id: voter.id,
                 value: 1,
                 roleName: "Votante",
-                isVoter: true,
-            });
+                isVoter: true
+            };
+            voterNode.fill = getColor(voterNode);
+            promoterNode.children.push(voterNode);
         }
     });
 
@@ -65,17 +79,14 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         if (node.isVoter) {
             return 1;
         }
-
         if (!node.children || node.children.length === 0) {
             node.value = 0;
             return 0;
         }
-
         let totalVoters = 0;
         node.children.forEach(child => {
             totalVoters += calculateValues(child);
         });
-        
         node.value = totalVoters;
         return totalVoters;
     };
@@ -86,8 +97,9 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         id: campaign.id,
         isCampaign: true,
         children: topLevelNodes,
-        value: 0,
+        value: 0
     };
+    campaignNode.fill = getColor(campaignNode);
     
     calculateValues(campaignNode);
 
@@ -136,37 +148,62 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             singleBranchOnly: false,
         }));
         
-        series.nodes.template.setAll({
-            toggleKey: "active",
-            cursorOverStyle: "pointer"
-        });
+        series.nodes.template.set("forceHidden", true);
 
-        // Set a larger radius directly on the template's circle
-        series.nodes.template.get("circle")?.setAll({
-            radius: 40, // Increased radius for all nodes
-        });
+        series.set("bullet", function(root, series, dataItem) {
+            const rectangle = am5.Rectangle.new(root, {
+                width: 160,
+                height: 60,
+                centerX: am5.p50,
+                centerY: am5.p50,
+                fill: (dataItem.dataContext as ChartData)?.fill || am5.color(0x9E9E9E),
+                strokeWidth: 1,
+                cornerRadiusTL: 8,
+                cornerRadiusTR: 8,
+                cornerRadiusBL: 8,
+                cornerRadiusBR: 8,
+                tooltipText: "{name}",
+                cursor: "pointer",
+            });
+            
+            rectangle.states.create("active", {});
+            
+            rectangle.events.on("click", function(e) {
+                if (dataItem.get("children")) {
+                  dataItem.toggle();
+                }
+            });
 
-        series.nodes.template.adapters.add("fill", (fill, target) => {
-            const dataContext = target.dataItem?.dataContext as ChartData;
-            if (dataContext) {
-                if (dataContext.isCampaign) return am5.color(0x1A237E); // Deep Blue
-                if (dataContext.isVoter) return am5.color(0xFFC107); // Gold
-                if (dataContext.roleName?.toLowerCase().includes('lider')) return am5.color(0x4CAF50); // Green
-                if (dataContext.roleName?.toLowerCase().includes('promotor')) return am5.color(0x2196F3); // Blue
-            }
-            return am5.color(0x9E9E9E); // Grey for others
+            return am5.Bullet.new(root, {
+                sprite: rectangle,
+                locationX: 0.5,
+                locationY: 0.5,
+            });
+        });
+        
+        series.links.template.setAll({
+            strokeWidth: 2,
+            stroke: am5.color(0xcccccc)
         });
 
         series.labels.template.setAll({
-            text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
             populateText: true,
-            fontSize: 16, // Increased font size
+            fontSize: 14,
             fill: am5.color(0xffffff),
             centerX: am5.p50,
+            centerY: am5.p50,
             textAlign: "center",
+            oversizedBehavior: "wrap",
+            maxWidth: 140,
         });
 
-        series.links.template.set("strokeWidth", 2);
+        series.labels.template.adapters.add("text", (text, target) => {
+            const dataContext = target.dataItem?.dataContext as ChartData;
+            if (dataContext) {
+                 return `[bold]${dataContext.name}[/]\n${dataContext.roleName}\n[fontSize:12px]Votantes: ${dataContext.value}[/]`;
+            }
+            return text;
+        });
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
