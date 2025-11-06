@@ -124,7 +124,15 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             cursorOverStyle: "pointer",
         });
 
-        series.nodes.template.adapters.add("fill", function (fill, target) {
+        series.circles.template.adapters.add("radius", function (radius, target) {
+            const dataContext = target.dataItem?.dataContext as ChartData;
+            if (dataContext?.isVoter) {
+                return 15;
+            }
+            return 30;
+        });
+
+        series.circles.template.adapters.add("fill", function (fill, target) {
             const dataContext = target.dataItem?.dataContext as ChartData;
             if (!dataContext) return fill;
 
@@ -134,7 +142,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             if (role?.includes('promotor')) return am5.color(0x28a745);
             if (role === 'votante') return am5.color(0xffc107);
             
-            return fill;
+            return am5.color(0x6c757d);
         });
 
         series.labels.template.setAll({
