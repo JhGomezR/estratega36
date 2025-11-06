@@ -80,7 +80,6 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         return totalVoters;
     };
 
-
     const campaignNode: ChartData = {
         name: campaign.name,
         roleName: campaign.campaignType,
@@ -110,7 +109,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         if (!chartRef.current) return;
 
         let root = am5.Root.new(chartRef.current);
-        
+
         root.setThemes([am5themes_Animated.new(root)]);
         
         let zoomableContainer = root.container.children.push(
@@ -138,59 +137,28 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         }));
         
         series.nodes.template.setAll({
+            toggleKey: "active",
             cursorOverStyle: "pointer",
-            toggleKey: "active", // This enables expand/collapse on click
         });
 
-        // Hide default circle
-        series.nodes.template.set("forceHidden", true);
-        
-        // Custom bullet for nodes
-        series.nodes.template.set("bullet", (root, _series, dataItem) => {
-            const chartData = dataItem.dataContext as ChartData;
+        series.nodes.template.get("circle")?.adapters.add("fill", (fill, target) => {
+            const dataItem = target.dataItem;
+            if (dataItem) {
+                const chartData = dataItem.dataContext as ChartData;
+                if(chartData.isCampaign) return am5.color(0x095256);
+                if(chartData.isVoter) return am5.color(0xbb9f06);
 
-            if (chartData.isVoter) {
-                return am5.Bullet.new(root, {
-                    sprite: am5.Circle.new(root, {
-                        radius: 5,
-                        fill: am5.color(0x86a873),
-                    })
-                });
-            }
-
-            const container = am5.Container.new(root, {
-                width: am5.p100,
-                height: am5.p100,
-                cursorOverStyle: "pointer"
-            });
-
-            const rectangle = container.children.push(am5.Rectangle.new(root, {
-                width: 220,
-                height: 60,
-                cornerRadiusTL: 10,
-                cornerRadiusTR: 10,
-                cornerRadiusBL: 10,
-                cornerRadiusBR: 10,
-            }));
-            
-            rectangle.adapters.add("fill", () => {
-                if (chartData.isCampaign) return am5.color(0x095256);
                 const roleName = chartData.roleName || "";
-                if (roleName.toLowerCase().includes('director')) return am5.color(0x087f8c);
                 if (roleName.toLowerCase().includes('lider')) return am5.color(0x5aaa95);
                 if (roleName.toLowerCase().includes('promotor')) return am5.color(0x86a873);
-                return am5.color(0xbb9f06);
-            });
-            
-            return am5.Bullet.new(root, {
-                sprite: container
-            });
+            }
+            return fill;
         });
         
         series.labels.template.setAll({
-            text: "{name}\n[fontSize:14px; bold]{roleName}[/]\n[fontSize:12px]Votantes: {value}[/]",
+            text: "{name}\n[fontSize:10px; bold]{roleName}[/]\n[fontSize:9px]Votantes: {value}[/]",
             fill: am5.color(0xffffff),
-            fontSize: 16,
+            fontSize: 12,
             populateText: true,
             centerX: am5.p50,
             centerY: am5.p50,
