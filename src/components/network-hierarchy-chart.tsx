@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useLayoutEffect, useRef } from 'react';
@@ -15,21 +14,11 @@ interface ChartData {
     value: number;
     isVoter?: boolean;
     isCampaign?: boolean;
-    color?: am5.Color;
 }
 
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
     const userMap = new Map<string, ChartData>();
     const rolesMap = new Map(roles.map(r => [r.id, r.name]));
-
-    const getColor = (dataContext: Partial<ChartData>): am5.Color => {
-        if (dataContext.isCampaign) return am5.color(0x1A237E); // Deep Blue for campaign
-        if (dataContext.isVoter) return am5.color(0xFFC107); // Gold for voter
-        const roleName = dataContext.roleName?.toLowerCase() || '';
-        if (roleName.includes('lider')) return am5.color(0x4CAF50); // Green for leader
-        if (roleName.includes('promotor')) return am5.color(0x2196F3); // Blue for promoter
-        return am5.color(0x9E9E9E); // Grey for others
-    };
 
     users.forEach(user => {
         const chartNode: ChartData = {
@@ -39,7 +28,6 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             children: [],
             value: 0
         };
-        chartNode.color = getColor(chartNode);
         userMap.set(user.id, chartNode);
     });
     
@@ -55,7 +43,6 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
                 roleName: "Votante",
                 isVoter: true
             };
-            voterNode.color = getColor(voterNode);
             promoterNode.children.push(voterNode);
         }
     });
@@ -99,7 +86,6 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         children: topLevelNodes,
         value: 0
     };
-    campaignNode.color = getColor(campaignNode);
     
     calculateValues(campaignNode);
 
@@ -148,65 +134,34 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         }));
         
         series.nodes.template.setAll({
-            width: 180,
-            height: 70,
-            shape: am5.Rectangle.new(root, {}),
-            fillOpacity: 0,
-            strokeOpacity: 0
+            toggleKey: "active",
+            tooltipText: "{name}\n{roleName}\nVotantes: {value}"
+        });
+        
+        series.nodes.template.get("circle")?.setAll({
+          radius: 40,
         });
 
-        series.nodes.template.set("bullet", function(root, series, dataItem) {
-          let container = am5.Container.new(root, {
-            width: 180,
-            height: 70,
-            centerX: am5.p50,
-            centerY: am5.p50,
-            cursor: "pointer",
-          });
-          
-          let rectangle = container.children.push(am5.Rectangle.new(root, {
-            width: am5.p100,
-            height: am5.p100,
-            strokeWidth: 1,
-            cornerRadiusTL: 8,
-            cornerRadiusTR: 8,
-            cornerRadiusBL: 8,
-            cornerRadiusBR: 8,
-            tooltipText: "{name}",
-          }));
-          
-          rectangle.adapters.add("fill", function(fill, target) {
-             const dataContext = dataItem.dataContext as ChartData;
-             return dataContext.color || am5.color(0x9E9E9E);
-          });
-          
-          container.children.push(am5.Label.new(root, {
-            text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
-            fontSize: 14,
-            fill: am5.color(0xffffff),
-            centerX: am5.p50,
-            centerY: am5.p50,
-            textAlign: "center",
+        series.labels.template.setAll({
+            fontSize: 12,
+            text: "{name}",
             oversizedBehavior: "wrap",
-            populateText: true,
-            width: 160
-          }));
-          
-          container.events.on("click", function(e) {
-            series.selectDataItem(dataItem);
-            if (dataItem.get("children") && dataItem.get("children")!.length > 0) {
-              dataItem.toggle();
-            }
-          });
+            textAlign: "center",
+            width: 70
+        });
 
-          return am5.Bullet.new(root, {
-            sprite: container
-          });
+        series.nodes.template.adapters.add("fill", function(fill, target) {
+            const dataContext = target.dataItem?.dataContext as Partial<ChartData>;
+            if (dataContext.isCampaign) return am5.color(0x1A237E);
+            if (dataContext.isVoter) return am5.color(0xFFC107);
+            const roleName = dataContext.roleName?.toLowerCase() || '';
+            if (roleName.includes('lider')) return am5.color(0x4CAF50);
+            if (roleName.includes('promotor')) return am5.color(0x2196F3);
+            return am5.color(0x9E9E9E);
         });
         
         series.links.template.setAll({
             strokeWidth: 2,
-            stroke: am5.color(0xcccccc)
         });
 
         series.data.setAll([data]);
