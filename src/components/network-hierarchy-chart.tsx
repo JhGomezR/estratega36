@@ -8,14 +8,13 @@ import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import type { User, Voter, Role, Campaign } from '@/lib/types';
 import { useTheme } from 'next-themes';
 
-
 interface ChartData {
     name: string;
     id: string;
     roleName?: string;
     avatar?: string;
     children?: ChartData[];
-    value: number;
+    value: number; // Represents direct voters for a user node
     teamCount?: number;
     isVoter?: boolean;
     isCampaign?: boolean;
@@ -34,6 +33,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             avatar: user.avatar,
             children: [],
             value: 0,
+            teamCount: 0
         });
     });
 
@@ -45,6 +45,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             if (!promoterNode.children) {
                 promoterNode.children = [];
             }
+            // Voter nodes are added for value calculation but can be visually simplified
             promoterNode.children.push({
                 name: `${voter.firstName} ${voter.lastName}`,
                 id: voter.id,
@@ -71,29 +72,43 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             topLevelNodes.push(userNode);
         }
     });
-
-    const calculateValueAndCounts = (node: ChartData): number => {
+    
+    // Recursive function to calculate values and counts
+    const calculateValues = (node: ChartData): { totalVoters: number, teamSize: number } => {
         if (node.isVoter) {
-            node.value = 1;
-            return 1;
+            return { totalVoters: 1, teamSize: 0 };
         }
+
         if (!node.children || node.children.length === 0) {
             node.value = 0;
             node.teamCount = 0;
-            return 0;
+            return { totalVoters: 0, teamSize: 0 };
         }
-        
-        const directUsers = node.children.filter(c => !c.isVoter);
-        const directVoters = node.children.filter(c => c.isVoter);
 
-        const childrenValue = node.children.reduce((acc, child) => acc + calculateValueAndCounts(child), 0);
+        let directVoters = 0;
+        let directTeamMembers = 0;
+        let subTeamVoters = 0;
+
+        node.children.forEach(child => {
+            if (child.isVoter) {
+                directVoters++;
+            } else {
+                directTeamMembers++;
+                const result = calculateValues(child);
+                subTeamVoters += result.totalVoters;
+            }
+        });
         
-        node.value = directVoters.length;
-        node.teamCount = directUsers.length;
+        node.value = directVoters; // Direct voters under this person
+        node.teamCount = directTeamMembers; // Direct team members
         
-        return childrenValue + directVoters.length;
+        // Filter out voter children from the final chart structure to avoid rendering them as full nodes
+        node.children = node.children.filter(child => !child.isVoter);
+        
+        return { totalVoters: directVoters + subTeamVoters, teamSize: directTeamMembers };
     };
-    
+
+
     const campaignNode: ChartData = {
         name: campaign.name,
         roleName: campaign.campaignType,
@@ -103,11 +118,11 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         value: 0,
     };
     
-    calculateValueAndCounts(campaignNode);
+    calculateValues(campaignNode);
+    campaignNode.value = campaignVoters.length; // Total voters for the campaign
 
     return campaignNode;
 };
-
 
 interface NetworkHierarchyChartProps {
     campaign: Campaign;
@@ -118,6 +133,7 @@ interface NetworkHierarchyChartProps {
 
 export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: NetworkHierarchyChartProps) => {
     const chartRef = useRef<HTMLDivElement>(null);
+    const { theme } = useTheme();
     const data = React.useMemo(() => buildChartData(campaign, users, voters, roles), [campaign, users, voters, roles]);
 
     useLayoutEffect(() => {
@@ -125,9 +141,8 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         let root = am5.Root.new(chartRef.current);
         
-        root.setThemes([
-          am5themes_Animated.new(root)
-        ]);
+        const animatedTheme = am5themes_Animated.new(root);
+        root.setThemes([animatedTheme]);
 
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
@@ -154,59 +169,58 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             cursorOverStyle: "pointer",
         });
 
-        // Outer circle for indicating children state
-        series.nodes.template.children.push(am5.Circle.new(root, {
-            radius: 15,
-            fillOpacity: 0,
-            strokeWidth: 2,
-            strokeDasharray: [3,3],
-            stroke: am5.color(0x000000),
-        }));
+        // This is the correct way to add a custom graphic (the outer circle)
+        // It's added as a bullet, not by pushing to children directly
+        series.bullets.push(function() {
+            let container = am5.Container.new(root, {
+                width: am5.p100,
+                height: am5.p100,
+            });
 
-        series.nodes.template.states.create("active", {
-           
+            let outerCircle = container.children.push(am5.Circle.new(root, {
+                radius: 25,
+                fillOpacity: 0,
+                strokeWidth: 2,
+            }));
+
+            // Logic to show/hide and style the outer circle
+            container.adapters.add("x", (x, target) => {
+                let dataItem = target.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem> | undefined;
+                if (dataItem) {
+                    // Hide outer circle if it has no children
+                    if (!dataItem.get("children") || dataItem.get("children")!.length === 0) {
+                        outerCircle.set("forceHidden", true);
+                    } else {
+                        outerCircle.set("forceHidden", false);
+                        // Set dotted for collapsed state
+                        if (!dataItem.get("active")) {
+                             outerCircle.set("strokeDasharray", [3, 3]);
+                        } else {
+                             outerCircle.set("strokeDasharray", undefined);
+                        }
+                    }
+                }
+                return x;
+            });
+            
+            return am5.Bullet.new(root, {
+                sprite: container
+            });
         });
-
-        // Main node circle
+        
         series.circles.template.setAll({
             radius: 20,
-            templateField: "nodeSettings"
+            fillOpacity: 0.8
         });
 
-        series.circles.template.adapters.add("fill", function(fill, target) {
-            let dataItem = target.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
-            if (dataItem) {
-                if(dataItem.get("depth") === 0){
-                    return am5.color(0x0975da)
-                }
-                return am5.color(0x6794dc);
-            }
-            return fill;
-        });
-
-        // Hide outer circle if node is active
-        series.nodes.template.states.create("active", {}).on("enter", function(target) {
-            let outerCircle = target.children.getIndex(0) as am5.Circle;
-            outerCircle.set("strokeDasharray", undefined);
-        });
-
-        series.nodes.template.states.create("default", {}).on("enter", function(target) {
-             let dataItem = target.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
-             if(dataItem.get("children") && dataItem.get("children")!.length > 0){
-                let outerCircle = target.children.getIndex(0) as am5.Circle;
-                outerCircle.set("strokeDasharray", [3,3]);
-             }
-        });
-
-
-        // Configure labels
         series.labels.template.setAll({
-            text: "{category}",
+            text: "{name}\n[fontSize:12px]{roleName}[/]",
             fill: am5.color(0x000000),
             fontSize: 14,
             populateText: true,
             centerX: am5.p50,
             centerY: am5.p50,
+            textAlign: "center"
         });
 
         series.links.template.set("strokeWidth", 2);
@@ -217,7 +231,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         return () => {
             root.dispose();
         };
-    }, [data]);
+    }, [data, theme]);
 
     if (!data || (data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay usuarios en esta campaña para mostrar en la red.</p></div>
@@ -225,5 +239,3 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
     return <div ref={chartRef} style={{ width: "100%", height: "100%" }}></div>;
 };
-
-    
