@@ -108,7 +108,7 @@ interface NetworkHierarchyChartProps {
 
 export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: NetworkHierarchyChartProps) => {
     const chartRef = useRef<HTMLDivElement>(null);
-    const { theme } = useTheme();
+    const { resolvedTheme } = useTheme();
     const data = React.useMemo(() => buildChartData(campaign, users, voters, roles), [campaign, users, voters, roles]);
 
     useLayoutEffect(() => {
@@ -146,12 +146,12 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             toggleKey: "active",
             cursorOverStyle: "pointer",
         });
-        
+
         series.circles.template.adapters.add("radius", (radius, target) => {
             const dataItem = target.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
             if (dataItem) {
                 const isVoter = (dataItem.get("dataContext") as ChartData)?.isVoter;
-                return isVoter ? 15 : 30;
+                return isVoter ? 8 : 15;
             }
             return radius;
         });
@@ -173,19 +173,19 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             let bulletContainer = am5.Container.new(root, {});
 
             let outerCircle = bulletContainer.children.push(am5.Circle.new(root, {
-                radius: 35,
+                radius: 20,
                 fillOpacity: 0,
                 strokeWidth: 2,
                 stroke: am5.color(0xaaaaaa),
                 strokeDasharray: [3, 3] // Dotted by default
             }));
 
-            // Hide for voters
+            // Hide for voters or nodes without children
             outerCircle.adapters.add("forceHidden", (hidden, target) => {
                 let dataItem = target.parent?.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
                 if (dataItem) {
                     const chartData = dataItem.get("dataContext") as ChartData;
-                    if (chartData.isVoter || !dataItem.get("children") || dataItem.get("children")!.length === 0) {
+                    if (!chartData || chartData.isVoter || !dataItem.get("children") || dataItem.get("children")!.length === 0) {
                         return true;
                     }
                 }
@@ -208,7 +208,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         return () => {
             root.dispose();
         };
-    }, [data, theme]);
+    }, [data, resolvedTheme]);
 
     if (!data || (data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay usuarios en esta campaña para mostrar en la red.</p></div>
