@@ -36,10 +36,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
 
     campaignVoters.forEach(voter => {
         const promoterNode = userMap.get(voter.promoterId);
-        if (promoterNode) {
-            if (!promoterNode.children) {
-                promoterNode.children = [];
-            }
+        if (promoterNode && promoterNode.children) {
             promoterNode.children.push({
                 name: `${voter.firstName} ${voter.lastName}`,
                 id: voter.id,
@@ -157,9 +154,9 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         });
 
         series.labels.template.setAll({
-            text: "{name}\n[fontSize:10px]{roleName}[/]",
+            text: "{name}\n[fontSize:10px]{roleName}[/]\n[fontSize:9px]Votantes: {value}[/]",
             fill: am5.color(0xffffff),
-            fontSize: 14,
+            fontSize: 12,
             populateText: true,
             centerX: am5.p50,
             centerY: am5.p50,
@@ -169,7 +166,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         series.links.template.set("strokeWidth", 2);
 
         // Add the outer circle via a bullet
-        series.bullets.push(function() {
+        series.bullets.push(function(root, series, dataItem) {
             let bulletContainer = am5.Container.new(root, {});
 
             let outerCircle = bulletContainer.children.push(am5.Circle.new(root, {
@@ -183,7 +180,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             // Hide for voters or nodes without children
             outerCircle.adapters.add("forceHidden", (hidden, target) => {
                 let dataItem = target.parent?.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
-                if (dataItem) {
+                 if (dataItem) {
                     const chartData = dataItem.get("dataContext") as ChartData;
                     if (!chartData || chartData.isVoter || !dataItem.get("children") || dataItem.get("children")!.length === 0) {
                         return true;
@@ -191,9 +188,9 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                 }
                 return hidden;
             });
-
+            
             // Change to solid when active
-            outerCircle.states.create("active", {
+            dataItem.get("outerCircle", outerCircle).states.create("active", {
                 strokeDasharray: undefined
             });
             
