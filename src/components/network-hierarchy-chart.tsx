@@ -151,7 +151,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             const dataItem = target.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
             if (dataItem) {
                 const isVoter = (dataItem.get("dataContext") as ChartData)?.isVoter;
-                return isVoter ? 8 : 15;
+                return isVoter ? 8 : 12;
             }
             return radius;
         });
@@ -173,7 +173,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             let bulletContainer = am5.Container.new(root, {});
 
             let outerCircle = bulletContainer.children.push(am5.Circle.new(root, {
-                radius: 20,
+                radius: 15,
                 fillOpacity: 0,
                 strokeWidth: 2,
                 stroke: am5.color(0xaaaaaa),
