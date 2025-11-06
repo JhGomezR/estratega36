@@ -109,8 +109,9 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         if (!chartRef.current) return;
 
         let root = am5.Root.new(chartRef.current);
-
-        root.setThemes([am5themes_Animated.new(root)]);
+        
+        const animatedTheme = am5themes_Animated.new(root);
+        root.setThemes([animatedTheme]);
         
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
@@ -139,24 +140,40 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         series.nodes.template.setAll({
             toggleKey: "active",
             cursorOverStyle: "pointer",
+            forceHidden: true, // Hide the default circle
         });
 
-        series.nodes.template.get("circle")?.adapters.add("fill", (fill, target) => {
+        series.nodes.template.set("bullet", function(root, series, dataItem) {
+            return am5.Bullet.new(root, {
+                sprite: am5.Rectangle.new(root, {
+                    width: 120,
+                    height: 50,
+                    centerX: am5.p50,
+                    centerY: am5.p50,
+                    cornerRadiusTL: 6,
+                    cornerRadiusTR: 6,
+                    cornerRadiusBL: 6,
+                    cornerRadiusBR: 6,
+                })
+            });
+        });
+
+        series.nodes.template.adapters.add("fill", (fill, target) => {
             const dataItem = target.dataItem;
             if (dataItem) {
                 const chartData = dataItem.dataContext as ChartData;
-                if(chartData.isCampaign) return am5.color(0x095256);
-                if(chartData.isVoter) return am5.color(0xbb9f06);
+                 if(chartData.isCampaign) return am5.color(0x095256);
+                 if(chartData.isVoter) return am5.color(0xbb9f06);
 
                 const roleName = chartData.roleName || "";
                 if (roleName.toLowerCase().includes('lider')) return am5.color(0x5aaa95);
                 if (roleName.toLowerCase().includes('promotor')) return am5.color(0x86a873);
             }
-            return fill;
+            return am5.color(0xbebebe);
         });
-        
+
         series.labels.template.setAll({
-            text: "{name}\n[fontSize:10px; bold]{roleName}[/]\n[fontSize:9px]Votantes: {value}[/]",
+            text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
             fill: am5.color(0xffffff),
             fontSize: 12,
             populateText: true,
