@@ -110,9 +110,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         let root = am5.Root.new(chartRef.current);
         
-        root.setThemes([
-            am5themes_Animated.new(root)
-        ]);
+        root.setThemes([am5themes_Animated.new(root)]);
 
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
@@ -143,38 +141,27 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             cursorOverStyle: "pointer"
         });
 
-        series.nodes.template.setup = function(target) {
-            target.events.on("dataitemchanged", function(ev) {
-                const dataContext = ev.target.dataItem?.dataContext as ChartData;
-                if (dataContext) {
-                    let color = am5.color(0x9E9E9E); // Grey for others
+        // Set a larger radius directly on the template's circle
+        series.nodes.template.get("circle")?.setAll({
+            radius: 40, // Increased radius for all nodes
+        });
 
-                    if(dataContext.isCampaign) color = am5.color(0x1A237E); // Deep Blue
-                    else if(dataContext.isVoter) color = am5.color(0xFFC107); // Gold
-                    else if(dataContext.roleName?.toLowerCase().includes('lider')) color = am5.color(0x4CAF50); // Green
-                    else if(dataContext.roleName?.toLowerCase().includes('promotor')) color = am5.color(0x2196F3); // Blue
-
-                    const circle = target.get("circle");
-                    if (circle) {
-                        circle.set("fill", color);
-                        
-                        let radius = 40; // Default radius
-                        if (dataContext.isVoter) {
-                            radius = 10;
-                        } else if (dataContext.isCampaign) {
-                            radius = 50;
-                        }
-                        circle.set("radius", radius);
-                    }
-                }
-            });
-        };
+        series.nodes.template.adapters.add("fill", (fill, target) => {
+            const dataContext = target.dataItem?.dataContext as ChartData;
+            if (dataContext) {
+                if (dataContext.isCampaign) return am5.color(0x1A237E); // Deep Blue
+                if (dataContext.isVoter) return am5.color(0xFFC107); // Gold
+                if (dataContext.roleName?.toLowerCase().includes('lider')) return am5.color(0x4CAF50); // Green
+                if (dataContext.roleName?.toLowerCase().includes('promotor')) return am5.color(0x2196F3); // Blue
+            }
+            return am5.color(0x9E9E9E); // Grey for others
+        });
 
         series.labels.template.setAll({
             text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
             populateText: true,
-            fontSize: 16,
-            fill: am5.color(0x333333),
+            fontSize: 16, // Increased font size
+            fill: am5.color(0xffffff),
             centerX: am5.p50,
             textAlign: "center",
         });
