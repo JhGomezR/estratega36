@@ -138,53 +138,41 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             singleBranchOnly: false,
         }));
         
-        series.nodes.template.set("forceHidden", true);
-        series.links.template.set("strokeWidth", 2);
-
-        series.nodes.template.set("bullet", function(root, series, dataItem) {
-            const chartData = dataItem.dataContext as ChartData;
-            
-            const container = am5.Container.new(root, {
-                width: chartData.isVoter ? 100 : 150,
-                height: chartData.isVoter ? 40 : 60,
-                cursorOverStyle: "pointer"
-            });
-
-            const rectangle = container.children.push(am5.Rectangle.new(root, {
-                width: am5.p100,
-                height: am5.p100,
-                cornerRadiusTL: 8,
-                cornerRadiusTR: 8,
-                cornerRadiusBL: 8,
-                cornerRadiusBR: 8,
-                toggleKey: "active", // IMPORTANT: for click interaction
-            }));
-            
-            container.children.push(am5.Label.new(root, {
-                text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
-                populateText: true,
-                fontSize: chartData.isVoter ? 10 : 12,
-                fill: am5.color(0xffffff),
-                centerX: am5.p50,
-                centerY: am5.p50,
-                textAlign: "center",
-                shouldClone: false
-            }));
-
-            rectangle.adapters.add("fill", (fill, target) => {
-                 if(chartData.isCampaign) return am5.color(0x1A237E); // Deep Blue
-                 if(chartData.isVoter) return am5.color(0xFFC107); // Gold
-                
-                const roleName = chartData.roleName || "";
-                if (roleName.toLowerCase().includes('lider')) return am5.color(0x4CAF50); // Green
-                if (roleName.toLowerCase().includes('promotor')) return am5.color(0x2196F3); // Blue
-                return am5.color(0x9E9E9E); // Grey for others
-            });
-            
-            return am5.Bullet.new(root, {
-                sprite: container
-            });
+        series.nodes.template.setAll({
+            toggleKey: "active",
+            cursorOverStyle: "pointer"
         });
+
+        series.nodes.template.setup = function(target) {
+            target.events.on("dataitemchanged", function(ev) {
+                const dataContext = ev.target.dataItem?.dataContext as ChartData;
+                if (dataContext) {
+                    let color = am5.color(0x9E9E9E); // Grey for others
+
+                    if(dataContext.isCampaign) color = am5.color(0x1A237E); // Deep Blue
+                    else if(dataContext.isVoter) color = am5.color(0xFFC107); // Gold
+                    else if(dataContext.roleName?.toLowerCase().includes('lider')) color = am5.color(0x4CAF50); // Green
+                    else if(dataContext.roleName?.toLowerCase().includes('promotor')) color = am5.color(0x2196F3); // Blue
+
+                    target.get("circle")?.set("fill", color);
+
+                    if (dataContext.isVoter) {
+                        target.get("circle")?.set("radius", 10);
+                    }
+                }
+            });
+        };
+
+        series.labels.template.setAll({
+            text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
+            populateText: true,
+            fontSize: 14,
+            fill: am5.color(0x333333),
+            centerX: am5.p50,
+            textAlign: "center",
+        });
+
+        series.links.template.set("strokeWidth", 2);
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
