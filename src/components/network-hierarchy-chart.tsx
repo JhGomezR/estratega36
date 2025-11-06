@@ -110,9 +110,10 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         let root = am5.Root.new(chartRef.current);
         
-        const animatedTheme = am5themes_Animated.new(root);
-        root.setThemes([animatedTheme]);
-        
+        root.setThemes([
+            am5themes_Animated.new(root)
+        ]);
+
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
             width: am5.p100,
@@ -137,52 +138,53 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             singleBranchOnly: false,
         }));
         
-        series.nodes.template.setAll({
-            toggleKey: "active",
-            cursorOverStyle: "pointer",
-            forceHidden: true, // Hide the default circle
-        });
+        series.nodes.template.set("forceHidden", true);
+        series.links.template.set("strokeWidth", 2);
 
         series.nodes.template.set("bullet", function(root, series, dataItem) {
+            const chartData = dataItem.dataContext as ChartData;
+            
+            const container = am5.Container.new(root, {
+                width: chartData.isVoter ? 100 : 150,
+                height: chartData.isVoter ? 40 : 60,
+                cursorOverStyle: "pointer"
+            });
+
+            const rectangle = container.children.push(am5.Rectangle.new(root, {
+                width: am5.p100,
+                height: am5.p100,
+                cornerRadiusTL: 8,
+                cornerRadiusTR: 8,
+                cornerRadiusBL: 8,
+                cornerRadiusBR: 8,
+                toggleKey: "active", // IMPORTANT: for click interaction
+            }));
+            
+            container.children.push(am5.Label.new(root, {
+                text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
+                populateText: true,
+                fontSize: chartData.isVoter ? 10 : 12,
+                fill: am5.color(0xffffff),
+                centerX: am5.p50,
+                centerY: am5.p50,
+                textAlign: "center",
+                shouldClone: false
+            }));
+
+            rectangle.adapters.add("fill", (fill, target) => {
+                 if(chartData.isCampaign) return am5.color(0x1A237E); // Deep Blue
+                 if(chartData.isVoter) return am5.color(0xFFC107); // Gold
+                
+                const roleName = chartData.roleName || "";
+                if (roleName.toLowerCase().includes('lider')) return am5.color(0x4CAF50); // Green
+                if (roleName.toLowerCase().includes('promotor')) return am5.color(0x2196F3); // Blue
+                return am5.color(0x9E9E9E); // Grey for others
+            });
+            
             return am5.Bullet.new(root, {
-                sprite: am5.Rectangle.new(root, {
-                    width: 120,
-                    height: 50,
-                    centerX: am5.p50,
-                    centerY: am5.p50,
-                    cornerRadiusTL: 6,
-                    cornerRadiusTR: 6,
-                    cornerRadiusBL: 6,
-                    cornerRadiusBR: 6,
-                })
+                sprite: container
             });
         });
-
-        series.nodes.template.adapters.add("fill", (fill, target) => {
-            const dataItem = target.dataItem;
-            if (dataItem) {
-                const chartData = dataItem.dataContext as ChartData;
-                 if(chartData.isCampaign) return am5.color(0x095256);
-                 if(chartData.isVoter) return am5.color(0xbb9f06);
-
-                const roleName = chartData.roleName || "";
-                if (roleName.toLowerCase().includes('lider')) return am5.color(0x5aaa95);
-                if (roleName.toLowerCase().includes('promotor')) return am5.color(0x86a873);
-            }
-            return am5.color(0xbebebe);
-        });
-
-        series.labels.template.setAll({
-            text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
-            fill: am5.color(0xffffff),
-            fontSize: 12,
-            populateText: true,
-            centerX: am5.p50,
-            centerY: am5.p50,
-            textAlign: "center"
-        });
-
-        series.links.template.set("strokeWidth", 2);
 
         series.data.setAll([data]);
         series.set("selectedDataItem", series.dataItems[0]);
