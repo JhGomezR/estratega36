@@ -68,8 +68,8 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         if (user.parentId && userMap.has(user.parentId)) {
             const parentNode = userMap.get(user.parentId);
              if (parentNode && parentNode.children) {
-                parentNode.children.push(userNode);
-            }
+                 parentNode.children.push(userNode);
+             }
         } else {
             topLevelNodes.push(userNode);
         }
@@ -142,14 +142,18 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             categoryField: "name",
             childDataField: "children",
             orientation: "vertical",
-            topDown: true,
             downDepth: 1,
             initialDepth: 10,
             singleBranchOnly: false,
         }));
         
-        series.nodes.template.set("forceHidden", true);
-        series.links.template.set("visible", true);
+        series.nodes.template.setAll({
+            width: 180,
+            height: 70,
+            shape: am5.Rectangle.new(root, {}),
+            fillOpacity: 0,
+            strokeOpacity: 0
+        });
 
         series.nodes.template.set("bullet", function(root, series, dataItem) {
           let container = am5.Container.new(root, {
@@ -172,8 +176,8 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
           }));
           
           rectangle.adapters.add("fill", function(fill, target) {
-              const dataContext = dataItem.dataContext as ChartData;
-              return dataContext.color || am5.color(0x9E9E9E);
+             const dataContext = dataItem.dataContext as ChartData;
+             return dataContext.color || am5.color(0x9E9E9E);
           });
           
           container.children.push(am5.Label.new(root, {
