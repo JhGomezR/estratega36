@@ -113,7 +113,19 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         let root = am5.Root.new(chartRef.current);
         
-        root.setThemes([am5themes_Animated.new(root)]);
+        const animatedTheme = am5themes_Animated.new(root);
+        animatedTheme.rules.push({
+            id: "classic",
+            rule: (target) => {
+                if (target instanceof am5.Label) {
+                    return {
+                        fontFamily: "Inter, sans-serif"
+                    }
+                }
+            }
+        });
+
+        root.setThemes([animatedTheme]);
 
         let zoomableContainer = root.container.children.push(
           am5.ZoomableContainer.new(root, {
@@ -137,16 +149,16 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             downDepth: 1,
             initialDepth: 10,
             singleBranchOnly: false,
+            toggleKey: "active"
         }));
-        
-        // Hide default circle
+
         series.circles.template.set("forceHidden", true);
         series.outerCircles.template.set("forceHidden", true);
 
         series.labels.template.setAll({
-            text: "{name}\n[fontSize:10px]{roleName}[/]\n[fontSize:9px]Votantes: {value}[/]",
+            text: "{name}\n[fontSize:12px]{roleName}[/]\n[fontSize:10px]Votantes: {value}[/]",
             fill: am5.color(0xffffff),
-            fontSize: 14, // Increased font size
+            fontSize: 14,
             populateText: true,
             centerX: am5.p50,
             centerY: am5.p50,
@@ -155,9 +167,9 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         series.links.template.set("strokeWidth", 2);
 
-        // Configure node template
         series.nodes.template.setAll({
-            toggleKey: "active",
+            width: 150,
+            height: 80,
             cursorOverStyle: "pointer",
         });
 
@@ -166,9 +178,9 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             if (dataItem) {
                 let node = dataItem.get("node");
                 if (node) {
-                    let rectangle = node.children.insert(0, am5.Rectangle.new(root, {
-                        width: 200,
-                        height: 70,
+                    let rectangle = node.children.push(am5.Rectangle.new(root, {
+                        width: node.get("width"),
+                        height: node.get("height"),
                         cornerRadiusTL: 10,
                         cornerRadiusTR: 10,
                         cornerRadiusBL: 10,
