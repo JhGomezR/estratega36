@@ -66,8 +66,8 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
 
     const calculateValue = (node: ChartData): number => {
         if (!node.children || node.children.length === 0) {
-            node.value = 1;
-            return 1;
+            node.value = node.isVoter ? 1 : 0;
+            return node.value;
         }
         const sum = node.children.reduce((acc, child) => acc + calculateValue(child), 0);
         node.value = sum;
@@ -75,11 +75,14 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
     };
     
     topLevelNodes.forEach(calculateValue);
+    
+    const totalValue = calculateValue({ name: "", id: "", children: topLevelNodes });
 
     return {
         name: campaign.name,
         id: campaign.id,
         roleName: 'Campaña',
+        value: totalValue,
         children: topLevelNodes,
     };
 };
@@ -103,15 +106,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         root.setThemes([am5themes_Animated.new(root)]);
 
-        let container = root.container.children.push(
-            am5.Container.new(root, {
-                width: am5.percent(100),
-                height: am5.percent(100),
-                layout: root.verticalLayout
-            })
-        );
-
-        let series = container.children.push(
+        let series = root.container.children.push(
             am5hierarchy.Tree.new(root, {
                 valueField: "value",
                 categoryField: "name",
@@ -129,46 +124,27 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             cursorOverStyle: "pointer",
         });
 
-        // Hide default circle elements
-        series.circles.template.set("radius", 0);
-        series.outerCircles.template.set("radius", 0);
-        series.nodes.template.get("icon")?.set("forceHidden", true);
+        series.nodes.template.adapters.add("fill", function (fill, target) {
+            const dataContext = target.dataItem?.dataContext as ChartData;
+            if (!dataContext) return fill;
+
+            const role = dataContext.roleName?.toLowerCase();
+            if (role === 'campaña') return am5.color(0x095256);
+            if (role?.includes('lider')) return am5.color(0x007bff);
+            if (role?.includes('promotor')) return am5.color(0x28a745);
+            if (role === 'votante') return am5.color(0xffc107);
+            
+            return fill;
+        });
 
         series.labels.template.setAll({
-            text: "{name}\n[fontSize:12px]{roleName}[/]",
+            text: "{name}\n[fontSize:10px]{roleName}: {value}[/]",
             populateText: true,
             textAlign: "center",
             centerY: am5.p50,
             centerX: am5.p50,
-            fontSize: 14,
-        });
-        
-        series.nodes.template.events.on("dataitemchanged", function(ev) {
-            const target = ev.target;
-            const dataItem = target.dataItem;
-            if (!dataItem) return;
-
-            // Clear any previously added custom children to avoid duplicates
-            while(target.children.length > 1) {
-                target.children.removeIndex(0);
-            }
-
-            const rect = am5.Rectangle.new(root, {
-                width: 180,
-                height: 60,
-                cornerRadiusTL: 10,
-                cornerRadiusTR: 10,
-                cornerRadiusBL: 10,
-                cornerRadiusBR: 10,
-                fill: am5.color(0x007bff), 
-                fillOpacity: 0.1,
-                stroke: am5.color(0x007bff),
-                strokeWidth: 1,
-                strokeOpacity: 0.5,
-            });
-
-            // unshift to place it behind the label
-            target.children.unshift(rect);
+            fontSize: 12,
+            fill: am5.color(0xffffff),
         });
 
         series.links.template.setAll({
@@ -184,7 +160,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         };
     }, [data]);
 
-    if (!data || !data.children || data.children.length === 0) {
+    if (!data || (data.children?.length === 0)) {
         return <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">No hay usuarios en esta campaña para mostrar en la red.</p></div>
     }
 
