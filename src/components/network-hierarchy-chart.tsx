@@ -15,7 +15,7 @@ interface ChartData {
     value: number;
     isVoter?: boolean;
     isCampaign?: boolean;
-    fill?: am5.Color;
+    color?: am5.Color;
 }
 
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
@@ -39,7 +39,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             children: [],
             value: 0
         };
-        chartNode.fill = getColor(chartNode);
+        chartNode.color = getColor(chartNode);
         userMap.set(user.id, chartNode);
     });
     
@@ -55,7 +55,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
                 roleName: "Votante",
                 isVoter: true
             };
-            voterNode.fill = getColor(voterNode);
+            voterNode.color = getColor(voterNode);
             promoterNode.children.push(voterNode);
         }
     });
@@ -99,7 +99,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         children: topLevelNodes,
         value: 0
     };
-    campaignNode.fill = getColor(campaignNode);
+    campaignNode.color = getColor(campaignNode);
     
     calculateValues(campaignNode);
 
@@ -149,60 +149,60 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         }));
         
         series.nodes.template.set("forceHidden", true);
+        series.links.template.set("visible", true);
 
-        series.set("bullet", function(root, series, dataItem) {
-            const rectangle = am5.Rectangle.new(root, {
-                width: 160,
-                height: 60,
-                centerX: am5.p50,
-                centerY: am5.p50,
-                fill: (dataItem.dataContext as ChartData)?.fill || am5.color(0x9E9E9E),
-                strokeWidth: 1,
-                cornerRadiusTL: 8,
-                cornerRadiusTR: 8,
-                cornerRadiusBL: 8,
-                cornerRadiusBR: 8,
-                tooltipText: "{name}",
-                cursor: "pointer",
-            });
-            
-            rectangle.states.create("active", {});
-            
-            rectangle.events.on("click", function(e) {
-                if (dataItem.get("children")) {
-                  dataItem.toggle();
-                }
-            });
-
-            return am5.Bullet.new(root, {
-                sprite: rectangle,
-                locationX: 0.5,
-                locationY: 0.5,
-            });
-        });
-        
-        series.links.template.setAll({
-            strokeWidth: 2,
-            stroke: am5.color(0xcccccc)
-        });
-
-        series.labels.template.setAll({
-            populateText: true,
+        series.nodes.template.set("bullet", function(root, series, dataItem) {
+          let container = am5.Container.new(root, {
+            width: 180,
+            height: 70,
+            centerX: am5.p50,
+            centerY: am5.p50,
+            cursor: "pointer",
+          });
+          
+          let rectangle = container.children.push(am5.Rectangle.new(root, {
+            width: am5.p100,
+            height: am5.p100,
+            strokeWidth: 1,
+            cornerRadiusTL: 8,
+            cornerRadiusTR: 8,
+            cornerRadiusBL: 8,
+            cornerRadiusBR: 8,
+            tooltipText: "{name}",
+          }));
+          
+          rectangle.adapters.add("fill", function(fill, target) {
+              const dataContext = dataItem.dataContext as ChartData;
+              return dataContext.color || am5.color(0x9E9E9E);
+          });
+          
+          container.children.push(am5.Label.new(root, {
+            text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
             fontSize: 14,
             fill: am5.color(0xffffff),
             centerX: am5.p50,
             centerY: am5.p50,
             textAlign: "center",
             oversizedBehavior: "wrap",
-            maxWidth: 140,
-        });
-
-        series.labels.template.adapters.add("text", (text, target) => {
-            const dataContext = target.dataItem?.dataContext as ChartData;
-            if (dataContext) {
-                 return `[bold]${dataContext.name}[/]\n${dataContext.roleName}\n[fontSize:12px]Votantes: ${dataContext.value}[/]`;
+            populateText: true,
+            width: 160
+          }));
+          
+          container.events.on("click", function(e) {
+            series.selectDataItem(dataItem);
+            if (dataItem.get("children") && dataItem.get("children")!.length > 0) {
+              dataItem.toggle();
             }
-            return text;
+          });
+
+          return am5.Bullet.new(root, {
+            sprite: container
+          });
+        });
+        
+        series.links.template.setAll({
+            strokeWidth: 2,
+            stroke: am5.color(0xcccccc)
         });
 
         series.data.setAll([data]);
