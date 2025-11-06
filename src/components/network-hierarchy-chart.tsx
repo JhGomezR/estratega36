@@ -154,10 +154,17 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
                     else if(dataContext.roleName?.toLowerCase().includes('lider')) color = am5.color(0x4CAF50); // Green
                     else if(dataContext.roleName?.toLowerCase().includes('promotor')) color = am5.color(0x2196F3); // Blue
 
-                    target.get("circle")?.set("fill", color);
-
-                    if (dataContext.isVoter) {
-                        target.get("circle")?.set("radius", 10);
+                    const circle = target.get("circle");
+                    if (circle) {
+                        circle.set("fill", color);
+                        
+                        let radius = 40; // Default radius
+                        if (dataContext.isVoter) {
+                            radius = 10;
+                        } else if (dataContext.isCampaign) {
+                            radius = 50;
+                        }
+                        circle.set("radius", radius);
                     }
                 }
             });
@@ -166,7 +173,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         series.labels.template.setAll({
             text: "{name}\n[bold]{roleName}[/]\nVotantes: {value}",
             populateText: true,
-            fontSize: 18,
+            fontSize: 16,
             fill: am5.color(0x333333),
             centerX: am5.p50,
             textAlign: "center",
