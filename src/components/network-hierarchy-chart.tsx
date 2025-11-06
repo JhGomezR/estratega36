@@ -139,24 +139,14 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             singleBranchOnly: false,
         }));
         
-        series.nodes.template.setAll({
-            toggleKey: "active",
-            cursorOverStyle: "pointer",
-        });
-
-        series.circles.template.adapters.add("radius", (radius, target) => {
-            const dataItem = target.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
-            if (dataItem) {
-                const isVoter = (dataItem.get("dataContext") as ChartData)?.isVoter;
-                return isVoter ? 8 : 12;
-            }
-            return radius;
-        });
+        // Hide default circle
+        series.circles.template.set("forceHidden", true);
+        series.outerCircles.template.set("forceHidden", true);
 
         series.labels.template.setAll({
             text: "{name}\n[fontSize:10px]{roleName}[/]\n[fontSize:9px]Votantes: {value}[/]",
             fill: am5.color(0xffffff),
-            fontSize: 12,
+            fontSize: 14, // Increased font size
             populateText: true,
             centerX: am5.p50,
             centerY: am5.p50,
@@ -165,38 +155,36 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
 
         series.links.template.set("strokeWidth", 2);
 
-        // Add the outer circle via a bullet
-        series.bullets.push(function(root, series, dataItem) {
-            let bulletContainer = am5.Container.new(root, {});
+        // Configure node template
+        series.nodes.template.setAll({
+            toggleKey: "active",
+            cursorOverStyle: "pointer",
+        });
 
-            let outerCircle = bulletContainer.children.push(am5.Circle.new(root, {
-                radius: 15,
-                fillOpacity: 0,
-                strokeWidth: 2,
-                stroke: am5.color(0xaaaaaa),
-                strokeDasharray: [3, 3] // Dotted by default
-            }));
+        series.nodes.template.events.on("dataitemchanged", function(ev) {
+            let dataItem = ev.target.dataItem;
+            if (dataItem) {
+                let node = dataItem.get("node");
+                if (node) {
+                    let rectangle = node.children.insert(0, am5.Rectangle.new(root, {
+                        width: 200,
+                        height: 70,
+                        cornerRadiusTL: 10,
+                        cornerRadiusTR: 10,
+                        cornerRadiusBL: 10,
+                        cornerRadiusBR: 10,
+                    }));
 
-            // Hide for voters or nodes without children
-            outerCircle.adapters.add("forceHidden", (hidden, target) => {
-                let dataItem = target.parent?.dataItem as am5.DataItem<am5hierarchy.IHierarchyNodeDataItem>;
-                 if (dataItem) {
-                    const chartData = dataItem.get("dataContext") as ChartData;
-                    if (!chartData || chartData.isVoter || !dataItem.get("children") || dataItem.get("children")!.length === 0) {
-                        return true;
-                    }
+                    rectangle.adapters.add("fill", (fill, target) => {
+                        const dataContext = dataItem.dataContext as ChartData;
+                        if(dataContext.isCampaign) return am5.color(0x095256);
+                        if(dataContext.roleName === 'Lider') return am5.color(0x087f8c);
+                        if(dataContext.roleName === 'Promotor') return am5.color(0x5aaa95);
+                        if(dataContext.isVoter) return am5.color(0x86a873);
+                        return am5.color(0xbb9f06);
+                    });
                 }
-                return hidden;
-            });
-            
-            // Change to solid when active
-            dataItem.get("outerCircle", outerCircle).states.create("active", {
-                strokeDasharray: undefined
-            });
-            
-            return am5.Bullet.new(root, {
-                sprite: bulletContainer
-            });
+            }
         });
 
         series.data.setAll([data]);
