@@ -89,7 +89,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
 
   const handleFinalSubmit = (data: UserFormValues) => {
     const finalData: Partial<UserFormValues> = { ...data };
-    if (finalData.parentId === 'none') {
+    if (finalData.parentId === 'none' || finalData.parentId === undefined || finalData.parentId === null) {
         delete finalData.parentId;
     }
     onSubmit(finalData as UserFormValues);
@@ -379,5 +379,3 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
     </Form>
   )
 }
-
-    
