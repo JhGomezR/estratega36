@@ -87,17 +87,17 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
     }
   }, [email, form]);
 
-  const handleFinalSubmit = (data: UserFormValues) => {
-    const finalData: Partial<UserFormValues> = { ...data };
-    if (finalData.parentId === 'none' || finalData.parentId === undefined || finalData.parentId === null) {
-        delete finalData.parentId;
+  const handleFormSubmit = (data: UserFormValues) => {
+    const finalData = { ...data };
+    if (finalData.parentId === 'none') {
+      finalData.parentId = undefined;
     }
-    onSubmit(finalData as UserFormValues);
+    onSubmit(finalData);
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFinalSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         {!isAdmin && (
             <FormField
             control={form.control}

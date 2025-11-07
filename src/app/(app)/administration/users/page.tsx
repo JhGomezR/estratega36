@@ -41,10 +41,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, doc, setDoc } from "firebase/firestore"
+import { collection, doc } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
+import { createUser } from "./actions"
 
 
 export default function UsersPage() {
@@ -137,74 +137,43 @@ export default function UsersPage() {
     }
   }
 
-  const handleFormSubmit = async (data: UserFormValues) => {
+ const handleFormSubmit = async (data: UserFormValues) => {
     if (!firestore || !auth || !auth.currentUser) return;
 
     try {
-        if (selectedUser) {
-            // Editing an existing user
-            const { password, email, ...firestoreData } = data;
-            // Ensure parentId is not undefined
-            if ('parentId' in firestoreData && firestoreData.parentId === undefined) {
-                delete firestoreData.parentId;
-            }
-            setDocumentNonBlocking(doc(firestore, 'users', selectedUser.id), firestoreData, { merge: true });
-            toast({ title: "Usuario Actualizado", description: "Los datos del usuario han sido actualizados." });
-        } else {
-            // Creating a new user
-            if (!data.password) {
-                toast({ variant: "destructive", title: "Error al crear usuario", description: "La contraseña es obligatoria para nuevos usuarios." });
-                return;
-            }
-
-            const adminUser = auth.currentUser;
-            const adminEmail = adminUser.email;
-            if (!adminEmail) {
-                throw new Error("El usuario administrador no tiene un email para re-autenticar.");
-            }
-            
-            // This is a workaround to get the admin's password if needed for re-authentication.
-            // In a real app, you'd handle this more securely, e.g., by asking the admin to re-enter their password.
-            // For this context, we assume we can retrieve it or the session is fresh enough.
-            const adminPassword = "KratoS_67*23"; // THIS IS A HARDCODED PASSWORD FOR DEMO - VERY INSECURE
-
-            // 1. Create the new user
-            const { email, password, ...profileData } = data;
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const newAuthUser = userCredential.user;
-
-            // 2. Create the user's profile in Firestore
-            const newUserProfile: Partial<User> = {
-                ...profileData,
-                email,
-                avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-                status: 'activo' as const,
-            };
-            if (newUserProfile.parentId === undefined) {
-                delete newUserProfile.parentId;
-            }
-            
-            await setDoc(doc(firestore, 'users', newAuthUser.uid), newUserProfile);
-            
-            // 3. IMPORTANT: Re-authenticate the admin to restore their session
-            await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-
-            toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
+      if (selectedUser) {
+        // Editing an existing user
+        const { password, email, ...firestoreData } = data;
+         const finalData: Partial<UserFormValues> = { ...firestoreData };
+        if ('parentId' in finalData && (finalData.parentId === 'none' || !finalData.parentId)) {
+            delete finalData.parentId;
         }
-        setIsFormOpen(false);
+        setDocumentNonBlocking(doc(firestore, 'users', selectedUser.id), finalData, { merge: true });
+        toast({ title: "Usuario Actualizado", description: "Los datos del usuario han sido actualizados." });
+      } else {
+        // Creating a new user via Server Action
+        if (!data.password) {
+          toast({ variant: "destructive", title: "Error al crear usuario", description: "La contraseña es obligatoria para nuevos usuarios." });
+          return;
+        }
+        const result = await createUser(data);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
+      }
+      setIsFormOpen(false);
     } catch (error: any) {
-        console.error("Error handling user form:", error);
-        let description = "Ocurrió un error inesperado.";
-        if (error.code === 'auth/email-already-in-use') {
-            description = "El correo electrónico ya está en uso por otra cuenta.";
-        } else if (error.code === 'auth/weak-password') {
-            description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
-        } else if (error.code === 'auth/requires-recent-login') {
-            description = "Por seguridad, debes volver a iniciar sesión para realizar esta acción.";
-        }
-        toast({ variant: "destructive", title: "Error", description });
+      console.error("Error handling user form:", error);
+      let description = "Ocurrió un error inesperado.";
+      if (error.message.includes('auth/email-already-exists')) {
+        description = "El correo electrónico ya está en uso por otra cuenta.";
+      } else if (error.message.includes('auth/weak-password')) {
+        description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
+      }
+      toast({ variant: "destructive", title: "Error", description });
     }
-};
+  };
 
 
   const getRoleName = (roleId: string) => {
@@ -324,6 +293,4 @@ export default function UsersPage() {
     </div>
   )
 }
-    
-
     
