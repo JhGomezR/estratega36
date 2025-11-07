@@ -25,8 +25,12 @@ export default function StrategiesPage() {
   const activeCampaigns = React.useMemo(() => {
     if (!campaignsData || !currentUserData || !roles) return [];
 
-    const adminRole = roles.find(r => r.name.toLowerCase() === 'admin');
-    const isAdmin = currentUserData.email === 'axdrcys@gmail.com' || currentUserData.roleId === adminRole?.id;
+    const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
+    const adminRoleIds = roles
+        .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
+        .map(r => r.id);
+
+    const isAdmin = currentUserData.email === 'axdrcys@gmail.com' || adminRoleIds.includes(currentUserData.roleId);
     
     if (isAdmin) {
         return campaignsData.filter(c => c.status === 'En Campaña');
