@@ -41,10 +41,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { collection, doc, setDoc } from "firebase/firestore"
+import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
-import { createUser } from "./actions"
+import { createUserWithEmailAndPassword } from "firebase/auth"
 
 
 export default function UsersPage() {
@@ -153,11 +153,21 @@ export default function UsersPage() {
             return;
         }
         
-        const result = await createUser(data);
+        const { email, password, ...profileData } = data;
 
-        if (result.error) {
-            throw new Error(result.error);
-        }
+        // 1. Create user in Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const newAuthUser = userCredential.user;
+        
+        // 2. Create user profile in Firestore
+        const newUserProfile = {
+            ...profileData,
+            email,
+            avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
+            status: 'activo' as const,
+        };
+
+        await setDoc(doc(firestore, 'users', newAuthUser.uid), newUserProfile);
 
         toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
       }
@@ -165,9 +175,9 @@ export default function UsersPage() {
     } catch (error: any) {
         console.error("Error handling user form:", error);
         let description = "Ocurrió un error inesperado.";
-        if (error.message.includes('auth/email-already-exists')) {
+        if (error.code === 'auth/email-already-in-use') {
             description = "El correo electrónico ya está en uso por otra cuenta.";
-        } else if (error.message.includes('auth/weak-password')) {
+        } else if (error.code === 'auth/weak-password') {
             description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
         }
         toast({ variant: "destructive", title: "Error al crear usuario", description });
