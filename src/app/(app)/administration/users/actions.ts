@@ -26,12 +26,14 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
     const auth = admin.auth();
     const firestore = admin.firestore();
 
-    const { email, password, ...profileData } = data;
+    // The password will not be present when editing a user.
+    // It's only required for creation.
+    const { password, ...profileData } = data;
     
     // 1. Create user in Firebase Auth
     const userRecord = await auth.createUser({
-      email,
-      password,
+      email: profileData.email,
+      password: password,
       emailVerified: false,
       disabled: false,
     });
@@ -39,7 +41,7 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
     // 2. Create user profile in Firestore
     const newUserProfile: Partial<User> = {
       ...profileData,
-      email,
+      email: profileData.email,
       avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
       status: 'activo' as const,
     };
