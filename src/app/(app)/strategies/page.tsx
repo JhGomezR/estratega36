@@ -23,23 +23,32 @@ export default function StrategiesPage() {
   );
 
   const activeCampaigns = React.useMemo(() => {
-    if (!campaignsData || !currentUserData || !roles) return [];
+    if (!campaignsData || !user) return [];
+    
+    const allActiveCampaigns = campaignsData.filter(c => c.status === 'En Campaña');
+
+    // Super admin bypass
+    if (user.email === 'axdrcys@gmail.com') {
+        return allActiveCampaigns;
+    }
+
+    // Role-based check
+    if (!currentUserData || !roles) return [];
 
     const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
     const adminRoleIds = roles
         .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
         .map(r => r.id);
 
-    const isAdmin = currentUserData.email === 'axdrcys@gmail.com' || adminRoleIds.includes(currentUserData.roleId);
-    
-    if (isAdmin) {
-        return campaignsData.filter(c => c.status === 'En Campaña');
+    if (adminRoleIds.includes(currentUserData.roleId)) {
+        return allActiveCampaigns;
     }
     
-    return campaignsData.filter(c => 
-      c.status === 'En Campaña' && currentUserData.campaignIds.includes(c.id)
+    // Default user filter
+    return allActiveCampaigns.filter(c => 
+      currentUserData.campaignIds.includes(c.id)
     );
-  }, [campaignsData, currentUserData, roles]);
+  }, [campaignsData, currentUserData, roles, user]);
 
   return (
     <div className="flex flex-col gap-8">
