@@ -2,13 +2,21 @@
 'use server'
 import * as admin from 'firebase-admin'
 
-export async function createUser(data: any) {
-  // Initialize the Admin SDK if it hasn't been initialized yet
-  if (!admin.apps.length) {
-    // When running in a Google Cloud environment, the SDK automatically detects the project's
-    // service account credentials and uses them to initialize.
-    admin.initializeApp()
+// Helper function to initialize Firebase Admin SDK
+function initializeFirebaseAdmin() {
+  if (admin.apps.length > 0) {
+    return admin.app();
   }
+
+  // When running in a Google Cloud environment, the SDK automatically detects the project's
+  // service account credentials and uses them to initialize.
+  // The GOOGLE_APPLICATION_CREDENTIALS env var should be set.
+  return admin.initializeApp();
+}
+
+
+export async function createUser(data: any) {
+  initializeFirebaseAdmin();
   
   const auth = admin.auth();
   const firestore = admin.firestore();
