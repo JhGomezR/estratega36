@@ -7,17 +7,24 @@ import type { User } from '@/lib/types';
 
 // Helper function to initialize Firebase Admin SDK safely.
 function initializeFirebaseAdmin() {
-  if (admin.apps.length) {
+  if (admin.apps.length > 0) {
     return admin.app();
   }
 
   // When running in a Google Cloud environment (like Firebase), the SDK automatically
   // detects the project's service account credentials.
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
-
-  return admin.initializeApp({
+  // For local development, we parse it from an environment variable.
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+    return admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
-  });
+    });
+  } catch (error) {
+    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY or initialize admin app.', error);
+    // If running in a managed Google environment (like Cloud Run, Cloud Functions),
+    // it might work without explicit credentials.
+    return admin.initializeApp();
+  }
 }
 
 export async function createUser(data: UserFormValues): Promise<{ uid?: string; error?: string }> {
@@ -54,7 +61,7 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
     return { uid: userRecord.uid };
   } catch (error: any) {
     console.error("Error creating user in server action:", error);
-    // Return a serializable error message
+    // Return a serializable error message with the code
     return { error: error.code || 'Unknown error occurred' };
   }
 }

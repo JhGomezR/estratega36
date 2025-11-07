@@ -138,7 +138,7 @@ export default function UsersPage() {
   }
 
  const handleFormSubmit = async (data: UserFormValues) => {
-    if (!firestore || !auth || !auth.currentUser) return;
+    if (!firestore) return;
 
     try {
       if (selectedUser) {
@@ -168,8 +168,12 @@ export default function UsersPage() {
       let description = "Ocurrió un error inesperado.";
       if (error.message.includes('auth/email-already-exists')) {
         description = "El correo electrónico ya está en uso por otra cuenta.";
+      } else if (error.message.includes('auth/email-already-in-use')) {
+        description = "El correo electrónico ya está en uso por otra cuenta.";
       } else if (error.message.includes('auth/weak-password')) {
         description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
+      } else if (error.message) {
+        description = error.message;
       }
       toast({ variant: "destructive", title: "Error", description });
     }
