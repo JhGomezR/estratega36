@@ -99,6 +99,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+     /**
+     * @description Allows read and write access to social media API settings.
+     * @path /settings/socialApi
+     */
+    match /settings/socialApi {
+        allow read, write: if true;
+    }
+
     /**
      * @description Allows read and write access to user-managed lists.
      * @path /lists/{listId}

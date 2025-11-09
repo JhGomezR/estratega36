@@ -431,6 +431,14 @@
             "longitude": { "type": "number", "description": "Geographical longitude, if available." }
         },
         "required": ["keywordId", "source", "content", "author", "url", "timestamp"]
+    },
+    "SocialApiSettings": {
+        "title": "Social API Settings",
+        "type": "object",
+        "description": "Stores API keys and tokens for social media integrations.",
+        "properties": {
+            "facebookGraphApiToken": { "type": "string", "description": "Access token for the Facebook Graph API." }
+        }
     }
   },
   "auth": {
@@ -492,6 +500,12 @@
         "$ref": "#/entities/BrandingSettings"
       },
       "description": "Stores the single document for application branding settings."
+    },
+     "/settings/socialApi": {
+      "schema": {
+        "$ref": "#/entities/SocialApiSettings"
+      },
+      "description": "Stores API tokens for social media integrations."
     },
     "/lists/{listId}": {
       "schema": {
