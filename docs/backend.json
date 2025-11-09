@@ -403,6 +403,34 @@
         }
       },
       "required": ["campaignId", "generatedAt", "inputs", "outputs"]
+    },
+    "Keyword": {
+        "title": "Keyword",
+        "type": "object",
+        "description": "A keyword or hashtag to monitor on social media.",
+        "properties": {
+            "keyword": { "type": "string", "description": "The keyword or hashtag to track (e.g., 'Juan Perez', '#CambioSeguro')." },
+            "source": { "type": "string", "enum": ["facebook", "twitter", "instagram"], "description": "The social media platform to monitor." },
+            "status": { "type": "string", "enum": ["active", "paused"], "default": "active" }
+        },
+        "required": ["keyword", "source", "status"]
+    },
+    "SocialMention": {
+        "title": "SocialMention",
+        "type": "object",
+        "description": "A captured social media mention related to a tracked keyword.",
+        "properties": {
+            "keywordId": { "type": "string" },
+            "source": { "type": "string", "enum": ["facebook", "twitter", "instagram"] },
+            "content": { "type": "string", "description": "The full text content of the post or comment." },
+            "author": { "type": "string", "description": "The username or ID of the person who made the mention." },
+            "url": { "type": "string", "format": "uri", "description": "Direct link to the mention." },
+            "timestamp": { "type": "string", "format": "date-time" },
+            "sentiment": { "type": "string", "enum": ["positive", "negative", "neutral", "unprocessed"], "default": "unprocessed" },
+            "latitude": { "type": "number", "description": "Geographical latitude, if available." },
+            "longitude": { "type": "number", "description": "Geographical longitude, if available." }
+        },
+        "required": ["keywordId", "source", "content", "author", "url", "timestamp"]
     }
   },
   "auth": {
@@ -470,6 +498,14 @@
         "$ref": "#/entities/ManagedList"
       },
       "description": "Stores documents for user-managed lists. The document ID is the list name (e.g., 'taskPriorities')."
+    },
+    "/keywords/{keywordId}": {
+        "schema": { "$ref": "#/entities/Keyword" },
+        "description": "Stores keywords to be monitored by the social listening module."
+    },
+    "/socialMentions/{mentionId}": {
+        "schema": { "$ref": "#/entities/SocialMention" },
+        "description": "Stores mentions captured from social media."
     }
   }
 }

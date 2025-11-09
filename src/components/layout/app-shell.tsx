@@ -39,6 +39,7 @@ import {
   LogOut,
   Loader2,
   GitFork,
+  Radio,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -92,6 +93,7 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
     if(hasPermission("report:read")) {
         links.push("/analysis");
         links.push("/strategies");
+        links.push("/social-listening");
     }
     // Admin links are sorted separately and not used for auto-redirect
     if (hasPermission("role:read")) links.push("/administration/roles");
@@ -254,6 +256,14 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
                     <Link href="/strategies">
                       <Lightbulb />
                       <span>Generador de Estrategias</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/social-listening")} tooltip="Escucha Social">
+                    <Link href="/social-listening">
+                      <Radio />
+                      <span>Escucha Social</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

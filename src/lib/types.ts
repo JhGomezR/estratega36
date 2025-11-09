@@ -150,3 +150,21 @@ export type GeneratedStrategy = WithId<{
         riesgos: string;
     };
 }>;
+
+export type Keyword = WithId<{
+    keyword: string;
+    source: 'facebook' | 'twitter' | 'instagram';
+    status: 'active' | 'paused';
+}>;
+
+export type SocialMention = WithId<{
+    keywordId: string;
+    source: 'facebook' | 'twitter' | 'instagram';
+    content: string;
+    author: string;
+    url: string;
+    timestamp: string;
+    sentiment: 'positive' | 'negative' | 'neutral' | 'unprocessed';
+    latitude?: number;
+    longitude?: number;
+}>;
