@@ -168,3 +168,10 @@ export type SocialMention = WithId<{
     latitude?: number;
     longitude?: number;
 }>;
+
+export type SocialApiSettings = {
+  facebookGraphApiToken?: string;
+  facebookAppId?: string;
+};
+
+    

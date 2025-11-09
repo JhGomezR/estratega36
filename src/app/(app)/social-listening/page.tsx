@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card"
 import {
   Table,
@@ -48,7 +49,10 @@ import {
   Save,
   Monitor,
   BarChart2,
-  AlertTriangle
+  AlertTriangle,
+  Link as LinkIcon,
+  Power,
+  PowerOff
 } from "lucide-react"
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
@@ -56,6 +60,8 @@ import type { Keyword, SocialApiSettings } from "@/lib/types"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
 
 const socialIcons = {
   facebook: <Facebook className="h-5 w-5 text-blue-600" />,
@@ -77,12 +83,18 @@ export default function SocialListeningPage() {
   const [newSource, setNewSource] = React.useState<"facebook" | "twitter" | "instagram">("facebook")
   const [keywordToDelete, setKeywordToDelete] = React.useState<Keyword | null>(null)
   
-  const [apiToken, setApiToken] = React.useState('');
+  const [apiSettings, setApiSettings] = React.useState({
+    facebookGraphApiToken: '',
+    facebookAppId: '',
+  });
   const [isSaving, setIsSaving] = React.useState(false);
   
   React.useEffect(() => {
-    if (socialApiSettings?.facebookGraphApiToken) {
-      setApiToken(socialApiSettings.facebookGraphApiToken);
+    if (socialApiSettings) {
+      setApiSettings({
+          facebookGraphApiToken: socialApiSettings.facebookGraphApiToken || '',
+          facebookAppId: socialApiSettings.facebookAppId || '',
+      });
     }
   }, [socialApiSettings]);
 
@@ -113,17 +125,17 @@ export default function SocialListeningPage() {
     if (!socialApiSettingsRef) return;
     setIsSaving(true);
     try {
-      setDocumentNonBlocking(socialApiSettingsRef, { facebookGraphApiToken: apiToken }, { merge: true });
+      setDocumentNonBlocking(socialApiSettingsRef, apiSettings, { merge: true });
       toast({
         title: "Configuración Guardada",
-        description: "El token de la API de Facebook ha sido guardado.",
+        description: "Tus configuraciones de API han sido guardadas.",
       });
     } catch (error) {
       console.error("Error saving API settings:", error);
       toast({
         variant: "destructive",
         title: "Error al Guardar",
-        description: "No se pudo guardar el token. Inténtalo de nuevo.",
+        description: "No se pudo guardar la configuración. Inténtalo de nuevo.",
       });
     } finally {
       setIsSaving(false);
@@ -140,8 +152,46 @@ export default function SocialListeningPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Key className="h-6 w-6" />Configuración y Conexión</CardTitle>
+                    <CardDescription>Conecta tus redes sociales para empezar a monitorear.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="facebook-app-id" className="flex items-center gap-2"><Facebook className="h-4 w-4" /> App ID de Facebook</Label>
+                        <Input
+                            id="facebook-app-id"
+                            placeholder="Pega aquí el ID de tu App de Facebook"
+                            value={apiSettings.facebookAppId}
+                            onChange={(e) => setApiSettings(prev => ({...prev, facebookAppId: e.target.value}))}
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="facebook-token" className="flex items-center gap-2"><Facebook className="h-4 w-4" /> Token de API Graph de Facebook</Label>
+                        <Input
+                        id="facebook-token"
+                        type="password"
+                        placeholder="Se llenará automáticamente al conectar"
+                        value={apiSettings.facebookGraphApiToken}
+                        onChange={(e) => setApiSettings(prev => ({...prev, facebookGraphApiToken: e.target.value}))}
+                        />
+                    </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                     <Button className="w-48" onClick={handleSaveSettings} disabled={isSaving || settingsLoading}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {isSaving ? "Guardando..." : "Guardar Configuración"}
+                    </Button>
+                     <Button variant="outline" className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white" disabled>
+                        <LinkIcon className="mr-2 h-4 w-4"/>
+                        Conectar con Facebook
+                    </Button>
+                </CardFooter>
+            </Card>
+
             {/* Keyword Manager */}
             <Card>
                 <CardHeader>
@@ -226,60 +276,40 @@ export default function SocialListeningPage() {
                 </Table>
                 </CardContent>
             </Card>
-
-            {/* Dashboard Placeholder */}
-            <Card>
-                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <BarChart2 className="h-6 w-6" />
-                        Dashboard de Menciones
-                    </CardTitle>
-                    <CardDescription>
-                        Visualización de las menciones capturadas y análisis de sentimiento.
-                    </CardDescription>
-                </CardHeader>
-                 <CardContent className="flex items-center justify-center h-64 text-center">
-                    <div className="space-y-2">
-                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary/50" />
-                        <p className="text-muted-foreground">Esperando la implementación del dashboard...</p>
-                    </div>
-                </CardContent>
-            </Card>
-
         </div>
 
         {/* Settings */}
         <div className="space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Key className="h-6 w-6" />
-                        Configuración de APIs
-                    </CardTitle>
-                    <CardDescription>
-                        Ingresa los tokens y claves necesarios para conectar con las redes sociales.
-                    </CardDescription>
+                    <CardTitle className="flex items-center gap-2">Páginas Conectadas</CardTitle>
+                    <CardDescription>Activa o desactiva el monitoreo para cada página de Facebook que administras.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="facebook-token" className="flex items-center gap-2">
-                            <Facebook className="h-4 w-4" /> Token de API Graph de Facebook
-                        </Label>
-                        <Input
-                        id="facebook-token"
-                        type="password"
-                        placeholder="Pega aquí tu token de acceso"
-                        value={apiToken}
-                        onChange={(e) => setApiToken(e.target.value)}
-                        />
-                         <p className="text-xs text-muted-foreground pt-1">
-                            Necesario para obtener datos de Facebook.
-                        </p>
+                <CardContent className="space-y-4">
+                    {/* Ejemplo de página conectada */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center gap-3">
+                            <Facebook className="h-6 w-6 text-blue-600"/>
+                            <div>
+                                <p className="font-semibold">Página de Campaña Ejemplo</p>
+                                <p className="text-xs text-muted-foreground">ID: 1234567890</p>
+                            </div>
+                        </div>
+                        <Switch defaultChecked={true} />
                     </div>
-                    <Button className="w-full" onClick={handleSaveSettings} disabled={isSaving || settingsLoading}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        {isSaving ? "Guardando..." : "Guardar Configuración"}
-                    </Button>
+                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center gap-3">
+                            <Facebook className="h-6 w-6 text-blue-600"/>
+                            <div>
+                                <p className="font-semibold">Perfil Público del Candidato</p>
+                                <p className="text-xs text-muted-foreground">ID: 0987654321</p>
+                            </div>
+                        </div>
+                        <Switch defaultChecked={false} />
+                    </div>
+                    <div className="text-center text-sm text-muted-foreground pt-4">
+                        Conecta tu cuenta de Facebook para ver tus páginas aquí.
+                    </div>
                 </CardContent>
             </Card>
 
@@ -291,7 +321,7 @@ export default function SocialListeningPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-amber-700 space-y-2">
-                   <p>¡Esta es la base! La lógica de backend para usar este token debe ser implementada (ej. usando **Firebase Functions**) para:</p>
+                   <p>¡Esta es la base! La lógica de backend (ej. usando **Firebase Functions**) debe ser implementada para:</p>
                    <ul className="list-disc list-inside space-y-1 pl-2">
                        <li>Llamar a la API de Facebook periódicamente.</li>
                        <li>Procesar las menciones y guardarlas en Firestore.</li>

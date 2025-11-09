@@ -437,7 +437,8 @@
         "type": "object",
         "description": "Stores API keys and tokens for social media integrations.",
         "properties": {
-            "facebookGraphApiToken": { "type": "string", "description": "Access token for the Facebook Graph API." }
+            "facebookGraphApiToken": { "type": "string", "description": "Access token for the Facebook Graph API." },
+            "facebookAppId": { "type": "string", "description": "The App ID for the Facebook application used for social login and API access." }
         }
     }
   },
@@ -523,3 +524,5 @@
     }
   }
 }
+
+    
