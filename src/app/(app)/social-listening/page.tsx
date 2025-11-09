@@ -36,7 +36,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   PlusCircle,
@@ -51,11 +50,12 @@ import {
   BarChart2,
   AlertTriangle
 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
-import type { Keyword } from "@/lib/types"
-import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import type { Keyword, SocialApiSettings } from "@/lib/types"
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 
 const socialIcons = {
   facebook: <Facebook className="h-5 w-5 text-blue-600" />,
@@ -65,12 +65,27 @@ const socialIcons = {
 
 export default function SocialListeningPage() {
   const firestore = useFirestore()
+  const { toast } = useToast()
+
   const keywordsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "keywords") : null, [firestore])
   const { data: keywords, isLoading } = useCollection<Keyword>(keywordsCollectionRef)
+
+  const socialApiSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "socialApi") : null, [firestore]);
+  const { data: socialApiSettings, isLoading: settingsLoading } = useDoc<SocialApiSettings>(socialApiSettingsRef);
 
   const [newKeyword, setNewKeyword] = React.useState("")
   const [newSource, setNewSource] = React.useState<"facebook" | "twitter" | "instagram">("facebook")
   const [keywordToDelete, setKeywordToDelete] = React.useState<Keyword | null>(null)
+  
+  const [apiToken, setApiToken] = React.useState('');
+  const [isSaving, setIsSaving] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (socialApiSettings?.facebookGraphApiToken) {
+      setApiToken(socialApiSettings.facebookGraphApiToken);
+    }
+  }, [socialApiSettings]);
+
 
   const handleAddKeyword = () => {
     if (!newKeyword.trim()) return
@@ -93,6 +108,28 @@ export default function SocialListeningPage() {
       setKeywordToDelete(null)
     }
   }
+  
+  const handleSaveSettings = () => {
+    if (!socialApiSettingsRef) return;
+    setIsSaving(true);
+    try {
+      setDocumentNonBlocking(socialApiSettingsRef, { facebookGraphApiToken: apiToken }, { merge: true });
+      toast({
+        title: "Configuración Guardada",
+        description: "El token de la API de Facebook ha sido guardado.",
+      });
+    } catch (error) {
+      console.error("Error saving API settings:", error);
+      toast({
+        variant: "destructive",
+        title: "Error al Guardar",
+        description: "No se pudo guardar el token. Inténtalo de nuevo.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -232,14 +269,16 @@ export default function SocialListeningPage() {
                         id="facebook-token"
                         type="password"
                         placeholder="Pega aquí tu token de acceso"
+                        value={apiToken}
+                        onChange={(e) => setApiToken(e.target.value)}
                         />
                          <p className="text-xs text-muted-foreground pt-1">
                             Necesario para obtener datos de Facebook.
                         </p>
                     </div>
-                    <Button className="w-full">
-                        <Save className="mr-2 h-4 w-4" />
-                        Guardar Configuración
+                    <Button className="w-full" onClick={handleSaveSettings} disabled={isSaving || settingsLoading}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {isSaving ? "Guardando..." : "Guardar Configuración"}
                     </Button>
                 </CardContent>
             </Card>
@@ -252,9 +291,9 @@ export default function SocialListeningPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-amber-700 space-y-2">
-                   <p>¡Esta es la base! Ahora necesitamos implementar la lógica de backend (ej. usando Firebase Functions) para:</p>
+                   <p>¡Esta es la base! La lógica de backend para usar este token debe ser implementada (ej. usando **Firebase Functions**) para:</p>
                    <ul className="list-disc list-inside space-y-1 pl-2">
-                       <li>Usar el token para llamar a la API de Facebook periódicamente.</li>
+                       <li>Llamar a la API de Facebook periódicamente.</li>
                        <li>Procesar las menciones y guardarlas en Firestore.</li>
                        <li>Analizar el sentimiento de cada mención.</li>
                    </ul>
@@ -274,7 +313,7 @@ export default function SocialListeningPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                    <AlertDialogAction onClick={handleDeleteKeyword} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -283,3 +322,5 @@ export default function SocialListeningPage() {
     </div>
   )
 }
+
+    
