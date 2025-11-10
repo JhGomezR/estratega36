@@ -10,14 +10,6 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -48,7 +40,6 @@ import {
   Key,
   Save,
   Monitor,
-  BarChart2,
   AlertTriangle,
   Link as LinkIcon,
   Power,
@@ -62,6 +53,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import { useFacebook } from "@/hooks/useFacebook"
 
 const socialIcons = {
   facebook: <Facebook className="h-5 w-5 text-blue-600" />,
@@ -78,6 +70,9 @@ export default function SocialListeningPage() {
 
   const socialApiSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "socialApi") : null, [firestore]);
   const { data: socialApiSettings, isLoading: settingsLoading } = useDoc<SocialApiSettings>(socialApiSettingsRef);
+  
+  const { sdkLoaded, login, logout } = useFacebook();
+
 
   const [newKeyword, setNewKeyword] = React.useState("")
   const [newSource, setNewSource] = React.useState<"facebook" | "twitter" | "instagram">("facebook")
@@ -88,6 +83,7 @@ export default function SocialListeningPage() {
     facebookAppId: '',
   });
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isConnecting, setIsConnecting] = React.useState(false);
   
   React.useEffect(() => {
     if (socialApiSettings) {
@@ -125,10 +121,10 @@ export default function SocialListeningPage() {
     if (!socialApiSettingsRef) return;
     setIsSaving(true);
     try {
-      setDocumentNonBlocking(socialApiSettingsRef, apiSettings, { merge: true });
+      setDocumentNonBlocking(socialApiSettingsRef, { facebookAppId: apiSettings.facebookAppId }, { merge: true });
       toast({
         title: "Configuración Guardada",
-        description: "Tus configuraciones de API han sido guardadas.",
+        description: "Tu App ID de Facebook ha sido guardado.",
       });
     } catch (error) {
       console.error("Error saving API settings:", error);
@@ -141,7 +137,28 @@ export default function SocialListeningPage() {
       setIsSaving(false);
     }
   };
-
+  
+  const handleFacebookLogin = async () => {
+    if (!apiSettings.facebookAppId) {
+        toast({ variant: "destructive", title: "Falta el App ID", description: "Por favor, guarda un App ID de Facebook antes de conectar." });
+        return;
+    }
+    setIsConnecting(true);
+    try {
+        const response = await login(apiSettings.facebookAppId);
+        if (response && response.authResponse) {
+            setDocumentNonBlocking(socialApiSettingsRef!, { facebookGraphApiToken: response.authResponse.accessToken }, { merge: true });
+            toast({ title: "Conexión Exitosa", description: "Facebook se ha conectado correctamente." });
+        } else {
+             toast({ variant: "destructive", title: "Conexión Fallida", description: "No se pudo obtener una respuesta de Facebook." });
+        }
+    } catch(error) {
+        console.error("Facebook login error:", error);
+        toast({ variant: "destructive", title: "Error de Conexión", description: "Ocurrió un error al intentar conectar con Facebook." });
+    } finally {
+        setIsConnecting(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -162,12 +179,18 @@ export default function SocialListeningPage() {
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <Label htmlFor="facebook-app-id" className="flex items-center gap-2"><Facebook className="h-4 w-4" /> App ID de Facebook</Label>
-                        <Input
-                            id="facebook-app-id"
-                            placeholder="Pega aquí el ID de tu App de Facebook"
-                            value={apiSettings.facebookAppId}
-                            onChange={(e) => setApiSettings(prev => ({...prev, facebookAppId: e.target.value}))}
-                        />
+                        <div className="flex gap-2">
+                            <Input
+                                id="facebook-app-id"
+                                placeholder="Pega aquí el ID de tu App de Facebook"
+                                value={apiSettings.facebookAppId}
+                                onChange={(e) => setApiSettings(prev => ({...prev, facebookAppId: e.target.value}))}
+                            />
+                            <Button onClick={handleSaveSettings} disabled={isSaving || settingsLoading}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                Guardar ID
+                            </Button>
+                        </div>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="facebook-token" className="flex items-center gap-2"><Facebook className="h-4 w-4" /> Token de API Graph de Facebook</Label>
@@ -176,18 +199,19 @@ export default function SocialListeningPage() {
                         type="password"
                         placeholder="Se llenará automáticamente al conectar"
                         value={apiSettings.facebookGraphApiToken}
-                        onChange={(e) => setApiSettings(prev => ({...prev, facebookGraphApiToken: e.target.value}))}
+                        readOnly
                         />
                     </div>
                 </CardContent>
-                <CardFooter className="flex justify-between">
-                     <Button className="w-48" onClick={handleSaveSettings} disabled={isSaving || settingsLoading}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        {isSaving ? "Guardando..." : "Guardar Configuración"}
-                    </Button>
-                     <Button variant="outline" className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white" disabled>
-                        <LinkIcon className="mr-2 h-4 w-4"/>
-                        Conectar con Facebook
+                <CardFooter className="flex justify-end">
+                     <Button 
+                        variant="outline" 
+                        className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white" 
+                        disabled={!sdkLoaded || isConnecting || !apiSettings.facebookAppId}
+                        onClick={handleFacebookLogin}
+                     >
+                        {isConnecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LinkIcon className="mr-2 h-4 w-4"/>}
+                        {isConnecting ? "Conectando..." : "Conectar con Facebook"}
                     </Button>
                 </CardFooter>
             </Card>
@@ -353,4 +377,3 @@ export default function SocialListeningPage() {
   )
 }
 
-    
