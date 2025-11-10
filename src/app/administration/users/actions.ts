@@ -5,32 +5,37 @@ import * as admin from 'firebase-admin';
 import type { UserFormValues } from '@/components/user-form';
 import type { User } from '@/lib/types';
 
-// Helper function to initialize Firebase Admin SDK safely.
+// Helper function to initialize Firebase Admin SDK safely for both production and development.
 function initializeFirebaseAdmin() {
   // If the app is already initialized, return the existing app.
   if (admin.apps.length > 0) {
     return admin.app();
   }
 
-  // When running in a Google Cloud environment, the SDK automatically
+  // When running in a Google Cloud environment (like App Hosting), the SDK automatically
   // detects the project's service account credentials. For local development,
-  // we need to provide them explicitly via an environment variable.
-  try {
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  // we can provide them explicitly via an environment variable.
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-    if (serviceAccountJson) {
+  if (serviceAccountJson) {
+    // Development/local environment: Use the service account key from the environment variable.
+    try {
       const serviceAccount = JSON.parse(serviceAccountJson);
       return admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
-    } else {
-        // This will work in a deployed Google Cloud environment.
-        return admin.initializeApp();
+    } catch (error: any) {
+        console.error('Failed to initialize Firebase Admin with service account key:', error.message);
+        throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_KEY. Please check your environment variable.');
     }
-  } catch (error: any) {
-    console.error('Firebase Admin SDK initialization error:', error.message);
-    // This will cause user creation to fail, which is expected if the SDK cannot be initialized.
-    throw new Error('Could not initialize Firebase Admin SDK. Check server logs and FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
+  } else {
+    // Production environment: Rely on Application Default Credentials.
+    try {
+        return admin.initializeApp();
+    } catch(error: any) {
+        console.error('Firebase Admin SDK initialization error:', error.message);
+        throw new Error('Could not initialize Firebase Admin SDK. In a production environment, ensure the runtime has access to Google Cloud credentials. In development, set the FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
+    }
   }
 }
 
