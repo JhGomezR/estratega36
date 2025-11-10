@@ -42,11 +42,12 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
     const auth = admin.auth();
     const firestore = admin.firestore();
 
-    // The password will not be present when editing a user.
-    // It's only required for creation.
     const { password, ...profileData } = data;
     
-    // 1. Create user in Firebase Auth
+    if (!password) {
+        return { error: 'La contraseña es obligatoria para nuevos usuarios.' };
+    }
+
     const userRecord = await auth.createUser({
       email: profileData.email,
       password: password,
@@ -54,7 +55,6 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
       disabled: false,
     });
 
-    // 2. Create user profile in Firestore
     const newUserProfile: Partial<User> = {
       ...profileData,
       email: profileData.email,
