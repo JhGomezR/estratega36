@@ -52,7 +52,6 @@ import Image from "next/image"
 import { signOut } from "firebase/auth"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useMemo } from "react"
-import { ThemeProvider, useTheme } from "next-themes"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -60,7 +59,7 @@ const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 )
 
-function AppShellContent({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const firestore = useFirestore();
@@ -136,6 +135,10 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/login');
+  }
+
+  if (pathname === '/login') {
+    return <>{children}</>;
   }
 
   if (isUserLoading || !user || permissionsLoading) {
@@ -372,12 +375,4 @@ function AppShellCollapsibleGroup({ children, icon, label, isActive }: { childre
       </CollapsibleContent>
     </Collapsible>
   );
-}
-
-export function AppShell({ children }: { children: React.ReactNode }) {
-  return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <AppShellContent>{children}</AppShellContent>
-    </ThemeProvider>
-  )
 }
