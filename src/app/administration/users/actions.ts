@@ -15,7 +15,11 @@ function initializeFirebaseAdmin() {
   // detects the project's service account credentials.
   // For local development, we parse it from an environment variable.
   try {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountString) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+    }
+    const serviceAccount = JSON.parse(serviceAccountString);
     return admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
@@ -23,7 +27,12 @@ function initializeFirebaseAdmin() {
     console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY or initialize admin app.', error);
     // If running in a managed Google environment (like Cloud Run, Cloud Functions),
     // it might work without explicit credentials.
-    return admin.initializeApp();
+    try {
+        return admin.initializeApp();
+    } catch (initError) {
+        console.error('Secondary initializeApp() failed', initError);
+        throw new Error('Could not initialize Firebase Admin SDK. Please check server logs.');
+    }
   }
 }
 
