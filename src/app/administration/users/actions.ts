@@ -12,7 +12,6 @@ function initializeFirebaseAdmin() {
     return admin.app();
   }
 
-  // Otherwise, initialize a new app.
   // When running in a Google Cloud environment (like this one), the SDK automatically
   // detects the project's service account credentials without needing a file.
   try {
