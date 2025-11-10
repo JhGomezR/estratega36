@@ -25,7 +25,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -35,8 +34,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogTitle as AlertDialogTitleElement,
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
@@ -96,12 +94,10 @@ export default function CitiesPage() {
           <p className="text-muted-foreground">Administra las ciudades y localidades de la campaña.</p>
         </div>
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleAddNew}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nueva Ciudad
-            </Button>
-          </DialogTrigger>
+          <Button onClick={handleAddNew}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nueva Ciudad
+          </Button>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>{selectedCity ? "Editar Ciudad" : "Nueva Ciudad"}</DialogTitle>
@@ -155,7 +151,7 @@ export default function CitiesPage() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                          <AlertDialogTitleElement>¿Estás seguro?</AlertDialogTitleElement>
                           <AlertDialogDescription>
                             Esta acción no se puede deshacer. Esto marcará la ciudad como inactiva.
                           </AlertDialogDescription>
