@@ -1,34 +1,17 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
+import { AppShell } from '@/components/layout/app-shell';
 import { FirebaseClientProvider } from '@/firebase';
 import { FacebookProvider } from '@/hooks/useFacebook';
 
-export const metadata: Metadata = {
-  title: 'EstrategaCRM',
-  description: 'Plataforma estratégica para campañas políticas.',
-};
-
-export default function RootLayout({
+export default function AppLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          <FacebookProvider>
-            {children}
-          </FacebookProvider>
-        </FirebaseClientProvider>
-        <Toaster />
-      </body>
-    </html>
+    <FirebaseClientProvider>
+        <FacebookProvider>
+            <AppShell>{children}</AppShell>
+        </FacebookProvider>
+    </FirebaseClientProvider>
   );
 }
