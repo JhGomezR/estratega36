@@ -158,11 +158,21 @@ export default function SocialListeningPage() {
             setDocumentNonBlocking(socialApiSettingsRef!, { facebookGraphApiToken: response.authResponse.accessToken }, { merge: true });
             toast({ title: "Conexión Exitosa", description: "Facebook se ha conectado correctamente." });
         } else {
+             // This case is typically handled by the catch block when the promise rejects
              toast({ variant: "destructive", title: "Conexión Fallida", description: "No se pudo obtener una respuesta de Facebook." });
         }
-    } catch(error) {
+    } catch(error: any) {
         console.error("Facebook login error:", error);
-        toast({ variant: "destructive", title: "Error de Conexión", description: "Ocurrió un error al intentar conectar con Facebook." });
+        // User cancelled or didn't authorize fully
+        if (typeof error === 'string' && error.includes('User cancelled')) {
+             toast({
+                variant: "default",
+                title: "Conexión Cancelada",
+                description: "El proceso de conexión con Facebook fue cancelado. Se requieren permisos para continuar.",
+            });
+        } else {
+            toast({ variant: "destructive", title: "Error de Conexión", description: "Ocurrió un error al intentar conectar con Facebook." });
+        }
     } finally {
         setIsConnecting(false);
     }
@@ -383,6 +393,5 @@ export default function SocialListeningPage() {
 
     </div>
   )
-}
 
     
