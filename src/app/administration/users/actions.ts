@@ -12,14 +12,25 @@ function initializeFirebaseAdmin() {
     return admin.app();
   }
 
-  // When running in a Google Cloud environment (like this one), the SDK automatically
-  // detects the project's service account credentials without needing a file.
+  // When running in a Google Cloud environment, the SDK automatically
+  // detects the project's service account credentials. For local development,
+  // we need to provide them explicitly via an environment variable.
   try {
-    return admin.initializeApp();
-  } catch (error) {
-    console.error('Firebase Admin SDK initialization error:', error);
+    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+
+    if (serviceAccountJson) {
+      const serviceAccount = JSON.parse(serviceAccountJson);
+      return admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+        // This will work in a deployed Google Cloud environment.
+        return admin.initializeApp();
+    }
+  } catch (error: any) {
+    console.error('Firebase Admin SDK initialization error:', error.message);
     // This will cause user creation to fail, which is expected if the SDK cannot be initialized.
-    throw new Error('Could not initialize Firebase Admin SDK. Please check server logs.');
+    throw new Error('Could not initialize Firebase Admin SDK. Check server logs and FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
   }
 }
 
@@ -61,5 +72,3 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
     return { error: error.code || 'Ocurrió un error desconocido durante la creación del usuario.' };
   }
 }
-
-    
