@@ -61,3 +61,5 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
     return { error: error.code || 'Ocurrió un error desconocido durante la creación del usuario.' };
   }
 }
+
+    

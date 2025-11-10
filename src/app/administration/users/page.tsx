@@ -158,6 +158,7 @@ export default function UsersPage() {
         }
         const result = await createUser(data);
         if (result.error) {
+          // Pass the specific error message from the server action
           throw new Error(result.error);
         }
         toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
@@ -297,3 +298,5 @@ export default function UsersPage() {
     </div>
   )
 }
+
+    
