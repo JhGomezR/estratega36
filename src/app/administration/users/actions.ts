@@ -7,32 +7,20 @@ import type { User } from '@/lib/types';
 
 // Helper function to initialize Firebase Admin SDK safely.
 function initializeFirebaseAdmin() {
+  // If the app is already initialized, return the existing app.
   if (admin.apps.length > 0) {
     return admin.app();
   }
 
-  // When running in a Google Cloud environment (like Firebase), the SDK automatically
-  // detects the project's service account credentials.
-  // For local development, we parse it from an environment variable.
+  // Otherwise, initialize a new app.
+  // When running in a Google Cloud environment (like this one), the SDK automatically
+  // detects the project's service account credentials without needing a file.
   try {
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (!serviceAccountString) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
-    }
-    const serviceAccount = JSON.parse(serviceAccountString);
-    return admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
+    return admin.initializeApp();
   } catch (error) {
-    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY or initialize admin app.', error);
-    // If running in a managed Google environment (like Cloud Run, Cloud Functions),
-    // it might work without explicit credentials.
-    try {
-        return admin.initializeApp();
-    } catch (initError) {
-        console.error('Secondary initializeApp() failed', initError);
-        throw new Error('Could not initialize Firebase Admin SDK. Please check server logs.');
-    }
+    console.error('Firebase Admin SDK initialization error:', error);
+    // This will cause user creation to fail, which is expected if the SDK cannot be initialized.
+    throw new Error('Could not initialize Firebase Admin SDK. Please check server logs.');
   }
 }
 
@@ -70,7 +58,7 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
     return { uid: userRecord.uid };
   } catch (error: any) {
     console.error("Error creating user in server action:", error);
-    // Return a serializable error message with the code
-    return { error: error.code || 'Unknown error occurred' };
+    // Return a serializable error message with the code for specific client-side handling
+    return { error: error.code || 'Ocurrió un error desconocido durante la creación del usuario.' };
   }
 }
