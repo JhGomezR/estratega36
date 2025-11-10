@@ -1,4 +1,3 @@
-
 'use server'
 
 import * as admin from 'firebase-admin';
@@ -7,7 +6,6 @@ import type { User } from '@/lib/types';
 
 // Helper function to initialize Firebase Admin SDK safely.
 function initializeFirebaseAdmin() {
-  // If the app is already initialized, return the existing app.
   if (admin.apps.length > 0) {
     return admin.app();
   }
