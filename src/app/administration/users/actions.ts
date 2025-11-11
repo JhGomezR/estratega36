@@ -4,40 +4,33 @@ import * as admin from 'firebase-admin';
 import type { UserFormValues } from '@/components/user-form';
 import type { User } from '@/lib/types';
 
-// Helper function to initialize Firebase Admin SDK safely.
-function initializeFirebaseAdmin() {
-  if (admin.apps.length > 0) {
-    return admin.app();
-  }
-
-  // This approach is robust for both local development and production on Google Cloud.
+// Simplified, direct initialization of Firebase Admin SDK
+if (admin.apps.length === 0) {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
   if (serviceAccountJson) {
-    // Development/Local: Use the service account key from the environment variable.
     try {
       const serviceAccount = JSON.parse(serviceAccountJson);
-      return admin.initializeApp({
+      admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
-    } catch (error: any) {
-        console.error('Failed to parse or initialize Firebase Admin with service account key:', error.message);
-        throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_KEY. Please check your environment variable.');
+    } catch (error) {
+      console.error('Failed to parse or initialize Firebase Admin SDK with service account key:', (error as Error).message);
+      // We don't throw here, to allow createUser to return a structured error.
     }
   } else {
-    // Production on Google Cloud (App Hosting, Cloud Run, etc.): Use Application Default Credentials.
-     try {
-        return admin.initializeApp();
-    } catch(error: any) {
-        console.warn('Firebase Admin SDK automatic initialization failed. This is expected in local development without a service account key, but may indicate a problem in production.', error.message);
-        throw new Error('Could not initialize Firebase Admin SDK. Ensure FIREBASE_SERVICE_ACCOUNT_KEY is set for local development or that the production environment has the correct permissions.');
-    }
+    console.error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
   }
 }
 
+
 export async function createUser(data: UserFormValues): Promise<{ uid?: string; error?: string }> {
+  // Check if initialization failed and return a specific error
+  if (admin.apps.length === 0) {
+    return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa las credenciales de servicio.' };
+  }
+  
   try {
-    initializeFirebaseAdmin();
     const auth = admin.auth();
     const firestore = admin.firestore();
 
@@ -70,6 +63,6 @@ export async function createUser(data: UserFormValues): Promise<{ uid?: string; 
   } catch (error: any) {
     console.error("Error creating user in server action:", error);
     // Return a serializable error message with the code for specific client-side handling
-    return { error: error.code || 'Ocurrió un error desconocido durante la creación del usuario.' };
+    return { error: error.code || error.message || 'Ocurrió un error desconocido durante la creación del usuario.' };
   }
 }
