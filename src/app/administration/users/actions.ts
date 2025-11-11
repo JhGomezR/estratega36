@@ -1,4 +1,8 @@
+
 'use server'
+
+import { config } from 'dotenv';
+config();
 
 import * as admin from 'firebase-admin';
 import type { UserFormValues } from '@/components/user-form';
@@ -27,7 +31,7 @@ if (admin.apps.length === 0) {
 export async function createUser(data: UserFormValues): Promise<{ uid?: string; error?: string }> {
   // Check if initialization failed and return a specific error
   if (admin.apps.length === 0) {
-    return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa las credenciales de servicio.' };
+    return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa las credenciales de servicio en la variable de entorno.' };
   }
   
   try {
