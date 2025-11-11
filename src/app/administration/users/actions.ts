@@ -7,30 +7,40 @@ import * as admin from 'firebase-admin';
 import type { UserFormValues } from '@/components/user-form';
 import type { User } from '@/lib/types';
 
-// Simplified, direct initialization of Firebase Admin SDK
-if (admin.apps.length === 0) {
+/**
+ * Initializes the Firebase Admin SDK if not already initialized.
+ * This function is designed to be called before any admin operation.
+ * It provides detailed error messages for debugging initialization issues.
+ * @returns A boolean indicating if the initialization was successful.
+ */
+function initializeFirebaseAdmin(): boolean {
+  if (admin.apps.length > 0) {
+    return true;
+  }
+
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-  if (serviceAccountJson) {
-    try {
-      const serviceAccount = JSON.parse(serviceAccountJson);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-    } catch (error: any) {
-      console.error('Error al parsear la clave de servicio de Firebase. Asegúrate de que la variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY sea un JSON válido.', error.message);
-      // We don't throw here, the check below will handle it.
-    }
-  } else {
+  if (!serviceAccountJson) {
     console.error('La variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY no está configurada.');
+    return false;
+  }
+
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    return true;
+  } catch (error: any) {
+    console.error('Error crítico al inicializar Firebase Admin SDK:', error.message);
+    return false;
   }
 }
 
-
 export async function createUser(data: UserFormValues): Promise<{ uid?: string; error?: string }> {
-  // Check if initialization failed and return a specific, actionable error
-  if (admin.apps.length === 0) {
-    return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa la consola del servidor para ver los detalles del error en la clave de servicio.' };
+  
+  if (!initializeFirebaseAdmin()) {
+      return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa la consola del servidor para ver los detalles del error en la clave de servicio.' };
   }
   
   try {

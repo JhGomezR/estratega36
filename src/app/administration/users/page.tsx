@@ -175,7 +175,7 @@ export default function UsersPage() {
         // Use the error message directly if it's not one of the common ones
         description = error.message;
       }
-      toast({ variant: "destructive", title: "Error al Crear Usuario", description });
+      toast({ variant: "destructive", title: "Error al Crear Usuario", description, duration: 9000 });
     }
   };
 
