@@ -20,10 +20,10 @@ if (admin.apps.length === 0) {
       });
     } catch (error) {
       console.error('Failed to parse or initialize Firebase Admin SDK with service account key:', (error as Error).message);
-      // We don't throw here, to allow createUser to return a structured error.
     }
   } else {
-    console.error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+    // This case will be hit if the .env file is missing or the variable is not set.
+    console.error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. Please ensure it is present in your .env file.');
   }
 }
 
@@ -31,7 +31,7 @@ if (admin.apps.length === 0) {
 export async function createUser(data: UserFormValues): Promise<{ uid?: string; error?: string }> {
   // Check if initialization failed and return a specific error
   if (admin.apps.length === 0) {
-    return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa las credenciales de servicio en la variable de entorno.' };
+    return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa la consola del servidor para ver los detalles del error en la clave de servicio.' };
   }
   
   try {
