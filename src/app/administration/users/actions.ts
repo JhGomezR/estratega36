@@ -1,4 +1,3 @@
-
 'use server'
 
 import { config } from 'dotenv';
@@ -18,18 +17,18 @@ if (admin.apps.length === 0) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
-    } catch (error) {
-      console.error('Failed to parse or initialize Firebase Admin SDK with service account key:', (error as Error).message);
+    } catch (error: any) {
+      console.error('Error al parsear la clave de servicio de Firebase. Asegúrate de que la variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY sea un JSON válido.', error.message);
+      // We don't throw here, the check below will handle it.
     }
   } else {
-    // This case will be hit if the .env file is missing or the variable is not set.
-    console.error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. Please ensure it is present in your .env file.');
+    console.error('La variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY no está configurada.');
   }
 }
 
 
 export async function createUser(data: UserFormValues): Promise<{ uid?: string; error?: string }> {
-  // Check if initialization failed and return a specific error
+  // Check if initialization failed and return a specific, actionable error
   if (admin.apps.length === 0) {
     return { error: 'El servidor no pudo inicializar los servicios de administrador de Firebase. Revisa la consola del servidor para ver los detalles del error en la clave de servicio.' };
   }
