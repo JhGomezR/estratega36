@@ -158,7 +158,6 @@ export default function UsersPage() {
         }
         const result = await createUser(data);
         if (result.error) {
-          // Pass the specific error message from the server action
           throw new Error(result.error);
         }
         toast({ title: "Usuario Creado", description: `El usuario ${data.firstName} ha sido creado exitosamente.` });
@@ -168,7 +167,7 @@ export default function UsersPage() {
       console.error("Error handling user form:", error);
       let description = "Ocurrió un error inesperado.";
       // Check for specific Firebase Auth error codes from the server action
-      if (error.message.includes('auth/email-already-exists')) {
+      if (error.message.includes('auth/email-already-in-use')) {
         description = "El correo electrónico ya está en uso por otra cuenta.";
       } else if (error.message.includes('auth/weak-password')) {
         description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";

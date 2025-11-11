@@ -10,12 +10,11 @@ function initializeFirebaseAdmin() {
     return admin.app();
   }
 
-  // Production-ready approach: Use environment variables.
-  // This works for both local development (with a .env file)
-  // and production environments (like App Hosting, Cloud Run, etc.).
+  // This approach is robust for both local development and production on Google Cloud.
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
   if (serviceAccountJson) {
+    // Development/Local: Use the service account key from the environment variable.
     try {
       const serviceAccount = JSON.parse(serviceAccountJson);
       return admin.initializeApp({
@@ -26,11 +25,11 @@ function initializeFirebaseAdmin() {
         throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_KEY. Please check your environment variable.');
     }
   } else {
-    // Standard initialization for environments with Application Default Credentials (like App Hosting production).
+    // Production on Google Cloud (App Hosting, Cloud Run, etc.): Use Application Default Credentials.
      try {
         return admin.initializeApp();
     } catch(error: any) {
-        console.error('Firebase Admin SDK automatic initialization error:', error.message);
+        console.warn('Firebase Admin SDK automatic initialization failed. This is expected in local development without a service account key, but may indicate a problem in production.', error.message);
         throw new Error('Could not initialize Firebase Admin SDK. Ensure FIREBASE_SERVICE_ACCOUNT_KEY is set for local development or that the production environment has the correct permissions.');
     }
   }
