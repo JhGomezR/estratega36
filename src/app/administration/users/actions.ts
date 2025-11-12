@@ -9,11 +9,11 @@ import type { User } from '@/lib/types';
 
 /**
  * Initializes the Firebase Admin SDK if not already initialized.
- * This function is designed to be called before any admin operation.
- * It provides detailed error messages for debugging initialization issues.
- * @returns A boolean indicating if the initialization was successful.
+ * This function is designed to be idempotent.
+ * @returns A boolean indicating if the initialization was successful or already done.
  */
 function initializeFirebaseAdmin(): boolean {
+  // If the SDK is already initialized, don't do it again.
   if (admin.apps.length > 0) {
     return true;
   }
@@ -21,7 +21,7 @@ function initializeFirebaseAdmin(): boolean {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
   if (!serviceAccountJson) {
-    console.error('La variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY no está configurada.');
+    console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
     return false;
   }
 
@@ -30,9 +30,10 @@ function initializeFirebaseAdmin(): boolean {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
+    console.log('Firebase Admin SDK initialized successfully.');
     return true;
   } catch (error: any) {
-    console.error('Error crítico al inicializar Firebase Admin SDK:', error.message);
+    console.error('CRITICAL: Failed to parse or initialize Firebase Admin SDK. Check the FIREBASE_SERVICE_ACCOUNT_KEY in your .env file.', error.message);
     return false;
   }
 }
