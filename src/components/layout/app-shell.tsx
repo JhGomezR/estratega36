@@ -5,21 +5,6 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar"
-import {
   LayoutDashboard,
   Target,
   Users,
@@ -35,15 +20,14 @@ import {
   UserCog,
   Building,
   Palette,
-  ChevronsRight,
   LogOut,
   Loader2,
   GitFork,
   Radio,
+  Menu
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { UserNav } from "./user-nav"
 import { useAuth, useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { doc } from "firebase/firestore"
@@ -52,12 +36,109 @@ import Image from "next/image"
 import { signOut } from "firebase/auth"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useMemo } from "react"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { ScrollArea } from "../ui/scroll-area"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
         <path d="M12 2L2 7V17L12 22L22 17V7L12 2ZM11 12H13V18H11V12ZM11 8H13V10H11V8Z" />
     </svg>
 )
+
+const NavItem = ({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) => {
+    const pathname = usePathname();
+    const isActive = pathname === href;
+    return (
+        <Link
+            href={href}
+            className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                isActive && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground"
+            )}
+        >
+            {icon}
+            {label}
+        </Link>
+    );
+};
+
+const CollapsibleNavGroup = ({ label, icon, children, defaultOpen }: { label: string; icon: React.ReactNode; children: React.ReactNode, defaultOpen: boolean }) => {
+    const [isOpen, setIsOpen] = React.useState(defaultOpen);
+    const visibleChildren = React.Children.toArray(children).filter(Boolean);
+
+    if (visibleChildren.length === 0) return null;
+
+    return (
+        <div>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+                <div className="flex items-center gap-3">
+                    {icon}
+                    {label}
+                </div>
+                <svg className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isOpen && "rotate-90")} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 6l6 6l-6 6"/></svg>
+            </button>
+            {isOpen && (
+                <div className="mt-1 ml-4 pl-4 border-l border-sidebar-border/50 flex flex-col gap-1">
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+function MainNav() {
+  const { hasPermission, hasAnyPermission } = usePermissions();
+  const pathname = usePathname();
+  const isActive = (path: string, exact: boolean = false) => exact ? pathname === path : pathname.startsWith(path);
+
+  return (
+        <nav className="grid items-start gap-1 text-sm font-medium">
+            <NavItem href="/" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />
+            
+            {hasPermission("campaign:read") && (
+                <NavItem href="/campaigns" icon={<Target className="h-4 w-4" />} label="Campañas" />
+            )}
+            {hasPermission("voter:read") && (
+                <NavItem href="/voters" icon={<Users className="h-4 w-4" />} label="Votantes" />
+            )}
+            {hasPermission("voter:read") && (
+                <NavItem href="/map" icon={<Map className="h-4 w-4" />} label="Mapa de Votantes" />
+            )}
+            {hasPermission("user:read") && (
+                 <NavItem href="/network" icon={<GitFork className="h-4 w-4" />} label="Mapa de Red" />
+            )}
+
+            <CollapsibleNavGroup label="Actividades" icon={<Activity className="h-4 w-4" />} defaultOpen={isActive("/activities")}>
+                {hasPermission("task:read") && <NavItem href="/activities/calendar" icon={<Calendar className="h-4 w-4" />} label="Calendario" />}
+                {hasPermission("call:read") && <NavItem href="/activities/calls" icon={<Phone className="h-4 w-4" />} label="Llamadas" />}
+                {hasPermission("task:read") && <NavItem href="/activities/tasks" icon={<ListChecks className="h-4 w-4" />} label="Tareas" />}
+            </CollapsibleNavGroup>
+
+            {hasPermission("report:read") && (
+                <>
+                    <h3 className="px-3 mt-4 mb-1 text-xs font-semibold text-sidebar-foreground/70 tracking-wider">Análisis IA</h3>
+                    <NavItem href="/analysis" icon={<BrainCircuit className="h-4 w-4" />} label="Análisis de Campaña" />
+                    <NavItem href="/strategies" icon={<Lightbulb className="h-4 w-4" />} label="Generador de Estrategias" />
+                    <NavItem href="/social-listening" icon={<Radio className="h-4 w-4" />} label="Escucha Social" />
+                </>
+            )}
+
+            <div className="mt-auto">
+                 <CollapsibleNavGroup label="Administración" icon={<Settings className="h-4 w-4" />} defaultOpen={isActive("/administration")}>
+                    {hasPermission("role:read") && <NavItem href="/administration/roles" icon={<Shield className="h-4 w-4" />} label="Roles" />}
+                    {hasPermission("user:read") && <NavItem href="/administration/users" icon={<UserCog className="h-4 w-4" />} label="Usuarios" />}
+                    {hasPermission("city:read") && <NavItem href="/administration/cities" icon={<Building className="h-4 w-4" />} label="Ciudades" />}
+                    {hasPermission("setting:update") && <NavItem href="/administration/settings" icon={<Palette className="h-4 w-4" />} label="Configuración" />}
+                </CollapsibleNavGroup>
+            </div>
+        </nav>
+  );
+}
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -69,14 +150,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
   const { data: settings } = useDoc<BrandingSettings>(settingsRef);
-
+  
   React.useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [isUserLoading, user, router]);
 
-  const navLinks = useMemo(() => {
+   const navLinks = useMemo(() => {
     const links = ["/"]; // Start with Dashboard as the base link
     if (hasPermission("campaign:read")) links.push("/campaigns");
     if (hasPermission("voter:read")) {
@@ -94,22 +175,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         links.push("/strategies");
         links.push("/social-listening");
     }
-    // Admin links are sorted separately and not used for auto-redirect
-    if (hasPermission("role:read")) links.push("/administration/roles");
-    if (hasPermission("user:read")) links.push("/administration/users");
-    if (hasPermission("city:read")) links.push("/administration/cities");
-    if (hasPermission("setting:update")) links.push("/administration/settings");
-    
     return links;
   }, [hasPermission, hasAnyPermission]);
 
- React.useEffect(() => {
+  React.useEffect(() => {
     if (permissionsLoading) return;
 
     const adminRoles = ['admin', 'super', 'super_admin', 'administrador'];
     const isAdmin = role?.name && adminRoles.includes(role.name.toLowerCase());
     
-    // Only redirect if it's not an admin and they are on the dashboard
     if (!isAdmin && navLinks.length > 1 && pathname === '/') {
       const firstModule = navLinks.filter(p => p !== '/').sort()[0];
       if (firstModule) {
@@ -119,10 +193,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [permissionsLoading, navLinks, pathname, router, role]);
 
 
-  const isActive = (path: string, exact: boolean = false) => {
-    return exact ? pathname === path : pathname.startsWith(path)
-  }
-  
   React.useEffect(() => {
     if (settings) {
       const root = document.documentElement;
@@ -132,10 +202,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [settings]);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/login');
-  }
 
   if (pathname === '/login') {
     return <>{children}</>;
@@ -150,229 +216,62 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarProvider>
-      <Sidebar side="left" collapsible="icon" className="border-r border-sidebar-border">
-        <SidebarHeader>
-            <div className="flex items-center justify-center p-2">
-                <IconEstratega className="size-8 text-sidebar-primary" />
-                <span className="text-lg font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">EstrategaCRM</span>
-            </div>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/", true)} tooltip="Dashboard">
-                <Link href="/">
-                  <LayoutDashboard />
-                  <span>Dashboard</span>
+     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+      <div className="hidden border-r bg-sidebar md:block">
+        <div className="flex h-full max-h-screen flex-col gap-2">
+            <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary">
+                    <IconEstratega className="h-6 w-6" />
+                    <span className="">EstrategaCRM</span>
                 </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
-            {hasPermission("campaign:read") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/campaigns")} tooltip="Campañas">
-                  <Link href="/campaigns">
-                    <Target />
-                    <span>Campañas</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-
-            {hasPermission("voter:read") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/voters")} tooltip="Votantes">
-                  <Link href="/voters">
-                    <Users />
-                    <span>Votantes</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-            
-            {hasPermission("voter:read") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/map")} tooltip="Mapa de Votantes">
-                  <Link href="/map">
-                    <Map />
-                    <span>Mapa de Votantes</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-
-            {hasPermission("user:read") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/network")} tooltip="Mapa de Red">
-                  <Link href="/network">
-                    <GitFork />
-                    <span>Mapa de Red</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-            
-            {hasAnyPermission(["task:read", "call:read"]) && (
-              <AppShellCollapsibleGroup
-                icon={<Activity />}
-                label="Actividades"
-                isActive={isActive("/activities")}
+            </div>
+            <ScrollArea className="flex-1">
+                <div className="py-4 px-2">
+                    <MainNav />
+                </div>
+            </ScrollArea>
+        </div>
+      </div>
+      <div className="flex flex-col">
+        <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 backdrop-blur-sm">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 md:hidden"
               >
-                {hasPermission("task:read") && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/calendar")} tooltip="Calendario">
-                      <Link href="/activities/calendar"><Calendar className="size-3.5"/><span>Calendario</span></Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-                {hasPermission("call:read") && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/calls")} tooltip="Llamadas">
-                      <Link href="/activities/calls"><Phone className="size-3.5"/><span>Llamadas</span></Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-                {hasPermission("task:read") && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive("/activities/tasks")} tooltip="Tareas">
-                      <Link href="/activities/tasks"><ListChecks className="size-3.5"/><span>Tareas</span></Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-              </AppShellCollapsibleGroup>
-            )}
-
-            {hasPermission("report:read") && (
-              <SidebarGroup>
-                <SidebarGroupLabel>Análisis IA</SidebarGroupLabel>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/analysis")} tooltip="Análisis de Campaña">
-                    <Link href="/analysis">
-                      <BrainCircuit />
-                      <span>Análisis de Campaña</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/strategies")} tooltip="Estrategias">
-                    <Link href="/strategies">
-                      <Lightbulb />
-                      <span>Generador de Estrategias</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive("/social-listening")} tooltip="Escucha Social">
-                    <Link href="/social-listening">
-                      <Radio />
-                      <span>Escucha Social</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarGroup>
-            )}
-
-          </SidebarMenu>
-        </SidebarContent>
-        <SidebarFooter>
-            {hasAnyPermission(["role:read", "user:read", "city:read", "setting:update"]) && (
-              <AppShellCollapsibleGroup
-                icon={<Settings />}
-                label="Administración"
-                isActive={isActive("/administration")}
-              >
-                {hasPermission("role:read") && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/roles")} tooltip="Roles">
-                      <Link href="/administration/roles"><Shield className="size-3.5"/><span>Roles</span></Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-                {hasPermission("user:read") && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/users")} tooltip="Usuarios">
-                      <Link href="/administration/users"><UserCog className="size-3.5"/><span>Usuarios</span></Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-                {hasPermission("city:read") && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/cities")} tooltip="Ciudades">
-                      <Link href="/administration/cities"><Building className="size-3.5"/><span>Ciudades</span></Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-                {hasPermission("setting:update") && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive("/administration/settings")} tooltip="Configuración">
-                      <Link href="/administration/settings"><Palette className="size-3.5"/><span>Configuración</span></Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-              </AppShellCollapsibleGroup>
-            )}
-             <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleLogout} tooltip="Cerrar Sesión">
-                    <LogOut />
-                    <span>Cerrar Sesión</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarFooter>
-      </Sidebar>
-      <SidebarInset>
-        <header className="flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6 sticky top-0 z-30">
-            <SidebarTrigger className="flex md:hidden" />
-            <div className="flex-1 flex justify-center items-center">
-                 {settings?.logoUrl ? (
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle navigation menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
+               <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary">
+                    <IconEstratega className="h-6 w-6" />
+                    <span className="">EstrategaCRM</span>
+                </Link>
+               </div>
+               <ScrollArea className="flex-1">
+                    <div className="py-4 px-2">
+                      <MainNav />
+                    </div>
+               </ScrollArea>
+            </SheetContent>
+          </Sheet>
+          <div className="w-full flex-1 flex justify-center">
+             {settings?.logoUrl ? (
                     <Image src={settings.logoUrl} alt="Logo de Campaña" width={120} height={40} className="object-contain h-10 w-auto"/>
                 ) : (
-                    <span className="font-semibold text-lg text-primary">EstrategaCRM</span>
-                )}
-            </div>
-            <UserNav />
+                    <span className="font-semibold text-lg text-primary invisible md:visible">EstrategaCRM</span>
+            )}
+          </div>
+          <UserNav />
         </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-muted/40">
           {children}
         </main>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </div>
   )
-}
-
-function AppShellCollapsibleGroup({ children, icon, label, isActive }: { children: React.ReactNode, icon: React.ReactNode, label: string, isActive: boolean }) {
-  const { state } = useSidebar();
-  const [isOpen, setIsOpen] = React.useState(isActive);
-
-  React.useEffect(() => {
-    if (state === 'collapsed') {
-      setIsOpen(false);
-    }
-  }, [state]);
-
-  const visibleChildren = React.Children.toArray(children).filter(Boolean);
-  if (visibleChildren.length === 0) {
-    return null;
-  }
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
-      <CollapsibleTrigger asChild>
-        <SidebarMenuButton
-          variant="default"
-          className="w-full justify-start"
-          isActive={isActive && !isOpen}
-        >
-          {icon}
-          <span>{label}</span>
-          <ChevronsRight className={cn("ml-auto transition-transform duration-200", isOpen && "rotate-90")} />
-        </SidebarMenuButton>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <SidebarMenu className="mx-3.5 border-l border-sidebar-border py-2 pl-2.5">
-          {visibleChildren}
-        </SidebarMenu>
-      </CollapsibleContent>
-    </Collapsible>
-  );
 }

@@ -34,8 +34,8 @@
     --sidebar-foreground: 231 60% 85%;
     --sidebar-primary: 45 100% 51%;
     --sidebar-primary-foreground: 232 65% 18%;
-    --sidebar-accent: 45 100% 51%;
-    --sidebar-accent-foreground: 232 65% 18%;
+    --sidebar-accent: 232 65% 25%;
+    --sidebar-accent-foreground: 231 60% 95%;
     --sidebar-border: 232 65% 25%;
     --sidebar-ring: 45 100% 51%;
   }
@@ -70,8 +70,8 @@
     --sidebar-foreground: 231 60% 85%;
     --sidebar-primary: 45 100% 51%;
     --sidebar-primary-foreground: 232 65% 18%;
-    --sidebar-accent: 45 100% 51%;
-    --sidebar-accent-foreground: 232 65% 18%;
+    --sidebar-accent: 232 20% 20%;
+    --sidebar-accent-foreground: 231 60% 95%;
     --sidebar-border: 232 20% 18%;
     --sidebar-ring: 45 100% 51%;
   }
@@ -83,5 +83,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
