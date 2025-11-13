@@ -10,3 +10,5 @@ runConfig:
 env:
   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
     value: ${file('.env:FIREBASE_SERVICE_ACCOUNT_KEY')}
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    value: ${file('.env:NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')}
