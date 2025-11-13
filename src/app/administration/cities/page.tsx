@@ -35,6 +35,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle as AlertDialogTitleElement,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
