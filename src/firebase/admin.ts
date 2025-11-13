@@ -5,46 +5,39 @@
  * It is intended to be used ONLY in server-side code (e.g., Next.js Server Actions, API routes).
  */
 
-import * as admin from 'firebase-admin'
+import * as admin from 'firebase-admin';
+import serviceAccount from './service-account.json';
 
 function getAdminServices() {
   if (admin.apps.length > 0) {
     return {
       auth: admin.auth(),
       db: admin.firestore(),
-    }
-  }
-
-  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-
-  if (!serviceAccountKey) {
-    throw new Error(
-      'FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. Admin SDK features will fail.'
-    )
+    };
   }
 
   try {
-    // Replace escaped newlines with actual newlines before parsing
-    const parsedKey = serviceAccountKey.replace(/\\n/g, '\n');
-    const serviceAccount = JSON.parse(parsedKey)
-
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    })
+      // The type assertion is safe because service-account.json is a valid ServiceAccount object.
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+    });
 
-    console.log('Firebase Admin SDK initialized successfully.')
+    console.log('Firebase Admin SDK initialized successfully.');
 
     return {
       auth: admin.auth(),
       db: admin.firestore(),
-    }
+    };
   } catch (error: any) {
+    console.error('Failed to initialize Firebase Admin SDK:', error);
+    // In a real application, you might want to handle this more gracefully
+    // For this context, re-throwing makes the problem visible.
     throw new Error(
-      `Failed to parse or initialize Firebase Admin SDK. Check the FIREBASE_SERVICE_ACCOUNT_KEY. Parse Error: ${error.message}`
-    )
+      `Failed to initialize Firebase Admin SDK. Error: ${error.message}`
+    );
   }
 }
 
-const { auth: adminAuth, db: adminDb } = getAdminServices()
+const { auth: adminAuth, db: adminDb } = getAdminServices();
 
-export { adminAuth, adminDb }
+export { adminAuth, adminDb };
