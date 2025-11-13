@@ -5,14 +5,8 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -43,7 +37,6 @@ const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 )
 
-
 export default function LoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -62,7 +55,6 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     try {
-      // Try to sign in first
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({
         title: "Inicio de Sesión Exitoso",
@@ -73,14 +65,12 @@ export default function LoginPage() {
       const isLoginError = error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password';
       
       if (isLoginError && data.email === 'axdrcys@gmail.com') {
-        // If the admin user does not exist or credentials fail, try to create it
         try {
           if (!firestore) throw new Error("Firestore not available");
           
           const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
           const newAuthUser = userCredential.user;
 
-          // Set admin role
           await setDoc(doc(firestore, 'roles', 'admin'), {
             name: 'Admin',
             permissions: [
@@ -120,7 +110,6 @@ export default function LoginPage() {
           router.push("/");
 
         } catch (creationError: any) {
-           // Handle case where creation also fails (e.g., email already exists with different credential, or weak password)
            console.error("Admin creation/login error:", creationError);
            let description = "No se pudo iniciar sesión ni crear la cuenta de administrador.";
            if (creationError.code === 'auth/email-already-in-use') {
@@ -135,7 +124,6 @@ export default function LoginPage() {
           });
         }
       } else {
-        // Handle other general errors or errors for non-admin users
         console.error(error);
         let description = "Ocurrió un error inesperado.";
         if (isLoginError) {
@@ -153,20 +141,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <IconEstratega className="size-12 text-primary" />
-            </div>
-          <CardTitle className="text-2xl">Bienvenido a EstrategaCRM</CardTitle>
-          <CardDescription>
-            Ingresa tus credenciales para acceder a la plataforma.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
+      <div className="flex items-center justify-center py-12">
+        <div className="mx-auto grid w-[350px] gap-6">
+          <div className="grid gap-2 text-center">
+            <h1 className="text-3xl font-bold">Bienvenido a EstrategaCRM</h1>
+            <p className="text-balance text-muted-foreground">
+              Ingresa tus credenciales para acceder a la plataforma.
+            </p>
+          </div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -209,8 +194,18 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+      <div className="hidden bg-muted lg:block">
+        <Image
+          src="https://picsum.photos/seed/10/1200/1800"
+          alt="Image"
+          width="1920"
+          height="1080"
+          data-ai-hint="political campaign"
+          className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+        />
+      </div>
     </div>
   );
 }
