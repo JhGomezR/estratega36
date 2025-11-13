@@ -19,12 +19,12 @@ service cloud.firestore {
     /**
      * @description Generic rule to allow open access to any collection.
      * @path /{collection}/{docId}
-     * @allow (read, write) Any authenticated user can read or write to any document.
+     * @allow (get, list, create, update, delete) Any authenticated user can access any document.
      * @deny (none) This rule provides completely open access for prototyping.
      * @principle Open access for rapid development.
      */
     match /{path=**}/{document} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -32,7 +32,7 @@ service cloud.firestore {
      * @path /users/{userId}
      */
     match /users/{userId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -40,7 +40,7 @@ service cloud.firestore {
      * @path /roles/{roleId}
      */
     match /roles/{roleId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -48,7 +48,7 @@ service cloud.firestore {
      * @path /campaigns/{campaignId}
      */
     match /campaigns/{campaignId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -56,7 +56,7 @@ service cloud.firestore {
      * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
      */
     match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -64,7 +64,7 @@ service cloud.firestore {
      * @path /voters/{voterId}
      */
     match /voters/{voterId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -72,7 +72,7 @@ service cloud.firestore {
      * @path /cities/{cityId}
      */
     match /cities/{cityId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -80,7 +80,7 @@ service cloud.firestore {
      * @path /tasks/{taskId}
      */
     match /tasks/{taskId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -88,7 +88,7 @@ service cloud.firestore {
      * @path /calls/{callId}
      */
     match /calls/{callId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -96,7 +96,7 @@ service cloud.firestore {
      * @path /settings/branding
      */
     match /settings/branding {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
      /**
@@ -104,7 +104,7 @@ service cloud.firestore {
      * @path /settings/socialApi
      */
     match /settings/socialApi {
-        allow read, write: if true;
+        allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -112,7 +112,7 @@ service cloud.firestore {
      * @path /lists/{listId}
      */
     match /lists/{listId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -120,7 +120,7 @@ service cloud.firestore {
      * @path /keywords/{keywordId}
      */
     match /keywords/{keywordId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
@@ -128,7 +128,7 @@ service cloud.firestore {
      * @path /socialMentions/{mentionId}
      */
     match /socialMentions/{mentionId} {
-      allow read, write: if true;
+      allow get, list, create, update, delete: if true;
     }
   }
 }
