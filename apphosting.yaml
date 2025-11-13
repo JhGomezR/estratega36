@@ -5,3 +5,8 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+# Defines environment variables that will be available to your application.
+# Learn more at https://firebase.google.com/docs/app-hosting/configure-backend#set-environment-variables
+env:
+  - variable: FIREBASE_SERVICE_ACCOUNT_KEY
+    value: ${file('.env:FIREBASE_SERVICE_ACCOUNT_KEY')}

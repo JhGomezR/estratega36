@@ -1,6 +1,5 @@
 'use server'
 
-require('dotenv').config({ path: '.env' });
 import { adminAuth, adminDb } from '@/firebase/admin'
 import type { UserFormValues } from '@/components/user-form'
 import type { User } from '@/lib/types'
