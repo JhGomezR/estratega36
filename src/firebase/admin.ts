@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Initializes the Firebase Admin SDK.
  * This module ensures that the Admin SDK is initialized as a singleton.
@@ -8,6 +7,7 @@
 import * as admin from 'firebase-admin'
 
 function getAdminServices() {
+  // CORRECCIÓN AQUÍ: Usamos > 0 para ver si YA existe una app inicializada.
   if (admin.apps.length > 0) {
     return {
       auth: admin.auth(),
@@ -24,7 +24,7 @@ function getAdminServices() {
   }
 
   try {
-    // Replace escaped newlines before parsing
+    // Replace escaped newlines before parsing (crítico para claves privadas en .env)
     const parsedKey = serviceAccountKey.replace(/\\n/g, '\n');
     const serviceAccount = JSON.parse(parsedKey)
 
