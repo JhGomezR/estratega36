@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Initializes the Firebase Admin SDK.
  * This module ensures that the Admin SDK is initialized as a singleton.
@@ -23,7 +24,7 @@ function getAdminServices() {
   }
 
   try {
-    // Replace escaped newlines before parsing (critical for private keys in .env)
+    // Replace escaped newlines with actual newlines before parsing
     const parsedKey = serviceAccountKey.replace(/\\n/g, '\n');
     const serviceAccount = JSON.parse(parsedKey)
 
