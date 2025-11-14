@@ -29,6 +29,7 @@ export type Investor = {
 
 export type Campaign = WithId<{
   name: string;
+  subdomain?: string;
   description: string;
   campaignType: string;
   hasInvestors: boolean;
@@ -173,5 +174,3 @@ export type SocialApiSettings = {
   facebookGraphApiToken?: string;
   facebookAppId?: string;
 };
-
-    

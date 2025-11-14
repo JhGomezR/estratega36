@@ -11,6 +11,10 @@
           "type": "string",
           "description": "Name of the campaign."
         },
+        "subdomain": {
+          "type": "string",
+          "description": "The subdomain associated with this campaign (e.g., 'ardila')."
+        },
         "description": {
           "type": "string",
           "description": "Detailed description of the campaign."
@@ -524,5 +528,3 @@
     }
   }
 }
-
-    
