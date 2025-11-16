@@ -153,9 +153,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   React.useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push('/login');
+      if (pathname !== '/signup') { // Don't redirect if on signup page
+        router.push('/login');
+      }
     }
-  }, [isUserLoading, user, router]);
+  }, [isUserLoading, user, router, pathname]);
 
    const navLinks = useMemo(() => {
     const links = ["/"]; // Start with Dashboard as the base link
@@ -203,7 +205,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [settings]);
 
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname === '/signup') {
     return <>{children}</>;
   }
 
