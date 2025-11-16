@@ -1,6 +1,46 @@
 
 {
   "entities": {
+    "Tenant": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Tenant",
+      "description": "Represents a single tenant (customer account) in the multi-tenant system.",
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "description": "The name of the tenant's company or organization."
+        },
+        "subdomain": {
+          "type": "string",
+          "description": "The unique subdomain chosen by the tenant (e.g., 'ardila')."
+        },
+        "plan": {
+          "type": "string",
+          "enum": ["basico", "estratega", "360"],
+          "description": "The subscription plan of the tenant."
+        },
+        "databaseId": {
+            "type": "string",
+            "description": "The ID of the isolated Firestore database for this tenant."
+        },
+        "ownerUid": {
+            "type": "string",
+            "description": "The UID of the user who created and owns this tenant account."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the tenant was created."
+        },
+        "status": {
+            "type": "string",
+            "enum": ["active", "suspended", "deleted"],
+            "default": "active"
+        }
+      },
+      "required": ["companyName", "subdomain", "plan", "databaseId", "ownerUid", "createdAt", "status"]
+    },
     "Campaign": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Campaign",
@@ -452,11 +492,23 @@
     ]
   },
   "firestore": {
+    "/tenants/{tenantId}": {
+        "schema": {
+            "$ref": "#/entities/Tenant"
+        },
+        "description": "Stores information about each tenant (customer account)."
+    },
+    "/tenants/{tenantId}/users/{userId}": {
+        "schema": {
+            "$ref": "#/entities/User"
+        },
+        "description": "Stores user profiles specific to a tenant."
+    },
     "/users/{userId}": {
       "schema": {
         "$ref": "#/entities/User"
       },
-      "description": "Stores user profiles."
+      "description": "DEPRECATED - Stores user profiles. Should be moved under /tenants/{tenantId}/users/{userId}."
     },
     "/roles/{roleId}": {
       "schema": {
