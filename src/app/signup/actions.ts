@@ -52,7 +52,8 @@ export async function createTenantAndUser(
     })
 
     // 3. Generate the unique database ID for the new tenant
-    const databaseId = `${data.subdomain}-${generateRandomString(5)}`
+    // For development/default, we might use '(default)'
+    const databaseId = data.subdomain === 'ardila' ? '(default)' : `${data.subdomain}-${generateRandomString(5)}`;
 
     // 4. Create the tenant document in the default Firestore database
     const newTenant: Tenant = {
@@ -64,15 +65,9 @@ export async function createTenantAndUser(
       createdAt: new Date().toISOString(),
       status: 'active',
     }
-    const tenantDocRef = await tenantsRef.add(newTenant)
+    await tenantsRef.add(newTenant);
 
-    // 5. Create the admin user profile inside the NEW tenant database
-    // This assumes you have logic later to connect to the specific tenant DB.
-    // For now, we'll create the user in the default DB but inside a tenant-specific path.
-    // A better approach would be to use a Cloud Function triggered by tenant creation
-    // to provision the user in the correct database if using multi-DB feature.
-    // Let's simulate this by just storing it under a main 'users' collection for now,
-    // as direct multi-db creation from server action is complex.
+    // 5. Create the admin user profile in the default database
     const adminProfile: Omit<User, 'id'> = {
       firstName,
       lastName,
@@ -86,14 +81,9 @@ export async function createTenantAndUser(
       avatar: `https://picsum.photos/seed/${userRecord.uid}/100/100`,
       status: 'activo',
     }
-
-    // This user profile should ideally go into the tenant's own DB.
-    // Awaiting further implementation for multi-db connection.
-    // For now, we'll place it in the default DB to complete the signup flow.
-    // This part will need refactoring.
-    await adminDb.collection('users').doc(userRecord.uid).set(adminProfile)
-     await adminDb.collection('tenants').doc(tenantDocRef.id).collection('users').doc(userRecord.uid).set(adminProfile);
-
+    
+    // This user profile goes into the default DB.
+    await adminDb.collection('users').doc(userRecord.uid).set(adminProfile);
 
     return { success: true }
   } catch (error: any) {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, type ReactNode, useState, useEffect } from 'react';
@@ -24,14 +25,20 @@ interface FirebaseServices {
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const [services, setServices] = useState<FirebaseServices | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
       try {
         const firebaseServices = await initializeFirebase();
+        if (!firebaseServices.tenantFound) {
+            const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+            setError(`No pudimos encontrar una cuenta asociada con el subdominio <code class="font-mono font-bold bg-muted p-1 rounded-sm">${hostname}</code>.<br/>Por favor, verifica la URL o contacta a soporte.`);
+        }
         setServices(firebaseServices as FirebaseServices);
-      } catch (error) {
-        console.error("Failed to initialize Firebase services:", error);
+      } catch (err: any) {
+        console.error("Failed to initialize Firebase services:", err);
+        setError("Ocurrió un error al inicializar los servicios. Por favor, intenta de nuevo más tarde.");
         setServices(null);
       } finally {
         setIsLoading(false);
@@ -48,8 +55,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     );
   }
 
-  if (!services || !services.tenantFound) {
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  if (error) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center">
             <div className="container mx-auto p-4">
@@ -57,11 +63,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
                 <h1 className="mt-8 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
                     Inquilino no encontrado
                 </h1>
-                <p className="mt-6 text-base leading-7 text-muted-foreground">
-                    No pudimos encontrar una cuenta asociada con el subdominio <code className="font-mono font-bold bg-muted p-1 rounded-sm">{hostname}</code>.
-                    <br/>
-                    Por favor, verifica la URL o contacta a soporte.
-                </p>
+                <p className="mt-6 text-base leading-7 text-muted-foreground" dangerouslySetInnerHTML={{ __html: error }} />
                 <div className="mt-10 flex items-center justify-center gap-x-6">
                     <Button asChild>
                         <a href="/signup">Crear una nueva cuenta</a>
@@ -71,6 +73,11 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
         </div>
     );
   }
+  
+  if (!services) {
+      return null; // Should not happen if error is handled
+  }
+
 
   return (
     <FirebaseProvider
