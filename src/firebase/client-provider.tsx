@@ -9,6 +9,7 @@ import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { usePathname } from 'next/navigation';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -26,9 +27,21 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
   const [services, setServices] = useState<FirebaseServices | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
+    // Don't initialize firebase on public pages
+    if (pathname === '/login' || pathname === '/signup') {
+        const app = initializeApp(firebaseConfig);
+        const defaultServices = getSdks(app);
+        setServices({...defaultServices, tenantFound: true, databaseId: 'default'} as FirebaseServices);
+        setIsLoading(false);
+        return;
+    }
+
     const init = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
         const firebaseServices = await initializeFirebase();
         if (!firebaseServices.tenantFound) {
@@ -45,7 +58,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       }
     };
     init();
-  }, []);
+  }, [pathname]);
 
   if (isLoading) {
     return (
@@ -55,7 +68,8 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     );
   }
 
-  if (error) {
+  // Allow signup and login pages to render without a valid tenant
+  if (error && pathname !== '/signup' && pathname !== '/login') {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center">
             <div className="container mx-auto p-4">
@@ -75,9 +89,8 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
   }
   
   if (!services) {
-      return null; // Should not happen if error is handled
+      return null;
   }
-
 
   return (
     <FirebaseProvider

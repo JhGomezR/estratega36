@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import type { Role, User } from "@/lib/types";
+import type { Role, User, Tenant } from "@/lib/types";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -68,9 +68,24 @@ export default function LoginPage() {
         try {
           if (!firestore) throw new Error("Firestore not available");
           
+          // 1. Create the Auth User
           const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
           const newAuthUser = userCredential.user;
 
+          // 2. Create the 'ardila' tenant document
+           const ardilaTenant: Omit<Tenant, 'id'> = {
+              companyName: 'Ardila Campaña',
+              subdomain: 'ardila',
+              plan: '360',
+              databaseId: '(default)', // Use the default DB for the dev tenant
+              ownerUid: newAuthUser.uid,
+              createdAt: new Date().toISOString(),
+              status: 'active',
+           };
+           // We use the subdomain as the document ID for predictability
+           await setDoc(doc(firestore, 'tenants', 'ardila'), ardilaTenant);
+
+          // 3. Create the Admin Role
           await setDoc(doc(firestore, 'roles', 'admin'), {
             name: 'Admin',
             permissions: [
@@ -87,6 +102,7 @@ export default function LoginPage() {
             status: 'activo'
           });
 
+          // 4. Create the Admin User Profile
           const adminProfile: Omit<User, 'id'> = {
             firstName: 'AXCYS',
             lastName: 'Admin',
@@ -105,7 +121,7 @@ export default function LoginPage() {
 
           toast({
             title: "Cuenta de Administrador Creada",
-            description: "Se ha creado la cuenta de super-gestión y has iniciado sesión.",
+            description: "Se ha creado la cuenta y el inquilino de desarrollo. Has iniciado sesión.",
           });
           router.push("/");
 
