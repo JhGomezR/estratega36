@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -18,9 +19,9 @@ export async function initializeFirebase() {
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
   
-  // Assuming a structure like subdomain.domain.com or localhost
-  const isLocalhost = hostname.includes('localhost');
-  const subdomain = isLocalhost ? 'ardila' : (parts.length > 2 ? parts[0] : null);
+  // Whitelist development environments to default to 'ardila' tenant for testing
+  const isDevEnvironment = hostname.includes('localhost') || hostname.includes('cloudworkstations.dev');
+  const subdomain = isDevEnvironment ? 'ardila' : (parts.length > 2 ? parts[0] : null);
 
 
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
