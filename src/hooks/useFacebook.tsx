@@ -21,22 +21,15 @@ export const FacebookProvider: React.FC<FacebookProviderProps> = ({ children }) 
   const [sdkLoaded, setSdkLoaded] = useState(false);
 
   useEffect(() => {
-    // This effect runs only on the client
-    if (window.fbAsyncInit) {
-        // If it's already defined, we might be in a fast-refresh scenario.
-        // Re-run init just in case.
-        if((window as any).FB) {
-             (window as any).FB.init({
-                appId: 'YOUR_APP_ID', // A placeholder, will be re-initialized on login
-                cookie: true,
-                xfbml: true,
-                version: 'v19.0'
-            });
+    // This effect runs only on the client, after the component has mounted
+    if (document.getElementById('facebook-jssdk')) {
+        // If script is already present, SDK might be ready or initializing
+        if ((window as any).FB) {
+            setSdkLoaded(true);
         }
-        setSdkLoaded(true);
         return;
     }
-    
+
     window.fbAsyncInit = function() {
         (window as any).FB.init({
             appId: 'YOUR_APP_ID', // Placeholder, will be re-init with real id
@@ -53,8 +46,10 @@ export const FacebookProvider: React.FC<FacebookProviderProps> = ({ children }) 
         if (d.getElementById(id)) {return;}
         js = d.createElement(s) as HTMLScriptElement; js.id = id;
         js.src = "https://connect.facebook.net/en_US/sdk.js";
-        if(fjs.parentNode) {
+        if(fjs && fjs.parentNode) {
             fjs.parentNode.insertBefore(js, fjs);
+        } else {
+            d.head.appendChild(js);
         }
     }(document, 'script', 'facebook-jssdk'));
 
