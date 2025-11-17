@@ -243,14 +243,16 @@ export default function SignUpPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Dominio</FormLabel>
-                    <div className="flex relative items-center">
-                       <FormControl>
-                        <Input placeholder="ej: mi-campana" {...field} className="rounded-r-none pr-8"/>
-                      </FormControl>
-                      <div className="absolute right-10 top-1/2 -translate-y-1/2">
-                          <SubdomainStatusIndicator />
+                    <div className="flex items-center">
+                      <div className="relative flex-grow">
+                        <FormControl>
+                          <Input placeholder="ej: mi-campana" {...field} className="rounded-r-none pr-8"/>
+                        </FormControl>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <SubdomainStatusIndicator />
+                        </div>
                       </div>
-                      <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-sm text-muted-foreground">
+                      <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-sm text-muted-foreground h-10">
                         .estratega360.com
                       </span>
                     </div>
