@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -34,6 +35,14 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       }
+    ],
+  },
+  devIndicators: {
+    buildActivity: false,
+  },
+  experimental: {
+    allowedDevOrigins: [
+      "https://9000-firebase-studio-1761082913460.cluster-udxxdyopu5c7cwhhtg6mmadhvs.cloudworkstations.dev"
     ],
   },
 };
