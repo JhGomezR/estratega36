@@ -4,6 +4,9 @@
 import { adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
+import { GoogleAuth } from 'google-auth-library';
+import serviceAccount from '@/firebase/service-account.json';
+
 
 const signUpFormSchema = z.object({
   companyName: z.string(),
@@ -24,6 +27,61 @@ function generateRandomString(length: number): string {
   }
   return result
 }
+
+/**
+ * Creates a new Firestore database instance via the Google Cloud API.
+ * @param projectId The Google Cloud project ID.
+ * @param databaseId The desired ID for the new Firestore database.
+ * @param locationId The location for the new database (e.g., 'nam5').
+ * @returns A promise that resolves when the operation is complete.
+ */
+async function createFirestoreDatabase(projectId: string, databaseId: string, locationId: string = 'nam5') {
+  try {
+    const auth = new GoogleAuth({
+      credentials: {
+        client_email: serviceAccount.client_email,
+        private_key: serviceAccount.private_key,
+      },
+      scopes: 'https://www.googleapis.com/auth/cloud-platform',
+    });
+
+    const accessToken = await auth.getAccessToken();
+
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        locationId: locationId,
+        type: 'FIRESTORE_NATIVE',
+         // You can add more configuration here, e.g., deleteProtectionState
+        deleteProtectionState: 'DELETE_PROTECTION_DISABLED',
+      }),
+    });
+    
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error('API Error Response:', errorBody);
+        throw new Error(`Failed to create database. Status: ${response.status}. Message: ${errorBody.error?.message || 'Unknown error'}`);
+    }
+
+    const operation = await response.json();
+    console.log('Database creation operation started:', operation.name);
+    // Note: This starts the creation. It's a long-running operation.
+    // For a production app, you'd poll the operation status. For this context, we assume it will succeed.
+    return operation;
+
+  } catch (error) {
+    console.error('Error in createFirestoreDatabase:', error);
+    // Re-throw the error to be caught by the main handler
+    throw error;
+  }
+}
+
 
 export async function createTenantAndUser(
   data: SignUpFormValues
@@ -55,7 +113,12 @@ export async function createTenantAndUser(
     // For development/default, we might use '(default)'
     const databaseId = data.subdomain === 'ardila' ? '(default)' : `${data.subdomain}-${generateRandomString(5)}`;
 
-    // 4. Create the tenant document in the default Firestore database
+     // 4. Create the new Firestore database via API
+    if (databaseId !== '(default)') {
+      await createFirestoreDatabase(serviceAccount.project_id, databaseId);
+    }
+
+    // 5. Create the tenant document in the default Firestore database
     const newTenant: Tenant = {
       companyName: data.companyName,
       subdomain: data.subdomain,
@@ -65,9 +128,9 @@ export async function createTenantAndUser(
       createdAt: new Date().toISOString(),
       status: 'active',
     }
-    await tenantsRef.add(newTenant);
+    await tenantsRef.doc(data.subdomain).set(newTenant);
 
-    // 5. Create the admin user profile in the default database
+    // 6. Create the admin user profile in the default database
     const adminProfile: Omit<User, 'id'> = {
       firstName,
       lastName,
