@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Loader2, CheckCircle, BarChart, Lightbulb, Radio, Phone, Map, AlertCircle } from 'lucide-react'
+import { Loader2, CheckCircle, BarChart, Lightbulb, Phone, Map, AlertCircle, Radio as RadioIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { createTenantAndUser, checkSubdomainAvailability } from './actions'
@@ -104,7 +104,7 @@ const moduleIcons: Record<string, React.ReactNode> = {
     'Mapa de Votantes': <Map className="h-4 w-4" />,
     'Análisis IA': <BarChart className="h-4 w-4" />,
     'Generador de Estrategias': <Lightbulb className="h-4 w-4" />,
-    'Escucha Social': <Radio className="h-4 w-4" />
+    'Escucha Social': <RadioIcon className="h-4 w-4" />
 }
 
 export default function SignUpPage() {
@@ -241,24 +241,24 @@ export default function SignUpPage() {
                 control={form.control}
                 name="subdomain"
                 render={({ field }) => (
-                  <FormItem>
+                   <FormItem>
                     <FormLabel>Dominio</FormLabel>
                     <div className="flex items-center">
-                      <div className="relative flex-grow">
-                        <FormControl>
-                          <Input placeholder="ej: mi-campana" {...field} className="rounded-r-none pr-8"/>
-                        </FormControl>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <SubdomainStatusIndicator />
+                        <div className="relative flex-grow">
+                            <FormControl>
+                                <Input placeholder="ej: mi-campana" {...field} className="rounded-r-none pr-10" />
+                            </FormControl>
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <SubdomainStatusIndicator />
+                            </div>
                         </div>
-                      </div>
-                      <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-sm text-muted-foreground h-10">
-                        .estratega360.com
-                      </span>
+                        <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-sm text-muted-foreground h-10">
+                            .estratega360.com
+                        </span>
                     </div>
                     <FormDescription>Podrás añadir un dominio personalizado más tarde.</FormDescription>
                     <FormMessage />
-                  </FormItem>
+                </FormItem>
                 )}
               />
               <FormField
@@ -348,30 +348,41 @@ export default function SignUpPage() {
              <p className="text-sm text-muted-foreground mb-6">
                 Este plan incluye los siguientes módulos:
              </p>
-             <ul className="space-y-3">
-                {planModules.basico.map(module => (
-                    <li key={module.name} className="flex items-center text-sm gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span>{module.name}</span>
-                    </li>
-                ))}
-                {planModules[selectedPlan].map(module => (
-                    module.available && !planModules.basico.find(m => m.name === module.name)?.available ? (
-                         <li key={module.name} className="flex items-center text-sm gap-3 font-medium">
-                            {moduleIcons[module.name] || <CheckCircle className="h-5 w-5 text-green-500" />}
-                            <span>{module.name}</span>
-                         </li>
-                    ) : null
-                ))}
-                {planModules.estratega.map(module => (
-                    !planModules[selectedPlan].find(m => m.name === module.name)?.available ? (
-                        <li key={module.name} className="flex items-center text-sm gap-3 text-muted-foreground line-through">
-                             {moduleIcons[module.name] || <CheckCircle className="h-5 w-5" />}
-                             <span>{module.name}</span>
-                        </li>
-                    ): null
-                ))}
-             </ul>
+            <ul className="space-y-3">
+              {Object.values(planModules)[2].map((module) => {
+                  const isAvailableInSelected = planModules[selectedPlan].find(m => m.name === module.name)?.available;
+                  const isAvailableInBasic = planModules.basico.find(m => m.name === module.name)?.available;
+                  const Icon = moduleIcons[module.name];
+
+                  if (isAvailableInSelected) {
+                      if (isAvailableInBasic) {
+                          // Base modules
+                          return (
+                              <li key={module.name} className="flex items-center text-sm gap-3">
+                                  <CheckCircle className="h-5 w-5 text-green-500" />
+                                  <span>{module.name}</span>
+                              </li>
+                          );
+                      } else {
+                          // Additional modules for the selected plan
+                          return (
+                              <li key={module.name} className="flex items-center text-sm gap-3 font-medium text-primary">
+                                  {Icon ? React.cloneElement(Icon as React.ReactElement, { className: "h-5 w-5 text-primary" }) : <CheckCircle className="h-5 w-5 text-primary" />}
+                                  <span>{module.name}</span>
+                              </li>
+                          );
+                      }
+                  } else {
+                      // Unavailable modules
+                      return (
+                          <li key={module.name} className="flex items-center text-sm gap-3 text-muted-foreground/70 line-through">
+                              {Icon ? React.cloneElement(Icon as React.ReactElement, { className: "h-5 w-5" }) : <CheckCircle className="h-5 w-5" />}
+                              <span>{module.name}</span>
+                          </li>
+                      );
+                  }
+              })}
+            </ul>
            </div>
            <div className="mt-auto">
                 <Image 
@@ -388,3 +399,5 @@ export default function SignUpPage() {
     </div>
   )
 }
+
+    
