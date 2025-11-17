@@ -367,7 +367,8 @@ export default function SignUpPage() {
                           // Additional modules for the selected plan
                           return (
                               <li key={module.name} className="flex items-center text-sm gap-3 font-medium text-primary">
-                                  {Icon ? React.cloneElement(Icon as React.ReactElement, { className: "h-5 w-5 text-primary" }) : <CheckCircle className="h-5 w-5 text-primary" />}
+                                  <CheckCircle className="h-5 w-5 text-primary" />
+                                  {Icon && React.cloneElement(Icon as React.ReactElement, { className: "h-4 w-4" })}
                                   <span>{module.name}</span>
                               </li>
                           );
@@ -399,5 +400,3 @@ export default function SignUpPage() {
     </div>
   )
 }
-
-    
