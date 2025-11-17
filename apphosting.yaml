@@ -7,4 +7,6 @@ runConfig:
   maxInstances: 1
 # Defines environment variables that will be available to your application.
 # Learn more at https://firebase.google.com/docs/app-hosting/configure-backend#set-environment-variables
-env: []
+env:
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    value: AIzaSyCycKOCfZH6p0ihf0yj8sAeD12tyz2mxD8
