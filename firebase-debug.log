@@ -1,0 +1,12 @@
+[debug] [2025-11-17T13:43:11.222Z] ----------------------------------------------------------------------
+[debug] [2025-11-17T13:43:11.225Z] Command:       /nix/store/ws50yvm6vzlzf7jzz6n7xh4szddrack1-nodejs-20.19.1/bin/node /nix/store/f77kilzcw5hh2gidh22k6pj8cp7pxp7h-firebase-tools-14.22.0/lib/node_modules/firebase-tools/lib/bin/firebase.js apphosting:secrets:grantaccess API_KEY_GOOGLE_MAPS
+[debug] [2025-11-17T13:43:11.226Z] CLI Version:   14.22.0
+[debug] [2025-11-17T13:43:11.226Z] Platform:      linux
+[debug] [2025-11-17T13:43:11.226Z] Node Version:  v20.19.1
+[debug] [2025-11-17T13:43:11.226Z] Time:          Mon Nov 17 2025 13:43:11 GMT+0000 (Coordinated Universal Time)
+[debug] [2025-11-17T13:43:11.226Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-17T13:43:11.719Z] No OAuth tokens found
+[debug] [2025-11-17T13:43:11.720Z] No OAuth tokens found
+[error] Failed to fetch Firebase Project from current Studio Workspace: Unable to refresh auth: not yet authenticated.
+[debug] [2025-11-17T13:43:11.725Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform","https://www.googleapis.com/auth/userinfo.email"]
