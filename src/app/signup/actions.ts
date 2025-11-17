@@ -29,6 +29,26 @@ function generateRandomString(length: number): string {
 }
 
 /**
+ * Checks if a subdomain is already taken.
+ * @param subdomain The subdomain to check.
+ * @returns A promise that resolves to an object with a boolean `exists`.
+ */
+export async function checkSubdomainAvailability(subdomain: string): Promise<{ exists: boolean }> {
+  try {
+    if (!subdomain) {
+      return { exists: false }; // Don't check empty strings
+    }
+    const tenantsRef = adminDb.collection('tenants');
+    const existingTenant = await tenantsRef.doc(subdomain).get();
+    return { exists: existingTenant.exists };
+  } catch (error) {
+    console.error('Error checking subdomain:', error);
+    // On error, assume it might exist to be safe, or handle as needed
+    return { exists: true };
+  }
+}
+
+/**
  * Creates a new Firestore database instance via the Google Cloud API.
  * @param projectId The Google Cloud project ID.
  * @param databaseId The desired ID for the new Firestore database.
@@ -137,7 +157,7 @@ export async function createTenantAndUser(
       lastName,
       email: userRecord.email!,
       roleId: 'admin', // Every new tenant gets an admin
-      tenantId: data.subdomain, // **CRITICAL: Associate user with their tenant**
+      tenantId: data.subdomain,
       idType: 'admin',
       idNumber: '00000000',
       phone: '0000000000',

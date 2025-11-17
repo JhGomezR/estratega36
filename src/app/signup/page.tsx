@@ -27,11 +27,12 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Loader2, CheckCircle, BarChart, Lightbulb, Radio, Phone, Map } from 'lucide-react'
+import { Loader2, CheckCircle, BarChart, Lightbulb, Radio, Phone, Map, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { createTenantAndUser } from './actions'
+import { createTenantAndUser, checkSubdomainAvailability } from './actions'
 import { useRouter } from 'next/navigation'
+import { useDebounce } from 'use-debounce'
 
 const formSchema = z
   .object({
@@ -56,6 +57,8 @@ const formSchema = z
   })
 
 type SignUpFormValues = z.infer<typeof formSchema>
+type SubdomainStatus = 'idle' | 'checking' | 'available' | 'unavailable'
+
 
 const planModules = {
   basico: [
@@ -108,6 +111,8 @@ export default function SignUpPage() {
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [subdomainStatus, setSubdomainStatus] = React.useState<SubdomainStatus>('idle');
+
 
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(formSchema),
@@ -121,8 +126,39 @@ export default function SignUpPage() {
       plan: 'estratega',
     },
   })
+  
+  const subdomainValue = form.watch('subdomain');
+  const [debouncedSubdomain] = useDebounce(subdomainValue, 500);
+
+  React.useEffect(() => {
+    async function checkSubdomain() {
+      if (debouncedSubdomain.length < 3) {
+        setSubdomainStatus('idle');
+        return;
+      }
+      setSubdomainStatus('checking');
+      const { exists } = await checkSubdomainAvailability(debouncedSubdomain);
+      if (exists) {
+        setSubdomainStatus('unavailable');
+        form.setError('subdomain', { type: 'manual', message: 'Este subdominio ya está en uso.' });
+      } else {
+        setSubdomainStatus('available');
+        form.clearErrors('subdomain');
+      }
+    }
+    checkSubdomain();
+  }, [debouncedSubdomain, form]);
+
 
   async function onSubmit(data: SignUpFormValues) {
+    if (subdomainStatus !== 'available') {
+      toast({
+        variant: 'destructive',
+        title: 'Subdominio no disponible',
+        description: 'Por favor, elige otro subdominio para continuar.'
+      });
+      return;
+    }
     setIsSubmitting(true)
     try {
         const result = await createTenantAndUser(data);
@@ -148,6 +184,20 @@ export default function SignUpPage() {
   }
   
   const selectedPlan = form.watch('plan');
+
+  const SubdomainStatusIndicator = () => {
+    switch (subdomainStatus) {
+      case 'checking':
+        return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+      case 'available':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'unavailable':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
 
   return (
     <div className="w-full min-h-screen bg-muted/40 flex items-center justify-center py-12 px-4">
@@ -193,10 +243,13 @@ export default function SignUpPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Dominio</FormLabel>
-                    <div className="flex">
+                    <div className="flex relative items-center">
                        <FormControl>
-                        <Input placeholder="ej: mi-campana" {...field} className="rounded-r-none"/>
+                        <Input placeholder="ej: mi-campana" {...field} className="rounded-r-none pr-8"/>
                       </FormControl>
+                      <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                          <SubdomainStatusIndicator />
+                      </div>
                       <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-sm text-muted-foreground">
                         .estratega360.com
                       </span>
@@ -280,7 +333,7 @@ export default function SignUpPage() {
                   )}
                 />
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || subdomainStatus === 'unavailable' || subdomainStatus === 'checking'}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crear Cuenta
               </Button>
