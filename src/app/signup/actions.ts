@@ -123,12 +123,22 @@ async function initializeTenantDatabase(databaseId: string) {
 
   try {
     // Get a Firestore instance for the specific tenant database
-    const tenantDb = admin.firestore().database(databaseId)
+    // This requires a short delay to ensure the database is ready after the creation call.
+    await new Promise(resolve => setTimeout(resolve, 20000)); // 20-second delay
+
+    // We need to initialize a new temporary admin app instance to connect to the new DB
+     const appName = `tenant-init-${databaseId}`;
+     const tempApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+     }, appName);
+
+    const tenantDb = tempApp.firestore(databaseId)
     const batch = tenantDb.batch()
 
     // 1. Create default roles
     const roles = {
-      admin: [
+      admin: { name: 'Admin', permissions: [
         'campaign:create', 'campaign:read', 'campaign:update', 'campaign:delete',
         'voter:create', 'voter:read', 'voter:update', 'voter:delete',
         'user:create', 'user:read', 'user:update', 'user:delete',
@@ -138,17 +148,18 @@ async function initializeTenantDatabase(databaseId: string) {
         'call:create', 'call:read', 'call:update', 'call:delete',
         'report:read',
         'setting:update',
-      ],
-      lider: [
-        'campaign:read', 'voter:create', 'voter:read', 'voter:update', 
+      ], status: 'activo'},
+      lider: { name: 'Líder', permissions: [
+        'campaign:read', 'voter:create', 'voter:read', 'voter:update',
         'user:create', 'user:read', 'task:read', 'call:read'
-      ],
-      promotor: ['voter:create', 'voter:read', 'task:read', 'call:read'],
+      ], status: 'activo'},
+      promotor: { name: 'Promotor', permissions: ['voter:create', 'voter:read', 'task:read', 'call:read'], status: 'activo'},
+      voluntario: { name: 'Voluntario', permissions: ['voter:create', 'voter:read'], status: 'activo'},
     }
 
-    Object.entries(roles).forEach(([roleName, permissions]) => {
+    Object.entries(roles).forEach(([roleName, roleData]) => {
       const roleRef = tenantDb.collection('roles').doc(roleName)
-      batch.set(roleRef, { name: roleName, permissions, status: 'activo' })
+      batch.set(roleRef, roleData)
     })
 
     // 2. Create default managed lists
@@ -168,6 +179,10 @@ async function initializeTenantDatabase(databaseId: string) {
     // Commit the batch
     await batch.commit()
     console.log(`Successfully initialized database: ${databaseId}`)
+
+    // Delete the temporary app instance
+    await tempApp.delete();
+
   } catch (error) {
     console.error(`Error initializing tenant database ${databaseId}:`, error)
     // Even if initialization fails, we don't want to fail the whole signup process.
@@ -208,9 +223,6 @@ export async function createTenantAndUser(
 
     // 4. Create the new Firestore database via API
     if (databaseId !== '(default)') {
-      // This is an async operation, but we don't need to wait for it to be fully complete
-      // to continue the signup process, as long as we handle potential race conditions gracefully.
-      // For simplicity here, we'll await it. In a high-traffic app, you might poll this operation's status.
       await createFirestoreDatabase(serviceAccount.project_id, databaseId)
     }
 
@@ -248,7 +260,8 @@ export async function createTenantAndUser(
     await adminDb.collection('users').doc(userRecord.uid).set(adminProfile)
     
     // 7. Initialize the new tenant's database with default collections
-    await initializeTenantDatabase(databaseId);
+    // We don't await this because it can take a while and we can let it run in the background.
+    initializeTenantDatabase(databaseId);
 
 
     return { success: true }
@@ -268,5 +281,4 @@ export async function createTenantAndUser(
 
     return { success: false, error: errorMessage }
   }
-
-    
+}
