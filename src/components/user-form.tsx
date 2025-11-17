@@ -39,7 +39,6 @@ const userFormSchema = z.object({
   cityIds: z.array(z.string()).min(1, "Debe seleccionar al menos una ciudad."),
   campaignIds: z.array(z.string()).min(1, "Debe seleccionar al menos una campaña."),
   parentId: z.string().optional(),
-  tenantId: z.string().optional(),
 });
 
 export type UserFormValues = z.infer<typeof userFormSchema>;
@@ -74,8 +73,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
       roleId: user?.roleId ?? undefined,
       cityIds: user?.cityIds ?? [],
       campaignIds: user?.campaignIds ?? [],
-      parentId: user?.parentId ?? (isAdmin ? undefined : authUser?.uid),
-      tenantId: user?.tenantId ?? currentUserData?.tenantId,
+      parentId: user?.parentId ?? (isAdmin ? undefined : authUser?.uid)
     },
   });
 
@@ -110,13 +108,6 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
             )}
             />
         )}
-        <FormField
-            control={form.control}
-            name="tenantId"
-            render={({ field }) => (
-                <Input type="hidden" {...field} />
-            )}
-        />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
