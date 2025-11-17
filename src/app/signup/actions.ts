@@ -90,10 +90,10 @@ export async function createTenantAndUser(
     // 1. Validate if subdomain already exists in the 'tenants' collection
     const tenantsRef = adminDb.collection('tenants')
     const existingTenant = await tenantsRef
-      .where('subdomain', '==', data.subdomain)
+      .doc(data.subdomain)
       .get()
 
-    if (!existingTenant.empty) {
+    if (existingTenant.exists) {
       return { success: false, error: 'El subdominio ya está en uso.' }
     }
 
@@ -110,7 +110,6 @@ export async function createTenantAndUser(
     })
 
     // 3. Generate the unique database ID for the new tenant
-    // For development/default, we might use '(default)'
     const databaseId = data.subdomain === 'ardila' ? '(default)' : `${data.subdomain}-${generateRandomString(5)}`;
 
      // 4. Create the new Firestore database via API
@@ -120,6 +119,7 @@ export async function createTenantAndUser(
 
     // 5. Create the tenant document in the default Firestore database
     const newTenant: Tenant = {
+      id: data.subdomain,
       companyName: data.companyName,
       subdomain: data.subdomain,
       plan: data.plan,
@@ -131,11 +131,13 @@ export async function createTenantAndUser(
     await tenantsRef.doc(data.subdomain).set(newTenant);
 
     // 6. Create the admin user profile in the default database
+    // This profile INCLUDES the tenantId for easy lookup.
     const adminProfile: Omit<User, 'id'> = {
       firstName,
       lastName,
       email: userRecord.email!,
       roleId: 'admin', // Every new tenant gets an admin
+      tenantId: data.subdomain, // **CRITICAL: Associate user with their tenant**
       idType: 'admin',
       idNumber: '00000000',
       phone: '0000000000',
