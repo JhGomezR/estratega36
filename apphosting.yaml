@@ -9,4 +9,4 @@ runConfig:
 # Learn more at https://firebase.google.com/docs/app-hosting/configure-backend#set-environment-variables
 env:
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-    value: AIzaSyCycKOCfZH6p0ihf0yj8sAeD12tyz2mxD8
+    secret: maps-api-key
