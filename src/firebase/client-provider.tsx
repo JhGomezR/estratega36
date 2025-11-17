@@ -32,8 +32,8 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
   const pathname = usePathname();
 
   useEffect(() => {
-    // Don't initialize firebase on public pages
-    if (pathname === '/login' || pathname === '/signup') {
+    // Don't initialize firebase on public pages that don't need tenant info
+    if (pathname === '/signup') {
         const app = initializeApp(firebaseConfig);
         const defaultServices = getSdks(app);
         setServices({...defaultServices, tenantFound: true, databaseId: 'default'} as FirebaseServices);
@@ -48,7 +48,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
         const firebaseServices = await initializeFirebase();
         if (!firebaseServices.tenantFound) {
             const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-            setError(`No pudimos encontrar una cuenta asociada con el subdominio <code class="font-mono font-bold bg-muted p-1 rounded-sm">${hostname}</code>.<br/>Por favor, verifica la URL o contacta a soporte.`);
+            setError(`No pudimos encontrar una cuenta asociada con el subdominio <code class="font-mono font-bold bg-muted p-1 rounded-sm">${hostname.split('.')[0]}</code>.<br/>Por favor, verifica la URL o contacta a soporte.`);
         }
         setServices(firebaseServices as FirebaseServices);
       } catch (err: any) {
@@ -70,8 +70,9 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     );
   }
 
-  // Allow signup and login pages to render without a valid tenant
-  if (error && pathname !== '/signup' && pathname !== '/login') {
+  // If an error occurred (like tenant not found), show error page.
+  // Allow /signup to always render.
+  if (error && pathname !== '/signup') {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center">
             <div className="container mx-auto p-4">
@@ -91,6 +92,8 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
   }
   
   if (!services) {
+      // This case handles /signup page initially, or if services are null for any other reason.
+      if (pathname === '/signup') return <>{children}</>;
       return null;
   }
 
