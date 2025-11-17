@@ -4,9 +4,9 @@
 import { adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
-import { GoogleAuth } from 'google-auth-library';
-import serviceAccount from '@/firebase/service-account.json';
-
+import { GoogleAuth } from 'google-auth-library'
+import serviceAccount from '@/firebase/service-account.json'
+import * as admin from 'firebase-admin'
 
 const signUpFormSchema = z.object({
   companyName: z.string(),
@@ -33,18 +33,20 @@ function generateRandomString(length: number): string {
  * @param subdomain The subdomain to check.
  * @returns A promise that resolves to an object with a boolean `exists`.
  */
-export async function checkSubdomainAvailability(subdomain: string): Promise<{ exists: boolean }> {
+export async function checkSubdomainAvailability(
+  subdomain: string
+): Promise<{ exists: boolean }> {
   try {
     if (!subdomain) {
-      return { exists: false }; // Don't check empty strings
+      return { exists: false } // Don't check empty strings
     }
-    const tenantsRef = adminDb.collection('tenants');
-    const existingTenant = await tenantsRef.doc(subdomain).get();
-    return { exists: existingTenant.exists };
+    const tenantsRef = adminDb.collection('tenants')
+    const existingTenant = await tenantsRef.doc(subdomain).get()
+    return { exists: existingTenant.exists }
   } catch (error) {
-    console.error('Error checking subdomain:', error);
+    console.error('Error checking subdomain:', error)
     // On error, assume it might exist to be safe, or handle as needed
-    return { exists: true };
+    return { exists: true }
   }
 }
 
@@ -55,7 +57,11 @@ export async function checkSubdomainAvailability(subdomain: string): Promise<{ e
  * @param locationId The location for the new database (e.g., 'nam5').
  * @returns A promise that resolves when the operation is complete.
  */
-async function createFirestoreDatabase(projectId: string, databaseId: string, locationId: string = 'nam5') {
+async function createFirestoreDatabase(
+  projectId: string,
+  databaseId: string,
+  locationId: string = 'nam5'
+) {
   try {
     const auth = new GoogleAuth({
       credentials: {
@@ -63,42 +69,109 @@ async function createFirestoreDatabase(projectId: string, databaseId: string, lo
         private_key: serviceAccount.private_key,
       },
       scopes: 'https://www.googleapis.com/auth/cloud-platform',
-    });
+    })
 
-    const accessToken = await auth.getAccessToken();
+    const accessToken = await auth.getAccessToken()
 
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`;
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         locationId: locationId,
         type: 'FIRESTORE_NATIVE',
-         // You can add more configuration here, e.g., deleteProtectionState
+        // You can add more configuration here, e.g., deleteProtectionState
         deleteProtectionState: 'DELETE_PROTECTION_DISABLED',
       }),
-    });
-    
+    })
+
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error('API Error Response:', errorBody);
-        throw new Error(`Failed to create database. Status: ${response.status}. Message: ${errorBody.error?.message || 'Unknown error'}`);
+      const errorBody = await response.json()
+      console.error('API Error Response:', errorBody)
+      throw new Error(
+        `Failed to create database. Status: ${response.status}. Message: ${
+          errorBody.error?.message || 'Unknown error'
+        }`
+      )
     }
 
-    const operation = await response.json();
-    console.log('Database creation operation started:', operation.name);
+    const operation = await response.json()
+    console.log('Database creation operation started:', operation.name)
     // Note: This starts the creation. It's a long-running operation.
     // For a production app, you'd poll the operation status. For this context, we assume it will succeed.
-    return operation;
-
+    return operation
   } catch (error) {
-    console.error('Error in createFirestoreDatabase:', error);
+    console.error('Error in createFirestoreDatabase:', error)
     // Re-throw the error to be caught by the main handler
-    throw error;
+    throw error
+  }
+}
+
+/**
+ * Initializes a new Firestore database with default collections and documents.
+ * @param databaseId The ID of the Firestore database to initialize.
+ */
+async function initializeTenantDatabase(databaseId: string) {
+  if (databaseId === '(default)') {
+    console.log('Skipping initialization for default database.')
+    return
+  }
+
+  try {
+    // Get a Firestore instance for the specific tenant database
+    const tenantDb = admin.firestore().database(databaseId)
+    const batch = tenantDb.batch()
+
+    // 1. Create default roles
+    const roles = {
+      admin: [
+        'campaign:create', 'campaign:read', 'campaign:update', 'campaign:delete',
+        'voter:create', 'voter:read', 'voter:update', 'voter:delete',
+        'user:create', 'user:read', 'user:update', 'user:delete',
+        'role:create', 'role:read', 'role:update', 'role:delete',
+        'city:create', 'city:read', 'city:update', 'city:delete',
+        'task:create', 'task:read', 'task:update', 'task:delete',
+        'call:create', 'call:read', 'call:update', 'call:delete',
+        'report:read',
+        'setting:update',
+      ],
+      lider: [
+        'campaign:read', 'voter:create', 'voter:read', 'voter:update', 
+        'user:create', 'user:read', 'task:read', 'call:read'
+      ],
+      promotor: ['voter:create', 'voter:read', 'task:read', 'call:read'],
+    }
+
+    Object.entries(roles).forEach(([roleName, permissions]) => {
+      const roleRef = tenantDb.collection('roles').doc(roleName)
+      batch.set(roleRef, { name: roleName, permissions, status: 'activo' })
+    })
+
+    // 2. Create default managed lists
+    const defaultLists = {
+      identificationTypes: { name: 'Tipos de Documento', items: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte'] },
+      taskPriorities: { name: 'Prioridades de Tareas', items: ['normal', 'alta', 'urgente'] },
+      taskStatuses: { name: 'Estados de Tareas', items: ['pendiente', 'en_curso', 'finalizada', 'archivada'] },
+      campaignTypes: { name: 'Tipos de Campaña', items: ['presidencia', 'alcaldia', 'gobernacion'] },
+      campaignStatuses: { name: 'Estados de Campaña', items: ['Futura', 'En Campaña', 'Finalizada', 'Archivada'] },
+    }
+
+    Object.entries(defaultLists).forEach(([key, value]) => {
+        const listRef = tenantDb.collection('lists').doc(key);
+        batch.set(listRef, value);
+    });
+
+    // Commit the batch
+    await batch.commit()
+    console.log(`Successfully initialized database: ${databaseId}`)
+  } catch (error) {
+    console.error(`Error initializing tenant database ${databaseId}:`, error)
+    // Even if initialization fails, we don't want to fail the whole signup process.
+    // Log the error for manual intervention.
   }
 }
 
@@ -109,9 +182,7 @@ export async function createTenantAndUser(
   try {
     // 1. Validate if subdomain already exists in the 'tenants' collection
     const tenantsRef = adminDb.collection('tenants')
-    const existingTenant = await tenantsRef
-      .doc(data.subdomain)
-      .get()
+    const existingTenant = await tenantsRef.doc(data.subdomain).get()
 
     if (existingTenant.exists) {
       return { success: false, error: 'El subdominio ya está en uso.' }
@@ -130,11 +201,17 @@ export async function createTenantAndUser(
     })
 
     // 3. Generate the unique database ID for the new tenant
-    const databaseId = data.subdomain === 'ardila' ? '(default)' : `${data.subdomain}-${generateRandomString(5)}`;
+    const databaseId =
+      data.subdomain === 'ardila'
+        ? '(default)'
+        : `${data.subdomain}-${generateRandomString(5)}`
 
-     // 4. Create the new Firestore database via API
+    // 4. Create the new Firestore database via API
     if (databaseId !== '(default)') {
-      await createFirestoreDatabase(serviceAccount.project_id, databaseId);
+      // This is an async operation, but we don't need to wait for it to be fully complete
+      // to continue the signup process, as long as we handle potential race conditions gracefully.
+      // For simplicity here, we'll await it. In a high-traffic app, you might poll this operation's status.
+      await createFirestoreDatabase(serviceAccount.project_id, databaseId)
     }
 
     // 5. Create the tenant document in the default Firestore database
@@ -148,7 +225,7 @@ export async function createTenantAndUser(
       createdAt: new Date().toISOString(),
       status: 'active',
     }
-    await tenantsRef.doc(data.subdomain).set(newTenant);
+    await tenantsRef.doc(data.subdomain).set(newTenant)
 
     // 6. Create the admin user profile in the default database
     // This profile INCLUDES the tenantId for easy lookup.
@@ -166,9 +243,13 @@ export async function createTenantAndUser(
       avatar: `https://picsum.photos/seed/${userRecord.uid}/100/100`,
       status: 'activo',
     }
-    
+
     // This user profile goes into the default DB.
-    await adminDb.collection('users').doc(userRecord.uid).set(adminProfile);
+    await adminDb.collection('users').doc(userRecord.uid).set(adminProfile)
+    
+    // 7. Initialize the new tenant's database with default collections
+    await initializeTenantDatabase(databaseId);
+
 
     return { success: true }
   } catch (error: any) {
@@ -187,4 +268,5 @@ export async function createTenantAndUser(
 
     return { success: false, error: errorMessage }
   }
-}
+
+    
