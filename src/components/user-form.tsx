@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useAuth } from "@/firebase"
+import { useAuth, useUser } from "@/firebase"
 
 const userFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -39,6 +39,7 @@ const userFormSchema = z.object({
   cityIds: z.array(z.string()).min(1, "Debe seleccionar al menos una ciudad."),
   campaignIds: z.array(z.string()).min(1, "Debe seleccionar al menos una campaña."),
   parentId: z.string().optional(),
+  tenantId: z.string().optional(),
 });
 
 export type UserFormValues = z.infer<typeof userFormSchema>;
@@ -55,8 +56,9 @@ interface UserFormProps {
 }
 
 export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSubmit, onCancel }: UserFormProps) {
-  const auth = useAuth();
-  const isAdmin = auth.currentUser?.email === 'axdrcys@gmail.com';
+  const { user: authUser } = useAuth();
+  const { user: currentUserData } = useUser();
+  const isAdmin = currentUserData?.email === 'axdrcys@gmail.com';
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -72,7 +74,8 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
       roleId: user?.roleId ?? undefined,
       cityIds: user?.cityIds ?? [],
       campaignIds: user?.campaignIds ?? [],
-      parentId: user?.parentId ?? (isAdmin ? undefined : auth.currentUser?.uid),
+      parentId: user?.parentId ?? (isAdmin ? undefined : authUser?.uid),
+      tenantId: user?.tenantId ?? currentUserData?.tenantId,
     },
   });
 
@@ -107,6 +110,13 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
             )}
             />
         )}
+        <FormField
+            control={form.control}
+            name="tenantId"
+            render={({ field }) => (
+                <Input type="hidden" {...field} />
+            )}
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}

@@ -3,22 +3,25 @@
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import type { Role, User } from "@/lib/types"
-import { doc } from "firebase/firestore"
+import { doc, getFirestore } from "firebase/firestore"
 import { useMemo } from "react"
 
 export function usePermissions() {
   const { user: authUser, isUserLoading: isAuthLoading } = useUser()
-  const firestore = useFirestore()
+  const { firestore: tenantFirestore, firebaseApp } = useFirebase() // Get tenant-specific firestore and the app
+
+  // Memoize the default firestore instance
+  const defaultFirestore = useMemo(() => firebaseApp ? getFirestore(firebaseApp) : null, [firebaseApp]);
 
   const userRef = useMemoFirebase(
-    () => (firestore && authUser ? doc(firestore, "users", authUser.uid) : null),
-    [firestore, authUser]
+    () => (defaultFirestore && authUser ? doc(defaultFirestore, "users", authUser.uid) : null),
+    [defaultFirestore, authUser]
   )
   const { data: user, isLoading: isUserLoading } = useDoc<User>(userRef)
 
   const roleRef = useMemoFirebase(
-    () => (firestore && user?.roleId ? doc(firestore, "roles", user.roleId) : null),
-    [firestore, user?.roleId]
+    () => (tenantFirestore && user?.roleId ? doc(tenantFirestore, "roles", user.roleId) : null),
+    [tenantFirestore, user?.roleId]
   )
   const { data: role, isLoading: isRoleLoading } = useDoc<Role>(roleRef)
 
