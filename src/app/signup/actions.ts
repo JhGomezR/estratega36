@@ -4,6 +4,7 @@
 import { admin, adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
+import { GoogleAuth } from 'google-auth-library';
 
 const signUpFormSchema = z.object({
   companyName: z.string(),
@@ -35,16 +36,24 @@ async function createFirestoreDatabase(
   projectId: string,
   databaseId: string,
   locationId: string
-): Promise<{ success: boolean, error?: string }> {
-   try {
-    const accessToken = await admin.app().INTERNAL.credential.getAccessToken();
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const auth = new GoogleAuth({
+      scopes: 'https://www.googleapis.com/auth/cloud-platform',
+    });
+    const client = await auth.getClient();
+    const accessToken = (await client.getAccessToken()).token;
+
+    if (!accessToken) {
+        throw new Error('Failed to retrieve a valid access token.');
+    }
 
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`;
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -54,7 +63,6 @@ async function createFirestoreDatabase(
     });
 
     if (response.status === 409) {
-      // Conflict: Database already exists, which is acceptable.
       console.log(`Database ${databaseId} already exists. Proceeding.`);
       return { success: true };
     }
@@ -66,8 +74,8 @@ async function createFirestoreDatabase(
         return { success: false, error: `Failed to create Firestore database: ${errorMessage}` };
     }
     
-    console.log(`Database creation initiated for ${databaseId}.`);
-    // This is a long-running operation, we don't wait for it to complete here.
+    const operation = await response.json();
+    console.log(`Database creation initiated for ${databaseId}. Operation: ${operation.name}`);
     return { success: true };
 
   } catch (error: any) {
