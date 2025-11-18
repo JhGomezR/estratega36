@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Initializes the Firebase Admin SDK.
  * This module ensures that the Admin SDK is initialized as a singleton.
@@ -8,36 +7,27 @@
 import * as admin from 'firebase-admin';
 import serviceAccount from './service-account.json';
 
-function getAdminServices() {
+function getAdminApp() {
   if (admin.apps.length > 0) {
-    return {
-      auth: admin.auth(),
-      db: admin.firestore(),
-    };
+    return admin.apps[0]!;
   }
 
   try {
-    admin.initializeApp({
-      // The type assertion is safe because service-account.json is a valid ServiceAccount object.
+    const app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
-
     console.log('Firebase Admin SDK initialized successfully.');
-
-    return {
-      auth: admin.auth(),
-      db: admin.firestore(),
-    };
+    return app;
   } catch (error: any) {
     console.error('Failed to initialize Firebase Admin SDK:', error);
-    // In a real application, you might want to handle this more gracefully
-    // For this context, re-throwing makes the problem visible.
     throw new Error(
       `Failed to initialize Firebase Admin SDK. Error: ${error.message}`
     );
   }
 }
 
-const { auth: adminAuth, db: adminDb } = getAdminServices();
+const adminApp = getAdminApp();
+const adminAuth = admin.auth(adminApp);
+const adminDb = admin.firestore(adminApp);
 
-export { adminAuth, adminDb };
+export { admin, adminAuth, adminDb };

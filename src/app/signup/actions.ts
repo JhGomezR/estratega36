@@ -1,7 +1,7 @@
 
 'use server'
 
-import { adminAuth, adminDb } from '@/firebase/admin'
+import { admin, adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
 
@@ -47,10 +47,9 @@ async function initializeTenantDatabase(
   adminUserId: string,
 ) {
   try {
-    // This is the correct way to get a reference to a non-default database
-    const tenantDb = adminDb.database(databaseId);
+    const tenantDb = admin.firestore().database(databaseId)
 
-    const batch = tenantDb.batch();
+    const batch = tenantDb.batch()
 
     // 1. Create Admin Role
     const adminRoleRef = tenantDb.collection('roles').doc('admin');
@@ -119,21 +118,15 @@ export async function createTenantAndUser(
       emailVerified: false,
       disabled: false,
     });
-
-    const databaseId = `${data.subdomain}-${generateRandomString(5)}`;
-
-    // Instead of polling, we just create the document.
-    // The actual DB creation is provisioned, but we can't write until it's ready.
-    // However, for the purpose of this flow, we will assume the write will succeed eventually
-    // or handle the initial login logic gracefully.
-    // The key is to NOT block the user registration flow.
+    
+    const databaseId = `(default)`; // All tenants share the default database in this architecture
 
     const newTenant: Tenant = {
       id: data.subdomain,
       companyName: data.companyName,
       subdomain: data.subdomain,
       plan: data.plan,
-      databaseId: databaseId,
+      databaseId: databaseId, // All tenants point to the default DB
       ownerUid: userRecord.uid,
       createdAt: new Date().toISOString(),
       status: 'active',
@@ -154,14 +147,20 @@ export async function createTenantAndUser(
       avatar: `https://picsum.photos/seed/${userRecord.uid}/100/100`,
       status: 'activo',
     };
-
-    // Store a global reference to the user in the default DB
+    
+    // This now writes to the main DB, which seems to be the intended pattern
     await adminDb.collection('users').doc(userRecord.uid).set(adminProfile);
 
-    // We proceed with the initialization.
-    // We are still within a serverless function context that may time out,
-    // but we are no longer making API calls that require special IAM roles.
-    await initializeTenantDatabase(databaseId, adminProfile, userRecord.uid);
+    // Also write default roles to the main DB if they don't exist
+    const adminRoleDoc = await adminDb.collection('roles').doc('admin').get();
+    if (!adminRoleDoc.exists) {
+         await adminDb.collection('roles').doc('admin').set({
+            name: 'Admin',
+            permissions: [ "campaign:create", "campaign:read", "campaign:update", "campaign:delete", "voter:create", "voter:read", "voter:update", "voter:delete", "user:create", "user:read", "user:update", "user-delete", "role:create", "role:read", "role:update", "role:delete", "city:create", "city:read", "city:update", "city:delete", "task:create", "task:read", "task:update", "task:delete", "call:create", "call:read", "call:update", "call:delete", "report:read", "setting:update" ],
+            status: 'activo'
+        });
+    }
+
 
     return { success: true };
   } catch (error: any) {
