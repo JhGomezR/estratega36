@@ -27,52 +27,40 @@ function generateRandomString(length: number): string {
   return result
 }
 
-/**
- * Checks if a subdomain is already taken.
- * @param subdomain The subdomain to check.
- * @returns A promise that resolves to an object with a boolean `exists`.
- */
 export async function checkSubdomainAvailability(
   subdomain: string
 ): Promise<{ exists: boolean }> {
   try {
     if (!subdomain) {
-      return { exists: false } // Don't check empty strings
+      return { exists: false }
     }
     const tenantsRef = adminDb.collection('tenants')
     const existingTenant = await tenantsRef.doc(subdomain).get()
     return { exists: existingTenant.exists }
   } catch (error) {
     console.error('Error checking subdomain:', error)
-    // On error, assume it might exist to be safe, or handle as needed
     return { exists: true }
   }
 }
 
-/**
- * Creates a new Firestore database instance via the Google Cloud API.
- * @param projectId The Google Cloud project ID.
- * @param databaseId The desired ID for the new Firestore database.
- * @param locationId The location for the new database (e.g., 'nam5').
- * @returns A promise that resolves when the operation is complete.
- */
-async function createFirestoreDatabase(
-  projectId: string,
-  databaseId: string,
-  locationId: string = 'nam5'
-) {
-  try {
+async function getGoogleAuthToken() {
     const auth = new GoogleAuth({
       credentials: {
         client_email: serviceAccount.client_email,
         private_key: serviceAccount.private_key,
       },
       scopes: 'https://www.googleapis.com/auth/cloud-platform',
-    })
+    });
+    return await auth.getAccessToken();
+}
 
-    const accessToken = await auth.getAccessToken()
-
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`
+async function createFirestoreDatabase(
+  projectId: string,
+  databaseId: string,
+  locationId: string = 'nam5'
+): Promise<string> {
+    const accessToken = await getGoogleAuthToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -85,46 +73,116 @@ async function createFirestoreDatabase(
         type: 'FIRESTORE_NATIVE',
         deleteProtectionState: 'DELETE_PROTECTION_DISABLED',
       }),
-    })
+    });
 
     if (!response.ok) {
-      const errorBody = await response.json()
-      console.error('API Error Response:', errorBody)
-      throw new Error(
-        `Failed to create database. Status: ${response.status}. Message: ${
-          errorBody.error?.message || 'Unknown error'
-        }`
-      )
+      const errorBody = await response.json();
+      console.error('API Error Response creating DB:', errorBody);
+      throw new Error(`Failed to create database. Status: ${response.status}. Message: ${errorBody.error?.message || 'Unknown error'}`);
     }
 
-    const operation = await response.json()
-    console.log('Database creation operation started:', operation.name)
-    // This starts the creation. It's a long-running operation.
-    // We will not wait for it to complete here.
-    return operation
-  } catch (error) {
-    console.error('Error in createFirestoreDatabase:', error)
-    // Re-throw the error to be caught by the main handler
-    throw error
-  }
+    const operation = await response.json();
+    console.log('Database creation operation started:', operation.name);
+    return operation.name;
 }
 
+async function pollOperationStatus(operationName: string) {
+    const accessToken = await getGoogleAuthToken();
+    const url = `https://firestore.googleapis.com/v1/${operationName}`;
+
+    let operationDone = false;
+    while (!operationDone) {
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            console.error('API Error Response polling:', errorBody);
+            throw new Error(`Failed to poll operation status. Status: ${response.status}. Message: ${errorBody.error?.message || 'Unknown error'}`);
+        }
+
+        const operation = await response.json();
+        operationDone = operation.done;
+        console.log(`Polling DB creation status... Done: ${operationDone}`);
+    }
+}
+
+
+async function initializeTenantDatabase(
+  databaseId: string,
+  adminUser: Omit<User, 'id'>,
+  adminUserId: string,
+) {
+  try {
+    const tenantDb = adminDb.database(databaseId);
+
+    const batch = tenantDb.batch();
+
+    // 1. Create Admin Role
+    const adminRoleRef = tenantDb.collection('roles').doc('admin');
+    batch.set(adminRoleRef, {
+        name: 'Admin',
+        permissions: [
+            "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
+            "voter:create", "voter:read", "voter:update", "voter:delete",
+            "user:create", "user:read", "user:update", "user:delete",
+            "role:create", "role:read", "role:update", "role:delete",
+            "city:create", "city:read", "city:update", "city:delete",
+            "task:create", "task:read", "task:update", "task:delete",
+            "call:create", "call:read", "call:update", "call:delete",
+            "report:read",
+            "setting:update"
+        ],
+        status: 'activo'
+    });
+    
+    // 2. Create default lists
+    const defaultLists = {
+        identificationTypes: { name: "Tipos de Documento", items: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte']},
+        taskPriorities: { name: "Prioridades de Tareas", items: ['normal', 'alta', 'urgente']},
+        taskStatuses: { name: "Estados de Tareas", items: ['pendiente', 'en_curso', 'finalizada', 'archivada']},
+        campaignTypes: { name: "Tipos de Campaña", items: ['presidencia', 'alcaldia', 'gobernacion']},
+        campaignStatuses: { name: "Estados de Campaña", items: ['Futura', 'En Campaña', 'Finalizada', 'Archivada']},
+    };
+
+    for (const [key, value] of Object.entries(defaultLists)) {
+        const listRef = tenantDb.collection('lists').doc(key);
+        batch.set(listRef, value);
+    }
+    
+    // 3. Create admin user profile inside the tenant's DB
+    const userRef = tenantDb.collection('users').doc(adminUserId);
+    batch.set(userRef, adminUser);
+
+
+    await batch.commit();
+    console.log(`Database ${databaseId} initialized successfully.`);
+    
+  } catch (error) {
+    console.error(`Error initializing tenant database ${databaseId}:`, error);
+    throw error;
+  }
+}
 
 export async function createTenantAndUser(
   data: SignUpFormValues
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Validate if subdomain already exists in the 'tenants' collection
-    const tenantsRef = adminDb.collection('tenants')
-    const existingTenant = await tenantsRef.doc(data.subdomain).get()
+    const tenantsRef = adminDb.collection('tenants');
+    const existingTenant = await tenantsRef.doc(data.subdomain).get();
 
     if (existingTenant.exists) {
-      return { success: false, error: 'El subdominio ya está en uso.' }
+      return { success: false, error: 'El subdominio ya está en uso.' };
     }
 
-    // 2. Create the user in Firebase Authentication
-    const [firstName, ...lastNameParts] = data.fullName.split(' ')
-    const lastName = lastNameParts.join(' ')
+    const [firstName, ...lastNameParts] = data.fullName.split(' ');
+    const lastName = lastNameParts.join(' ');
 
     const userRecord = await adminAuth.createUser({
       email: data.email,
@@ -132,20 +190,15 @@ export async function createTenantAndUser(
       displayName: data.fullName,
       emailVerified: false,
       disabled: false,
-    })
+    });
 
-    // 3. Generate the unique database ID for the new tenant
-    const databaseId =
-      data.subdomain === 'ardila'
-        ? '(default)'
-        : `${data.subdomain}-${generateRandomString(5)}`
+    const databaseId = `${data.subdomain}-${generateRandomString(5)}`;
 
-    // 4. Create the new Firestore database via API
     if (databaseId !== '(default)') {
-      await createFirestoreDatabase(serviceAccount.project_id, databaseId)
+        const operationName = await createFirestoreDatabase(serviceAccount.project_id, databaseId);
+        await pollOperationStatus(operationName);
     }
 
-    // 5. Create the tenant document in the default Firestore database
     const newTenant: Tenant = {
       id: data.subdomain,
       companyName: data.companyName,
@@ -155,15 +208,14 @@ export async function createTenantAndUser(
       ownerUid: userRecord.uid,
       createdAt: new Date().toISOString(),
       status: 'active',
-    }
-    await tenantsRef.doc(data.subdomain).set(newTenant)
+    };
+    await tenantsRef.doc(data.subdomain).set(newTenant);
 
-    // 6. Define the admin user profile
     const adminProfile: Omit<User, 'id'> = {
       firstName,
       lastName,
       email: userRecord.email!,
-      roleId: 'admin', // Every new tenant gets an admin
+      roleId: 'admin',
       tenantId: data.subdomain,
       idType: 'admin',
       idNumber: '00000000',
@@ -172,30 +224,27 @@ export async function createTenantAndUser(
       campaignIds: [],
       avatar: `https://picsum.photos/seed/${userRecord.uid}/100/100`,
       status: 'activo',
-    }
+    };
 
-    // This user profile goes into the default DB for global user lookup.
-    await adminDb.collection('users').doc(userRecord.uid).set(adminProfile)
-    
-    // NOTE: The database initialization is removed from here.
-    // It must be handled manually or by a separate background process (e.g., Cloud Function)
-    // after the database has finished provisioning.
+    // Store a global reference to the user
+    await adminDb.collection('users').doc(userRecord.uid).set(adminProfile);
 
-    return { success: true }
+    // Initialize the new tenant's database with default collections
+    await initializeTenantDatabase(databaseId, adminProfile, userRecord.uid);
+
+    return { success: true };
   } catch (error: any) {
-    console.error('Error creating tenant and user:', error)
+    console.error('Error creating tenant and user:', error);
 
-    let errorMessage =
-      'Ocurrió un error desconocido durante la creación de la cuenta.'
+    let errorMessage = 'Ocurrió un error desconocido durante la creación de la cuenta.';
     if (error.code === 'auth/email-already-exists') {
-      errorMessage = 'El correo electrónico ya está en uso por otra cuenta.'
+      errorMessage = 'El correo electrónico ya está en uso por otra cuenta.';
     } else if (error.code === 'auth/weak-password') {
-      errorMessage =
-        'La contraseña es demasiado débil. Debe tener al menos 8 caracteres.'
+      errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 8 caracteres.';
     } else if (error.message) {
-      errorMessage = error.message
+      errorMessage = error.message;
     }
 
-    return { success: false, error: errorMessage }
+    return { success: false, error: errorMessage };
   }
 }
