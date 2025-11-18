@@ -121,19 +121,23 @@ async function initializeTenantDatabase(databaseId: string) {
     return
   }
 
+  // A temporary app instance name
+  const appName = `tenant-init-${databaseId}-${Date.now()}`;
+  let tempApp: admin.app.App | undefined;
+
   try {
-    // Get a Firestore instance for the specific tenant database
     // This requires a short delay to ensure the database is ready after the creation call.
-    await new Promise(resolve => setTimeout(resolve, 20000)); // 20-second delay
+    await new Promise(resolve => setTimeout(resolve, 25000)); // 25-second delay for safety
 
-    // We need to initialize a new temporary admin app instance to connect to the new DB
-     const appName = `tenant-init-${databaseId}`;
-     const tempApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
-     }, appName);
+    // Initialize a new, temporary Firebase Admin app instance
+    tempApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+    }, appName);
+    
+    // Get a Firestore instance for the specific tenant database by accessing the app's services
+    const tenantDb = admin.firestore(tempApp);
 
-    const tenantDb = tempApp.firestore(databaseId)
     const batch = tenantDb.batch()
 
     // 1. Create default roles
@@ -180,13 +184,16 @@ async function initializeTenantDatabase(databaseId: string) {
     await batch.commit()
     console.log(`Successfully initialized database: ${databaseId}`)
 
-    // Delete the temporary app instance
-    await tempApp.delete();
-
   } catch (error) {
     console.error(`Error initializing tenant database ${databaseId}:`, error)
     // Even if initialization fails, we don't want to fail the whole signup process.
     // Log the error for manual intervention.
+  } finally {
+      // Ensure the temporary app is always deleted.
+      if (tempApp) {
+          await tempApp.delete();
+          console.log(`Deleted temporary app: ${appName}`);
+      }
   }
 }
 
