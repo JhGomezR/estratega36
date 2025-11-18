@@ -6,7 +6,6 @@ import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
 import { GoogleAuth } from 'google-auth-library'
 import serviceAccount from '@/firebase/service-account.json'
-import * as admin from 'firebase-admin'
 
 const signUpFormSchema = z.object({
   companyName: z.string(),
@@ -84,7 +83,6 @@ async function createFirestoreDatabase(
       body: JSON.stringify({
         locationId: locationId,
         type: 'FIRESTORE_NATIVE',
-        // You can add more configuration here, e.g., deleteProtectionState
         deleteProtectionState: 'DELETE_PROTECTION_DISABLED',
       }),
     })
@@ -101,98 +99,13 @@ async function createFirestoreDatabase(
 
     const operation = await response.json()
     console.log('Database creation operation started:', operation.name)
-    // Note: This starts the creation. It's a long-running operation.
-    // For a production app, you'd poll the operation status. For this context, we assume it will succeed.
+    // This starts the creation. It's a long-running operation.
+    // We will not wait for it to complete here.
     return operation
   } catch (error) {
     console.error('Error in createFirestoreDatabase:', error)
     // Re-throw the error to be caught by the main handler
     throw error
-  }
-}
-
-/**
- * Initializes a new Firestore database with default collections and documents.
- * @param databaseId The ID of the Firestore database to initialize.
- * @param adminProfile The profile of the admin user to create in this DB.
- * @param ownerUid The UID of the owner, to be used for the admin user document ID.
- */
-async function initializeTenantDatabase(
-  databaseId: string,
-  adminProfile: Omit<User, 'id'>,
-  ownerUid: string
-) {
-  if (databaseId === '(default)') {
-    console.log('Skipping initialization for default database.')
-    return
-  }
-
-  try {
-    // Wait for DB to be available. This is a hack for the demo.
-    // In production, you'd use a Cloud Function triggered by the DB creation log or poll the operation.
-    await new Promise(resolve => setTimeout(resolve, 30000)); // 30-second delay
-
-    // Get a Firestore instance for the specific tenant database.
-    // This is the correct way to target a non-default database.
-    const tenantDb = admin.firestore().database(databaseId);
-    console.log(`Successfully connected to database: ${databaseId}`);
-
-    const batch = tenantDb.batch();
-
-    // 1. Create default roles
-    const roles = {
-      admin: { name: 'Admin', permissions: [
-        'campaign:create', 'campaign:read', 'campaign:update', 'campaign:delete',
-        'voter:create', 'voter:read', 'voter:update', 'voter:delete',
-        'user:create', 'user:read', 'user:update', 'user:delete',
-        'role:create', 'role:read', 'role:update', 'role:delete',
-        'city:create', 'city:read', 'city:update', 'city:delete',
-        'task:create', 'task:read', 'task:update', 'task:delete',
-        'call:create', 'call:read', 'call:update', 'call:delete',
-        'report:read',
-        'setting:update',
-      ], status: 'activo'},
-      lider: { name: 'Líder', permissions: [
-        'campaign:read', 'voter:create', 'voter:read', 'voter:update',
-        'user:create', 'user:read', 'task:read', 'call:read'
-      ], status: 'activo'},
-      promotor: { name: 'Promotor', permissions: ['voter:create', 'voter:read', 'task:read', 'call:read'], status: 'activo'},
-      voluntario: { name: 'Voluntario', permissions: ['voter:create', 'voter:read'], status: 'activo'},
-    };
-
-    Object.entries(roles).forEach(([roleId, roleData]) => {
-      const roleRef = tenantDb.collection('roles').doc(roleId);
-      batch.set(roleRef, roleData);
-    });
-
-    // 2. Create default managed lists
-    const defaultLists = {
-      identificationTypes: { name: 'Tipos de Documento', items: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte'] },
-      taskPriorities: { name: 'Prioridades de Tareas', items: ['normal', 'alta', 'urgente'] },
-      taskStatuses: { name: 'Estados de Tareas', items: ['pendiente', 'en_curso', 'finalizada', 'archivada'] },
-      campaignTypes: { name: 'Tipos de Campaña', items: ['presidencia', 'alcaldia', 'gobernacion'] },
-      campaignStatuses: { name: 'Estados de Campaña', items: ['Futura', 'En Campaña', 'Finalizada', 'Archivada'] },
-    };
-
-    Object.entries(defaultLists).forEach(([key, value]) => {
-        const listRef = tenantDb.collection('lists').doc(key);
-        batch.set(listRef, value);
-    });
-
-    // 3. Create the admin user profile within the new database
-    const userRef = tenantDb.collection('users').doc(ownerUid);
-    // Remove tenantId from the profile stored inside the tenant's own DB
-    const { tenantId, ...profileForTenantDb } = adminProfile;
-    batch.set(userRef, profileForTenantDb);
-
-
-    // Commit the batch
-    await batch.commit();
-    console.log(`Successfully initialized collections and admin user in database: ${databaseId}`);
-
-  } catch (error) {
-    console.error(`Error initializing tenant database ${databaseId}:`, error);
-    // Log the error for manual intervention.
   }
 }
 
@@ -264,10 +177,9 @@ export async function createTenantAndUser(
     // This user profile goes into the default DB for global user lookup.
     await adminDb.collection('users').doc(userRecord.uid).set(adminProfile)
     
-    // 7. Initialize the new tenant's database with default collections and the admin user.
-    // This is not awaited to allow the UI to respond faster.
-    initializeTenantDatabase(databaseId, adminProfile, userRecord.uid);
-
+    // NOTE: The database initialization is removed from here.
+    // It must be handled manually or by a separate background process (e.g., Cloud Function)
+    // after the database has finished provisioning.
 
     return { success: true }
   } catch (error: any) {
