@@ -38,13 +38,8 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-  devIndicators: {
-    buildActivity: false,
-  },
-  experimental: {
-    allowedDevOrigins: [
-      "https://9000-firebase-studio-1761082913460.cluster-udxxdyopu5c7cwhhtg6mmadhvs.cloudworkstations.dev"
-    ],
+  serverActions: {
+    bodySizeLimit: '2mb',
   },
 };
 
