@@ -4,7 +4,6 @@
 import { admin, adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
-import { google } from 'googleapis'
 
 const signUpFormSchema = z.object({
   companyName: z.string(),
@@ -32,35 +31,48 @@ export async function checkSubdomainAvailability(
   }
 }
 
-async function createFirestoreDatabase(projectId: string, databaseId: string, locationId: string): Promise<void> {
-  try {
-    const auth = new google.auth.GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+async function createFirestoreDatabase(
+  projectId: string,
+  databaseId: string,
+  locationId: string
+): Promise<{ success: boolean, error?: string }> {
+   try {
+    const accessToken = await admin.app().INTERNAL.credential.getAccessToken();
+
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        locationId: locationId,
+        type: 'NATIVE',
+      }),
     });
-    const authClient = await auth.getClient();
-    const firestoreAdmin = google.firestore({ version: 'v1', auth: authClient });
 
-    console.log(`Requesting creation of database: ${databaseId} in project ${projectId} at ${locationId}`);
-
-    // This starts a long-running operation, but we don't wait for it here.
-    await firestoreAdmin.projects.databases.create({
-        parent: `projects/${projectId}`,
-        databaseId: databaseId,
-        requestBody: {
-            locationId: locationId,
-            type: 'NATIVE', // Or 'DATASTORE_MODE'
-        },
-    });
-
-    console.log(`Database creation initiated for ${databaseId}.`);
-  } catch (error: any) {
-    // It's common to get an "ALREADY_EXISTS" error if you re-run this, which can be ignored in dev.
-    if (error.code === 6) { // 6 corresponds to ALREADY_EXISTS
-        console.log(`Database ${databaseId} already exists. Proceeding...`);
-        return;
+    if (response.status === 409) {
+      // Conflict: Database already exists, which is acceptable.
+      console.log(`Database ${databaseId} already exists. Proceeding.`);
+      return { success: true };
     }
-    console.error(`Error creating Firestore database ${databaseId}:`, error);
-    throw new Error(`Failed to create Firestore database: ${error.message}`);
+    
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error(`Error creating Firestore database ${databaseId}:`, errorBody);
+        const errorMessage = errorBody.error?.message || `Request failed with status code ${response.status}`;
+        return { success: false, error: `Failed to create Firestore database: ${errorMessage}` };
+    }
+    
+    console.log(`Database creation initiated for ${databaseId}.`);
+    // This is a long-running operation, we don't wait for it to complete here.
+    return { success: true };
+
+  } catch (error: any) {
+    console.error(`Exception while trying to create Firestore database ${databaseId}:`, error);
+    return { success: false, error: `Failed to create Firestore database: ${error.message}` };
   }
 }
 
@@ -85,13 +97,18 @@ export async function createTenantAndUser(
       disabled: false,
     });
     
-    // Define the new database ID. It must be lowercase.
     const databaseId = `${data.subdomain.toLowerCase()}-${Math.random().toString(36).substring(2, 7)}`;
     const projectId = process.env.GCLOUD_PROJECT || 'studio-8059115072-3707d';
     const location = 'nam5'; // e.g., 'nam5' (North America), 'eur3' (Europe)
 
     // 1. Initiate the creation of the new Firestore database
-    await createFirestoreDatabase(projectId, databaseId, location);
+    const dbCreationResult = await createFirestoreDatabase(projectId, databaseId, location);
+    if (!dbCreationResult.success) {
+      // If DB creation fails, we should not proceed.
+      // We might want to delete the created auth user here for cleanup.
+      await adminAuth.deleteUser(userRecord.uid);
+      return { success: false, error: dbCreationResult.error };
+    }
 
     // 2. Create the tenant document in the 'default' database
     const newTenant: Omit<Tenant, 'id'> = {
@@ -104,11 +121,9 @@ export async function createTenantAndUser(
       status: 'active',
     };
     await tenantsRef.doc(data.subdomain).set(newTenant);
-
+    
     // The initialization of the new database (creating collections) will be handled
     // by the client-side FirebaseClientProvider the first time the tenant logs in.
-    // This is because we cannot reliably wait for the database creation to finish here.
-    
     console.log(`Tenant ${data.subdomain} created. DB ID: ${databaseId}. Initialization will occur on first login.`);
 
     return { success: true };
