@@ -5,7 +5,7 @@ import React, { useMemo, type ReactNode, useState, useEffect } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase, getSdks } from '@/firebase';
 import type { FirebaseApp } from 'firebase/app';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { Loader2, ServerCrash } from 'lucide-react';
@@ -74,7 +74,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
   }
 
   // If an error occurred (like tenant not found), show error page.
-  if (error && !publicPages.includes(pathname)) {
+  if (error && !['/login', '/signup'].includes(pathname)) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center">
             <div className="container mx-auto p-4">
@@ -94,7 +94,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
   }
   
   if (!services) {
-      if (publicPages.includes(pathname)) return <>{children}</>;
+      if (['/login', '/signup'].includes(pathname)) return <>{children}</>;
       return null;
   }
 
