@@ -22,7 +22,38 @@ export async function initializeFirebase() {
   const parts = hostname.split('.');
   
   const isDevEnvironment = hostname.includes('localhost') || hostname.includes('cloudworkstations.dev') || hostname.includes('.web.app');
-  const subdomain = isDevEnvironment && parts.length <= 2 ? 'ardila' : (parts.length > 2 ? parts[0] : null);
+  let subdomain = null;
+
+  if (isDevEnvironment) {
+      // For dev, if there's only one part (e.g., 'localhost'), we default to 'ardila'.
+      // If there are more parts, we assume the first is the subdomain.
+      subdomain = parts.length > 2 ? parts[0] : (parts.length === 1 && hostname === 'localhost' ? 'ardila' : parts[0]);
+      if (hostname.includes('cloudworkstations.dev') && parts.length > 2) {
+          const portAndMaybeSubdomain = parts[0];
+          // Simple check if it's just a port number
+          if (!/^\d+$/.test(portAndMaybeSubdomain)) {
+              subdomain = portAndMaybeSubdomain.split('-').slice(1).join('-') || 'ardila';
+          } else {
+              subdomain = 'ardila';
+          }
+      }
+      if(subdomain === '9000-firebase-studio-1761082913460'){
+          subdomain = 'ardila'
+      }
+
+  } else {
+      // For production, a subdomain is expected if there are more than 2 parts (e.g., 'sub.domain.com')
+      subdomain = parts.length > 2 ? parts[0] : null;
+  }
+  
+  // A special case for the 'ardila' tenant for dev purposes, if no other subdomain is found.
+  if (!subdomain) {
+     const defaultAdminUser = 'axdrcys@gmail.com'; // The email of the default admin
+     const auth = getAuth(app);
+     if (auth.currentUser && auth.currentUser.email === defaultAdminUser) {
+         subdomain = 'ardila';
+     }
+  }
 
 
   if (!subdomain) {
@@ -69,3 +100,4 @@ export * from './firestore/use-doc';
 export * from './non-blocking-updates';
 export * from './errors';
 export * from './error-emitter';
+

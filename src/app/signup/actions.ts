@@ -36,7 +36,6 @@ async function initializeTenantData(tenantId: string, owner: { uid: string, emai
     try {
         const batch = adminDb.batch();
 
-        // All paths are now relative to the root of the default DB
         const tenantRoot = adminDb.collection('tenants').doc(tenantId);
 
         // 1. Create Admin Role
@@ -140,6 +139,8 @@ export async function createTenantAndUser(
       errorMessage = 'El correo electrónico ya está en uso por otra cuenta.';
     } else if (error.code === 'auth/weak-password') {
       errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 8 caracteres.';
+    } else if (error.code?.includes('PERMISSION_DENIED') || error.code?.includes('forbidden')) {
+      errorMessage = `Error de permisos: La cuenta de servicio del servidor no tiene los permisos necesarios para crear un usuario de autenticación. Por favor, revisa la configuración IAM de tu proyecto de Google Cloud. Error original: ${error.message}`;
     }
 
     return { success: false, error: errorMessage };

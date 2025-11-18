@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import type { Role, User, Tenant } from "@/lib/types";
+import { createTenantAndUser } from "@/app/signup/actions";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -66,69 +67,29 @@ export default function LoginPage() {
       
       if (isLoginError && data.email === 'axdrcys@gmail.com') {
         try {
-          if (!firestore) throw new Error("Firestore not available");
-          
-          // 1. Create the Auth User
-          const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-          const newAuthUser = userCredential.user;
-
-          // 2. Create the 'ardila' tenant document
-           const ardilaTenant: Omit<Tenant, 'id'> = {
-              companyName: 'Ardila Campaña',
-              subdomain: 'ardila',
-              plan: '360',
-              databaseId: '(default)', // Use the default DB for the dev tenant
-              ownerUid: newAuthUser.uid,
-              createdAt: new Date().toISOString(),
-              status: 'active',
-           };
-           // We use the subdomain as the document ID for predictability
-           await setDoc(doc(firestore, 'tenants', 'ardila'), ardilaTenant);
-
-          // 3. Create the Admin Role
-          await setDoc(doc(firestore, 'roles', 'admin'), {
-            name: 'Admin',
-            permissions: [
-              "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
-              "voter:create", "voter:read", "voter:update", "voter:delete",
-              "user:create", "user:read", "user:update", "user:delete",
-              "role:create", "role:read", "role:update", "role:delete",
-              "city:create", "city:read", "city:update", "city:delete",
-              "task:create", "task:read", "task:update", "task:delete",
-              "call:create", "call:read", "call:update", "call:delete",
-              "report:read",
-              "setting:update"
-            ],
-            status: 'activo'
+          // This will now use the server action to create the tenant and user.
+          await createTenantAndUser({
+            companyName: 'Ardila Campaña',
+            fullName: 'AXCYS Admin',
+            subdomain: 'ardila',
+            email: data.email,
+            password: data.password,
+            plan: '360',
           });
 
-          // 4. Create the Admin User Profile
-          const adminProfile: Omit<User, 'id'> = {
-            firstName: 'AXCYS',
-            lastName: 'Admin',
-            email: newAuthUser.email!,
-            roleId: 'admin',
-            idType: 'admin',
-            idNumber: '00000000',
-            phone: '0000000000',
-            cityIds: [],
-            campaignIds: [],
-            avatar: `https://picsum.photos/seed/admin/100/100`,
-            status: 'activo',
-          };
+          // After successful creation, try to sign in again.
+          await signInWithEmailAndPassword(auth, data.email, data.password);
           
-          await setDoc(doc(firestore, 'users', newAuthUser.uid), adminProfile);
-
           toast({
             title: "Cuenta de Administrador Creada",
-            description: "Se ha creado la cuenta y el inquilino de desarrollo. Has iniciado sesión.",
+            description: "Se ha creado la cuenta y el inquilino de desarrollo 'ardila'. Has iniciado sesión.",
           });
           router.push("/");
 
         } catch (creationError: any) {
            console.error("Admin creation/login error:", creationError);
            let description = "No se pudo iniciar sesión ni crear la cuenta de administrador.";
-           if (creationError.code === 'auth/email-already-in-use') {
+           if (creationError.message?.includes('auth/email-already-exists')) {
                description = "El email ya está registrado. Si olvidaste la contraseña, contacta a soporte.";
            } else if (creationError.code === 'auth/wrong-password') {
                 description = "La contraseña es incorrecta. Por favor, inténtalo de nuevo.";
