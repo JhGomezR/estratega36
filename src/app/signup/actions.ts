@@ -1,7 +1,7 @@
 
 'use server'
 
-import { admin, adminAuth, adminDb } from '@/firebase/admin'
+import { adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
 import { GoogleAuth } from 'google-auth-library';
