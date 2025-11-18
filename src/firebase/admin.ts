@@ -16,6 +16,7 @@ function getAdminApp() {
   try {
     const app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      projectId: serviceAccount.project_id, // Explicitly set project ID
     });
     console.log('Firebase Admin SDK initialized successfully.');
     return app;
@@ -28,7 +29,9 @@ function getAdminApp() {
 }
 
 const adminApp = getAdminApp();
+// The main admin instance, useful for accessing services like firestore()
 const adminAuth = admin.auth(adminApp);
+// A direct reference to the default Firestore database instance
 const adminDb = admin.firestore(adminApp);
 
 export { admin, adminAuth, adminDb };

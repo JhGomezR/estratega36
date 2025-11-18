@@ -4,6 +4,7 @@
 import { admin, adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
+import { google } from 'googleapis'
 
 const signUpFormSchema = z.object({
   companyName: z.string(),
@@ -23,42 +24,46 @@ export async function checkSubdomainAvailability(
     if (!subdomain) {
       return { exists: false }
     }
-    // All tenants are in the default DB, so we check there.
     const existingTenant = await adminDb.collection('tenants').doc(subdomain).get()
     return { exists: existingTenant.exists }
   } catch (error) {
     console.error('Error checking subdomain:', error)
-    // Fail safe: if we can't check, assume it exists to prevent overwrites.
     return { exists: true }
   }
 }
 
-async function initializeTenantData(
-  tenantId: string,
-  adminUser: Omit<User, 'id'>,
-  adminUserId: string
-) {
+async function createFirestoreDatabase(projectId: string, databaseId: string, locationId: string): Promise<void> {
   try {
-    // All data is written to the default DB, but under the tenant's path.
-    const batch = adminDb.batch();
+    const auth = new google.auth.GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    });
+    const authClient = await auth.getClient();
+    const firestoreAdmin = google.firestore({ version: 'v1', auth: authClient });
 
-    // The user profile is now stored under the tenant's subcollection
-    const userRef = adminDb.doc(`tenants/${tenantId}/users/${adminUserId}`);
-    batch.set(userRef, adminUser);
+    console.log(`Requesting creation of database: ${databaseId} in project ${projectId} at ${locationId}`);
 
-    // We can also add tenant-specific roles, lists, etc. here if needed in the future.
-    // For now, roles and lists are global in the default DB.
+    // This starts a long-running operation, but we don't wait for it here.
+    await firestoreAdmin.projects.databases.create({
+        parent: `projects/${projectId}`,
+        databaseId: databaseId,
+        requestBody: {
+            locationId: locationId,
+            type: 'NATIVE', // Or 'DATASTORE_MODE'
+        },
+    });
 
-    await batch.commit();
-    console.log(`Initial data for tenant ${tenantId} created successfully in the default database.`);
-    
-  } catch (error) {
-    console.error(`Error initializing data for tenant ${tenantId}:`, error);
-    // This is a critical error, we should probably handle it (e.g., by cleaning up the created user/tenant)
-    // For now, we throw to make the failure visible.
-    throw error;
+    console.log(`Database creation initiated for ${databaseId}.`);
+  } catch (error: any) {
+    // It's common to get an "ALREADY_EXISTS" error if you re-run this, which can be ignored in dev.
+    if (error.code === 6) { // 6 corresponds to ALREADY_EXISTS
+        console.log(`Database ${databaseId} already exists. Proceeding...`);
+        return;
+    }
+    console.error(`Error creating Firestore database ${databaseId}:`, error);
+    throw new Error(`Failed to create Firestore database: ${error.message}`);
   }
 }
+
 
 export async function createTenantAndUser(
   data: SignUpFormValues
@@ -71,9 +76,7 @@ export async function createTenantAndUser(
       return { success: false, error: 'El subdominio ya está en uso.' };
     }
 
-    const [firstName, ...lastNameParts] = data.fullName.split(' ');
-    const lastName = lastNameParts.join(' ');
-
+    // Create Auth user (this is global for the project)
     const userRecord = await adminAuth.createUser({
       email: data.email,
       password: data.password,
@@ -82,48 +85,31 @@ export async function createTenantAndUser(
       disabled: false,
     });
     
-    // All tenants will use the single, default database.
-    const databaseId = `(default)`;
+    // Define the new database ID. It must be lowercase.
+    const databaseId = `${data.subdomain.toLowerCase()}-${Math.random().toString(36).substring(2, 7)}`;
+    const projectId = process.env.GCLOUD_PROJECT || 'studio-8059115072-3707d';
+    const location = 'nam5'; // e.g., 'nam5' (North America), 'eur3' (Europe)
 
+    // 1. Initiate the creation of the new Firestore database
+    await createFirestoreDatabase(projectId, databaseId, location);
+
+    // 2. Create the tenant document in the 'default' database
     const newTenant: Omit<Tenant, 'id'> = {
       companyName: data.companyName,
       subdomain: data.subdomain,
       plan: data.plan,
-      databaseId: databaseId, // All tenants point to the default DB
+      databaseId: databaseId, 
       ownerUid: userRecord.uid,
       createdAt: new Date().toISOString(),
       status: 'active',
     };
-    // Create the main tenant document in the `tenants` collection.
     await tenantsRef.doc(data.subdomain).set(newTenant);
 
-    const adminProfile: Omit<User, 'id'> = {
-      firstName,
-      lastName,
-      email: userRecord.email!,
-      roleId: 'admin',
-      idType: 'admin',
-      idNumber: '00000000',
-      phone: '0000000000',
-      cityIds: [],
-      campaignIds: [],
-      avatar: `https://picsum.photos/seed/${userRecord.uid}/100/100`,
-      status: 'activo',
-    };
+    // The initialization of the new database (creating collections) will be handled
+    // by the client-side FirebaseClientProvider the first time the tenant logs in.
+    // This is because we cannot reliably wait for the database creation to finish here.
     
-    // Now, initialize the tenant's specific data within the default database.
-    // This includes creating the admin's user profile within the tenant's subcollection.
-    await initializeTenantData(data.subdomain, adminProfile, userRecord.uid);
-    
-    // Also write default roles to the main DB if they don't exist
-    const adminRoleDoc = await adminDb.collection('roles').doc('admin').get();
-    if (!adminRoleDoc.exists) {
-         await adminDb.collection('roles').doc('admin').set({
-            name: 'Admin',
-            permissions: [ "campaign:create", "campaign:read", "campaign:update", "campaign:delete", "voter:create", "voter:read", "voter:update", "voter:delete", "user:create", "user:read", "user:update", "user:delete", "role:create", "role:read", "role:update", "role:delete", "city:create", "city:read", "city:update", "city:delete", "task:create", "task:read", "task:update", "task:delete", "call:create", "call:read", "call:update", "call:delete", "report:read", "setting:update" ],
-            status: 'activo'
-        });
-    }
+    console.log(`Tenant ${data.subdomain} created. DB ID: ${databaseId}. Initialization will occur on first login.`);
 
     return { success: true };
   } catch (error: any) {
