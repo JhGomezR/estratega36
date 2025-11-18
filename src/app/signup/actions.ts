@@ -114,31 +114,30 @@ async function createFirestoreDatabase(
 /**
  * Initializes a new Firestore database with default collections and documents.
  * @param databaseId The ID of the Firestore database to initialize.
+ * @param adminProfile The profile of the admin user to create in this DB.
+ * @param ownerUid The UID of the owner, to be used for the admin user document ID.
  */
-async function initializeTenantDatabase(databaseId: string) {
+async function initializeTenantDatabase(
+  databaseId: string,
+  adminProfile: Omit<User, 'id'>,
+  ownerUid: string
+) {
   if (databaseId === '(default)') {
     console.log('Skipping initialization for default database.')
     return
   }
 
-  // A temporary app instance name
-  const appName = `tenant-init-${databaseId}-${Date.now()}`;
-  let tempApp: admin.app.App | undefined;
-
   try {
-    // This requires a short delay to ensure the database is ready after the creation call.
-    await new Promise(resolve => setTimeout(resolve, 25000)); // 25-second delay for safety
+    // Wait for DB to be available. This is a hack for the demo.
+    // In production, you'd use a Cloud Function triggered by the DB creation log or poll the operation.
+    await new Promise(resolve => setTimeout(resolve, 30000)); // 30-second delay
 
-    // Initialize a new, temporary Firebase Admin app instance
-    tempApp = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
-    }, appName);
-    
-    // Get a Firestore instance for the specific tenant database by accessing the app's services
-    const tenantDb = admin.firestore(tempApp);
+    // Get a Firestore instance for the specific tenant database.
+    // This is the correct way to target a non-default database.
+    const tenantDb = admin.firestore().database(databaseId);
+    console.log(`Successfully connected to database: ${databaseId}`);
 
-    const batch = tenantDb.batch()
+    const batch = tenantDb.batch();
 
     // 1. Create default roles
     const roles = {
@@ -159,12 +158,12 @@ async function initializeTenantDatabase(databaseId: string) {
       ], status: 'activo'},
       promotor: { name: 'Promotor', permissions: ['voter:create', 'voter:read', 'task:read', 'call:read'], status: 'activo'},
       voluntario: { name: 'Voluntario', permissions: ['voter:create', 'voter:read'], status: 'activo'},
-    }
+    };
 
-    Object.entries(roles).forEach(([roleName, roleData]) => {
-      const roleRef = tenantDb.collection('roles').doc(roleName)
-      batch.set(roleRef, roleData)
-    })
+    Object.entries(roles).forEach(([roleId, roleData]) => {
+      const roleRef = tenantDb.collection('roles').doc(roleId);
+      batch.set(roleRef, roleData);
+    });
 
     // 2. Create default managed lists
     const defaultLists = {
@@ -173,27 +172,27 @@ async function initializeTenantDatabase(databaseId: string) {
       taskStatuses: { name: 'Estados de Tareas', items: ['pendiente', 'en_curso', 'finalizada', 'archivada'] },
       campaignTypes: { name: 'Tipos de Campaña', items: ['presidencia', 'alcaldia', 'gobernacion'] },
       campaignStatuses: { name: 'Estados de Campaña', items: ['Futura', 'En Campaña', 'Finalizada', 'Archivada'] },
-    }
+    };
 
     Object.entries(defaultLists).forEach(([key, value]) => {
         const listRef = tenantDb.collection('lists').doc(key);
         batch.set(listRef, value);
     });
 
+    // 3. Create the admin user profile within the new database
+    const userRef = tenantDb.collection('users').doc(ownerUid);
+    // Remove tenantId from the profile stored inside the tenant's own DB
+    const { tenantId, ...profileForTenantDb } = adminProfile;
+    batch.set(userRef, profileForTenantDb);
+
+
     // Commit the batch
-    await batch.commit()
-    console.log(`Successfully initialized database: ${databaseId}`)
+    await batch.commit();
+    console.log(`Successfully initialized collections and admin user in database: ${databaseId}`);
 
   } catch (error) {
-    console.error(`Error initializing tenant database ${databaseId}:`, error)
-    // Even if initialization fails, we don't want to fail the whole signup process.
+    console.error(`Error initializing tenant database ${databaseId}:`, error);
     // Log the error for manual intervention.
-  } finally {
-      // Ensure the temporary app is always deleted.
-      if (tempApp) {
-          await tempApp.delete();
-          console.log(`Deleted temporary app: ${appName}`);
-      }
   }
 }
 
@@ -246,8 +245,7 @@ export async function createTenantAndUser(
     }
     await tenantsRef.doc(data.subdomain).set(newTenant)
 
-    // 6. Create the admin user profile in the default database
-    // This profile INCLUDES the tenantId for easy lookup.
+    // 6. Define the admin user profile
     const adminProfile: Omit<User, 'id'> = {
       firstName,
       lastName,
@@ -263,12 +261,12 @@ export async function createTenantAndUser(
       status: 'activo',
     }
 
-    // This user profile goes into the default DB.
+    // This user profile goes into the default DB for global user lookup.
     await adminDb.collection('users').doc(userRecord.uid).set(adminProfile)
     
-    // 7. Initialize the new tenant's database with default collections
-    // We don't await this because it can take a while and we can let it run in the background.
-    initializeTenantDatabase(databaseId);
+    // 7. Initialize the new tenant's database with default collections and the admin user.
+    // This is not awaited to allow the UI to respond faster.
+    initializeTenantDatabase(databaseId, adminProfile, userRecord.uid);
 
 
     return { success: true }
