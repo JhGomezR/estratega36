@@ -4,7 +4,6 @@
 import { adminAuth, adminDb } from '@/firebase/admin'
 import type { User, Tenant } from '@/lib/types'
 import { z } from 'zod'
-import { GoogleAuth } from 'google-auth-library';
 
 const signUpFormSchema = z.object({
   companyName: z.string(),
@@ -32,56 +31,68 @@ export async function checkSubdomainAvailability(
   }
 }
 
-async function createFirestoreDatabase(
-  projectId: string,
-  databaseId: string,
-  locationId: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const auth = new GoogleAuth({
-      scopes: 'https://www.googleapis.com/auth/cloud-platform',
-    });
-    const client = await auth.getClient();
-    const accessToken = (await client.getAccessToken()).token;
+async function initializeTenantData(tenantId: string, owner: { uid: string, email: string, displayName: string | null}) {
+    console.log(`Initializing data for new tenant: ${tenantId}`);
+    try {
+        const batch = adminDb.batch();
 
-    if (!accessToken) {
-        throw new Error('Failed to retrieve a valid access token.');
+        // All paths are now relative to the root of the default DB
+        const tenantRoot = adminDb.collection('tenants').doc(tenantId);
+
+        // 1. Create Admin Role
+        const adminRoleRef = tenantRoot.collection('roles').doc('admin');
+        batch.set(adminRoleRef, {
+            name: 'Admin',
+            permissions: [ "campaign:create", "campaign:read", "campaign:update", "campaign:delete", "voter:create", "voter:read", "voter:update", "voter:delete", "user:create", "user:read", "user:update", "user:delete", "role:create", "role:read", "role:update", "role:delete", "city:create", "city:read", "city:update", "city:delete", "task:create", "task:read", "task:update", "task:delete", "call:create", "call:read", "call:update", "call:delete", "report:read", "setting:update" ],
+            status: 'activo'
+        });
+        
+        // 2. Create Admin User Profile
+        const [firstName, ...lastNameParts] = (owner.displayName || 'Admin').split(' ');
+        const adminProfile: Omit<User, 'id'> = {
+            firstName,
+            lastName: lastNameParts.join(' '),
+            email: owner.email!,
+            roleId: 'admin',
+            idType: 'admin',
+            idNumber: '00000000',
+            phone: '0000000000',
+            cityIds: [],
+            campaignIds: [],
+            avatar: `https://picsum.photos/seed/${owner.uid}/100/100`,
+            status: 'activo',
+        };
+        const userRef = tenantRoot.collection('users').doc(owner.uid);
+        batch.set(userRef, adminProfile);
+
+        // 3. Create default managed lists
+        const defaultLists = {
+            campaignStatuses: ['Futura', 'En Campaña', 'Finalizada', 'Archivada'],
+            taskPriorities: ['normal', 'alta', 'urgente'],
+            taskStatuses: ['pendiente', 'en_curso', 'finalizada', 'archivada'],
+            identificationTypes: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte'],
+            campaignTypes: ['presidencia', 'alcaldia', 'gobernacion'],
+        };
+        const listTitles: Record<string, string> = {
+            identificationTypes: "Tipos de Documento",
+            taskPriorities: "Prioridades de Tareas",
+            taskStatuses: "Estados de Tareas",
+            campaignTypes: "Tipos de Campaña",
+            campaignStatuses: "Estados de Campaña",
+        };
+
+        Object.entries(defaultLists).forEach(([key, value]) => {
+            const docRef = tenantRoot.collection('lists').doc(key);
+            batch.set(docRef, { name: listTitles[key], items: value });
+        })
+
+        await batch.commit();
+        console.log("Tenant data initialized successfully.");
+
+    } catch (error) {
+        console.error("CRITICAL: Failed to initialize tenant data:", error);
+        throw new Error("Failed to initialize tenant data. The user was created, but the tenant setup failed.");
     }
-
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases?databaseId=${databaseId}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        locationId: locationId,
-        type: 'NATIVE',
-      }),
-    });
-
-    if (response.status === 409) {
-      console.log(`Database ${databaseId} already exists. Proceeding.`);
-      return { success: true };
-    }
-    
-    if (!response.ok) {
-        const errorBody = await response.json();
-        console.error(`Error creating Firestore database ${databaseId}:`, errorBody);
-        const errorMessage = errorBody.error?.message || `Request failed with status code ${response.status}`;
-        return { success: false, error: `Failed to create Firestore database: ${errorMessage}` };
-    }
-    
-    const operation = await response.json();
-    console.log(`Database creation initiated for ${databaseId}. Operation: ${operation.name}`);
-    return { success: true };
-
-  } catch (error: any) {
-    console.error(`Exception while trying to create Firestore database ${databaseId}:`, error);
-    return { success: false, error: `Failed to create Firestore database: ${error.message}` };
-  }
 }
 
 
@@ -96,7 +107,7 @@ export async function createTenantAndUser(
       return { success: false, error: 'El subdominio ya está en uso.' };
     }
 
-    // Create Auth user (this is global for the project)
+    // 1. Create Auth user (global for the project)
     const userRecord = await adminAuth.createUser({
       email: data.email,
       password: data.password,
@@ -105,46 +116,30 @@ export async function createTenantAndUser(
       disabled: false,
     });
     
-    const databaseId = `${data.subdomain.toLowerCase()}-${Math.random().toString(36).substring(2, 7)}`;
-    const projectId = process.env.GCLOUD_PROJECT || 'studio-8059115072-3707d';
-    const location = 'nam5'; // e.g., 'nam5' (North America), 'eur3' (Europe)
-
-    // 1. Initiate the creation of the new Firestore database
-    const dbCreationResult = await createFirestoreDatabase(projectId, databaseId, location);
-    if (!dbCreationResult.success) {
-      // If DB creation fails, we should not proceed.
-      // We might want to delete the created auth user here for cleanup.
-      await adminAuth.deleteUser(userRecord.uid);
-      return { success: false, error: dbCreationResult.error };
-    }
-
     // 2. Create the tenant document in the 'default' database
     const newTenant: Omit<Tenant, 'id'> = {
       companyName: data.companyName,
       subdomain: data.subdomain,
       plan: data.plan,
-      databaseId: databaseId, 
+      databaseId: '(default)', // All tenants use the default database
       ownerUid: userRecord.uid,
       createdAt: new Date().toISOString(),
       status: 'active',
     };
     await tenantsRef.doc(data.subdomain).set(newTenant);
     
-    // The initialization of the new database (creating collections) will be handled
-    // by the client-side FirebaseClientProvider the first time the tenant logs in.
-    console.log(`Tenant ${data.subdomain} created. DB ID: ${databaseId}. Initialization will occur on first login.`);
+    // 3. Initialize the tenant's data within subcollections
+    await initializeTenantData(data.subdomain, userRecord);
 
     return { success: true };
   } catch (error: any) {
     console.error('Error creating tenant and user:', error);
 
-    let errorMessage = 'Ocurrió un error desconocido durante la creación de la cuenta.';
+    let errorMessage = error.message || 'Ocurrió un error desconocido durante la creación de la cuenta.';
     if (error.code === 'auth/email-already-exists') {
       errorMessage = 'El correo electrónico ya está en uso por otra cuenta.';
     } else if (error.code === 'auth/weak-password') {
       errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 8 caracteres.';
-    } else if (error.message) {
-      errorMessage = error.message;
     }
 
     return { success: false, error: errorMessage };

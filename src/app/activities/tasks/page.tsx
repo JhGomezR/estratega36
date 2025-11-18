@@ -39,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Separator } from "@/components/ui/separator"
@@ -59,14 +59,14 @@ const TASKS_PER_PAGE = 15;
 
 export default function TasksPage() {
   const firestore = useFirestore();
+  const tenantId = useTenant();
 
-  const { data: tasksData, isLoading: tasksLoading } = useCollection<Task>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'tasks') : null, [firestore])
-  );
-  const { data: users, isLoading: usersLoading } = useCollection<User>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
-  );
-  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const tasksCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/tasks`) : null, [firestore, tenantId]);
+  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+  const listsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/lists`) : null, [firestore, tenantId]);
+
+  const { data: tasksData, isLoading: tasksLoading } = useCollection<Task>(tasksCollectionRef);
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
   
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
@@ -140,18 +140,18 @@ export default function TasksPage() {
   };
 
   const handleDelete = () => {
-    if (firestore && taskToDelete) {
-      setDocumentNonBlocking(doc(firestore, 'tasks', taskToDelete.id), { status: 'archivada' }, { merge: true });
+    if (tasksCollectionRef && taskToDelete) {
+      setDocumentNonBlocking(doc(tasksCollectionRef, taskToDelete.id), { status: 'archivada' }, { merge: true });
       setTaskToDelete(null);
     }
   };
 
   const handleFormSubmit = (data: Omit<Task, 'id' | 'startDate'>) => {
-    if (firestore) {
+    if (tasksCollectionRef) {
       if (selectedTask) {
-        setDocumentNonBlocking(doc(firestore, 'tasks', selectedTask.id), data, { merge: true });
+        setDocumentNonBlocking(doc(tasksCollectionRef, selectedTask.id), data, { merge: true });
       } else {
-         addDocumentNonBlocking(collection(firestore, 'tasks'), {
+         addDocumentNonBlocking(tasksCollectionRef, {
           ...data,
           startDate: format(new Date(), "yyyy-MM-dd"),
         });
@@ -421,5 +421,3 @@ export default function TasksPage() {
     </div>
   )
 }
-
-    

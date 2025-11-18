@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -6,7 +7,7 @@ import {
 } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
 import { isSameDay, parseISO, isWithinInterval, addMonths, subMonths, format, isToday } from 'date-fns'
@@ -115,12 +116,13 @@ function DayWithTasks({
 
 export default function CalendarPage() {
   const firestore = useFirestore()
-  const { data: tasksData, isLoading: tasksLoading } = useCollection<Task>(
-    useMemoFirebase(() => firestore ? collection(firestore, "tasks") : null, [firestore])
-  )
-  const { data: users, isLoading: usersLoading } = useCollection<User>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
-  );
+  const tenantId = useTenant();
+
+  const tasksCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/tasks`) : null, [firestore, tenantId]);
+  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+  
+  const { data: tasksData, isLoading: tasksLoading } = useCollection<Task>(tasksCollectionRef);
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
 
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date())
   const [taskToView, setTaskToView] = React.useState<Task | null>(null);

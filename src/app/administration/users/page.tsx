@@ -40,7 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useTenant, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -49,23 +49,21 @@ import { createUser } from "./actions"
 
 export default function UsersPage() {
   const firestore = useFirestore();
-  const auth = useAuth();
+  const { user: authUser } = useAuth();
   const { toast } = useToast();
   const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
+  const tenantId = useTenant();
 
-  const { data: usersData, isLoading: usersLoading } = useCollection<User>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
-  );
-  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
-  );
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
-  );
-  const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
-  );
-  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+  const rolesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/roles`) : null, [firestore, tenantId]);
+  const citiesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/cities`) : null, [firestore, tenantId]);
+  const campaignsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/campaigns`) : null, [firestore, tenantId]);
+  const listsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/lists`) : null, [firestore, tenantId]);
+
+  const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
+  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
+  const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollectionRef);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null)
@@ -77,8 +75,8 @@ export default function UsersPage() {
 
     const activeUsers = usersData.filter(u => u.status !== 'inactivo');
 
-    // Super admin can see everyone
-    if (auth.currentUser?.email === 'axdrcys@gmail.com') {
+    // Super admin can see everyone in their tenant
+    if (authUser?.email === 'axdrcys@gmail.com') {
       return activeUsers;
     }
     
@@ -103,7 +101,7 @@ export default function UsersPage() {
     // Other roles can only see themselves
     return activeUsers.filter(u => u.id === currentUser.uid);
 
-  }, [usersData, currentUser, roles, auth.currentUser]);
+  }, [usersData, currentUser, roles, authUser]);
 
 
   const lists = React.useMemo(() => {
@@ -131,14 +129,14 @@ export default function UsersPage() {
   }
 
   const handleDelete = () => {
-    if (userToDelete && firestore) {
-      setDocumentNonBlocking(doc(firestore, 'users', userToDelete.id), { status: 'inactivo' }, { merge: true });
+    if (userToDelete && firestore && tenantId) {
+      setDocumentNonBlocking(doc(firestore, `tenants/${tenantId}/users`, userToDelete.id), { status: 'inactivo' }, { merge: true });
       setUserToDelete(null)
     }
   }
 
  const handleFormSubmit = async (data: UserFormValues) => {
-    if (!firestore) return;
+    if (!firestore || !tenantId) return;
 
     try {
       if (selectedUser) {
@@ -148,7 +146,7 @@ export default function UsersPage() {
         if ('parentId' in finalData && (finalData.parentId === 'none' || !finalData.parentId)) {
             delete finalData.parentId;
         }
-        setDocumentNonBlocking(doc(firestore, 'users', selectedUser.id), finalData, { merge: true });
+        setDocumentNonBlocking(doc(firestore, `tenants/${tenantId}/users`, selectedUser.id), finalData, { merge: true });
         toast({ title: "Usuario Actualizado", description: "Los datos del usuario han sido actualizados." });
       } else {
         // Creating a new user via Server Action
@@ -156,7 +154,8 @@ export default function UsersPage() {
           toast({ variant: "destructive", title: "Error al crear usuario", description: "La contraseña es obligatoria para nuevos usuarios." });
           return;
         }
-        const result = await createUser(data);
+        // Pass tenantId to the server action
+        const result = await createUser(data, tenantId);
         if (result.error) {
           throw new Error(result.error);
         }
@@ -166,13 +165,11 @@ export default function UsersPage() {
     } catch (error: any) {
       console.error("Error handling user form:", error);
       let description = "Ocurrió un error inesperado.";
-      // Check for specific Firebase Auth error codes from the server action
       if (error.message.includes('auth/email-already-in-use') || error.message.includes('auth/email-already-exists')) {
         description = "El correo electrónico ya está en uso por otra cuenta.";
       } else if (error.message.includes('auth/weak-password')) {
         description = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
       } else if (error.message) {
-        // Use the error message directly if it's not one of the common ones
         description = error.message;
       }
       toast({ variant: "destructive", title: "Error al Crear Usuario", description, duration: 9000 });

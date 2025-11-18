@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
 import { collection, doc, writeBatch } from "firebase/firestore"
 import type { Call, Voter, User } from "@/lib/types"
 import { CallForm } from "@/components/call-form"
@@ -68,18 +68,17 @@ const CALLS_PER_PAGE = 15;
 
 export default function CallsPage() {
   const firestore = useFirestore();
+  const tenantId = useTenant();
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
-  
-  const { data: callsData, isLoading: callsLoading } = useCollection<Call>(
-    useMemoFirebase(() => firestore ? collection(firestore, "calls") : null, [firestore])
-  );
-  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
-    useMemoFirebase(() => firestore ? collection(firestore, "voters") : null, [firestore])
-  );
-  const { data: users, isLoading: usersLoading } = useCollection<User>(
-    useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore])
-  );
+
+  const callsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/calls`) : null, [firestore, tenantId]);
+  const votersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/voters`) : null, [firestore, tenantId]);
+  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+
+  const { data: callsData, isLoading: callsLoading } = useCollection<Call>(callsCollectionRef);
+  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isViewOpen, setIsViewOpen] = React.useState(false);
@@ -110,7 +109,7 @@ export default function CallsPage() {
 
   React.useEffect(() => {
     const syncCallList = async () => {
-      if (!firestore || !voters || !callsData) return;
+      if (!firestore || !voters || !callsData || !callsCollectionRef) return;
 
       setIsSyncing(true);
       try {
@@ -120,7 +119,7 @@ export default function CallsPage() {
         if (votersToCall.length > 0) {
           const batch = writeBatch(firestore);
           votersToCall.forEach(voter => {
-            const newCallRef = doc(collection(firestore, "calls"));
+            const newCallRef = doc(callsCollectionRef);
             batch.set(newCallRef, {
               voterId: voter.id,
               status: "pendiente",
@@ -148,7 +147,7 @@ export default function CallsPage() {
     };
 
     syncCallList();
-  }, [voters, callsData, firestore, toast]);
+  }, [voters, callsData, firestore, toast, callsCollectionRef]);
 
   const getVoterInfo = React.useCallback((voterId: string) => {
     return voters?.find(v => v.id === voterId);
@@ -216,28 +215,21 @@ export default function CallsPage() {
   }
 
   const handleFormSubmit = (data: Omit<Call, 'id' | 'voterId' | 'callDate' | 'status_call'>) => {
-    if (firestore && selectedCall) {
+    if (callsCollectionRef && selectedCall) {
       let callData: Partial<Call> = { ...data };
       if (data.status === 'atendida' && selectedCall.status !== 'atendida') {
         callData.callDate = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'");
       }
-      setDocumentNonBlocking(doc(firestore, 'calls', selectedCall.id), callData, { merge: true });
+      setDocumentNonBlocking(doc(callsCollectionRef, selectedCall.id), callData, { merge: true });
     }
     setIsFormOpen(false);
   };
 
-  const handleAttemptsChange = (callId: string, value: string) => {
-    const newAttempts = parseInt(value, 10);
-    if (!isNaN(newAttempts)) {
-        setLocalAttempts(prev => ({ ...prev, [callId]: newAttempts }));
-    }
-  }
-
   const handleAttemptsBlur = (callId: string) => {
-    if (firestore && localAttempts[callId] !== undefined) {
+    if (callsCollectionRef && localAttempts[callId] !== undefined) {
       const originalCall = calls?.find(c => c.id === callId);
       if (originalCall && originalCall.attempts !== localAttempts[callId]) {
-        setDocumentNonBlocking(doc(firestore, 'calls', callId), { attempts: localAttempts[callId] }, { merge: true });
+        setDocumentNonBlocking(doc(callsCollectionRef, callId), { attempts: localAttempts[callId] }, { merge: true });
       }
     }
   }
@@ -255,20 +247,20 @@ export default function CallsPage() {
       setSelectedCall(call);
       setCallDetails("");
       setIsDetailsOpen(true);
-    } else if (firestore) {
-      setDocumentNonBlocking(doc(firestore, 'calls', call.id), { status: newStatus }, { merge: true });
+    } else if (callsCollectionRef) {
+      setDocumentNonBlocking(doc(callsCollectionRef, call.id), { status: newStatus }, { merge: true });
     }
   };
 
   const handleSaveDetails = () => {
-    if (firestore && selectedCall) {
+    if (callsCollectionRef && selectedCall) {
       const callData: Partial<Call> = {
         status: 'atendida',
         details: callDetails,
         callDate: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
         userId: selectedCall.userId || currentUser?.uid,
       };
-      setDocumentNonBlocking(doc(firestore, 'calls', selectedCall.id), callData, { merge: true });
+      setDocumentNonBlocking(doc(callsCollectionRef, selectedCall.id), callData, { merge: true });
       toast({
         title: "Detalles guardados",
         description: "La información de la llamada ha sido registrada.",
@@ -283,8 +275,8 @@ export default function CallsPage() {
   };
 
   const handleDelete = () => {
-    if (callToDelete && firestore) {
-        setDocumentNonBlocking(doc(firestore, 'calls', callToDelete.id), { status_call: 'inactivo' }, { merge: true });
+    if (callToDelete && callsCollectionRef) {
+        setDocumentNonBlocking(doc(callsCollectionRef, callToDelete.id), { status_call: 'inactivo' }, { merge: true });
         setCallToDelete(null);
         toast({
             title: "Llamada archivada",
@@ -403,7 +395,7 @@ export default function CallsPage() {
                          <Input
                           type="number"
                           value={localAttempts[call.id] ?? 0}
-                          onChange={(e) => handleAttemptsChange(call.id, e.target.value)}
+                          onChange={(e) => setLocalAttempts(prev => ({...prev, [call.id]: parseInt(e.target.value, 10) || 0}))}
                           onBlur={() => handleAttemptsBlur(call.id)}
                           className="h-8 w-20 p-1 text-center"
                           disabled={isLocked}
@@ -591,5 +583,3 @@ export default function CallsPage() {
     </div>
   )
 }
-
-    

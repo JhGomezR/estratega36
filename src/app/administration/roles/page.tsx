@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -60,9 +60,10 @@ const actionLabels: Record<string, string> = {
 
 export default function RolesPage() {
   const firestore = useFirestore();
-  const { data: rolesData, isLoading } = useCollection<Role>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
-  );
+  const tenantId = useTenant();
+  const rolesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/roles`) : null, [firestore, tenantId]);
+  
+  const { data: rolesData, isLoading } = useCollection<Role>(rolesCollectionRef);
 
   const [selectedRole, setSelectedRole] = React.useState<Role | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -87,19 +88,19 @@ export default function RolesPage() {
   }
 
   const handleDelete = () => {
-    if (roleToDelete && firestore) {
-      setDocumentNonBlocking(doc(firestore, 'roles', roleToDelete.id), { status: 'inactivo' }, { merge: true });
+    if (roleToDelete && rolesCollectionRef) {
+      setDocumentNonBlocking(doc(rolesCollectionRef, roleToDelete.id), { status: 'inactivo' }, { merge: true });
       setRoleToDelete(null)
     }
   }
 
   const handleFormSubmit = (data: Omit<Role, 'id' | 'status'>) => {
-    if (firestore) {
+    if (rolesCollectionRef) {
       if (selectedRole) {
-        setDocumentNonBlocking(doc(firestore, 'roles', selectedRole.id), data, { merge: true });
+        setDocumentNonBlocking(doc(rolesCollectionRef, selectedRole.id), data, { merge: true });
       } else {
         const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
-        setDocumentNonBlocking(doc(firestore, 'roles', newRoleId), { ...data, status: 'activo' }, {});
+        setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), { ...data, status: 'activo' }, {});
       }
     }
     setIsFormOpen(false)

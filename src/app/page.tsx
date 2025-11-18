@@ -23,7 +23,7 @@ import {
   CalendarDays,
   PhoneForwarded
 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { type Campaign, type Voter, type User, type Task, type Call, type City } from '@/lib/types'
 import { subDays, parseISO, isToday, isWithinInterval, startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns'
@@ -33,19 +33,17 @@ import { VoterRegistrationChart } from '@/components/voter-registration-chart'
 
 export default function Dashboard() {
   const firestore = useFirestore();
+  const tenantId = useTenant();
 
-  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
-  );
-  const { data: users, isLoading: usersLoading } = useCollection<User>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
-  );
-  const { data: calls, isLoading: callsLoading } = useCollection<Call>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'calls') : null, [firestore])
-  );
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
-  );
+  const votersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/voters`) : null, [firestore, tenantId]);
+  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+  const callsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/calls`) : null, [firestore, tenantId]);
+  const citiesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/cities`) : null, [firestore, tenantId]);
+
+  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
+  const { data: calls, isLoading: callsLoading } = useCollection<Call>(callsCollectionRef);
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
   
   const promoters = users?.filter(u => u.roleId === 'promoter' || u.roleId === 'lider');
 

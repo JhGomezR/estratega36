@@ -31,7 +31,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import {
@@ -63,10 +63,11 @@ const CAMPAIGNS_PER_PAGE = 15;
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
-  const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore]);
+  const tenantId = useTenant();
+  const campaignsCollection = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/campaigns`) : null, [firestore, tenantId]);
   const { data: campaignsData, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollection);
 
-  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const listsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/lists`) : null, [firestore, tenantId]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
   
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);
@@ -81,13 +82,13 @@ export default function CampaignsPage() {
   }, [campaignsData]);
   
   React.useEffect(() => {
-    if (campaigns && firestore) {
+    if (campaigns && campaignsCollection) {
       campaigns.forEach(campaign => {
         if (campaign.status !== 'Finalizada' && campaign.status !== 'Archivada') {
           try {
             const endDate = parseISO(campaign.endDate);
             if (isPast(endDate) && !isToday(endDate)) {
-              setDocumentNonBlocking(doc(firestore, 'campaigns', campaign.id), { status: 'Finalizada', progress: 100 }, { merge: true });
+              setDocumentNonBlocking(doc(campaignsCollection, campaign.id), { status: 'Finalizada', progress: 100 }, { merge: true });
             }
           } catch (e) {
             console.error(`Invalid date for campaign ${campaign.id}: ${campaign.endDate}`);
@@ -95,7 +96,7 @@ export default function CampaignsPage() {
         }
       });
     }
-  }, [campaigns, firestore]);
+  }, [campaigns, campaignsCollection]);
 
   const processedCampaigns = React.useMemo(() => {
     if (!campaigns) return [];
@@ -173,23 +174,23 @@ export default function CampaignsPage() {
   }
 
   const handleDelete = () => {
-    if (firestore && campaignToDelete) {
-      setDocumentNonBlocking(doc(firestore, 'campaigns', campaignToDelete.id), { status: 'Archivada' }, { merge: true });
+    if (campaignsCollection && campaignToDelete) {
+      setDocumentNonBlocking(doc(campaignsCollection, campaignToDelete.id), { status: 'Archivada' }, { merge: true });
       setCampaignToDelete(null);
     }
   }
 
   const handleFormSubmit = (data: Omit<Campaign, 'id' | 'progress'>) => {
-    if (firestore) {
+    if (campaignsCollection) {
       const campaignData: Partial<Campaign> = { ...data };
       if (campaignData.status === 'Finalizada') {
           campaignData.progress = 100;
       }
       
       if (selectedCampaign) {
-        setDocumentNonBlocking(doc(firestore, 'campaigns', selectedCampaign.id), campaignData, { merge: true });
+        setDocumentNonBlocking(doc(campaignsCollection, selectedCampaign.id), campaignData, { merge: true });
       } else {
-        addDocumentNonBlocking(collection(firestore, 'campaigns'), {
+        addDocumentNonBlocking(campaignsCollection, {
           ...campaignData,
           progress: campaignData.status === 'Finalizada' ? 100 : 0,
         });

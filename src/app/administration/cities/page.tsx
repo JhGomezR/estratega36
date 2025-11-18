@@ -37,15 +37,16 @@ import {
   AlertDialogTitle as AlertDialogTitleElement,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 
 export default function CitiesPage() {
   const firestore = useFirestore();
-  const { data: citiesData, isLoading } = useCollection<City>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
-  );
+  const tenantId = useTenant();
+  const citiesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/cities`) : null, [firestore, tenantId]);
+
+  const { data: citiesData, isLoading } = useCollection<City>(citiesCollectionRef);
 
   const [selectedCity, setSelectedCity] = React.useState<City | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -70,18 +71,18 @@ export default function CitiesPage() {
   }
 
   const handleDelete = () => {
-    if (cityToDelete && firestore) {
-      setDocumentNonBlocking(doc(firestore, 'cities', cityToDelete.id), { status: 'inactivo' }, { merge: true });
+    if (cityToDelete && citiesCollectionRef) {
+      setDocumentNonBlocking(doc(citiesCollectionRef, cityToDelete.id), { status: 'inactivo' }, { merge: true });
       setCityToDelete(null)
     }
   }
 
   const handleFormSubmit = (data: Omit<City, 'id' | 'status'>) => {
-    if (firestore) {
+    if (citiesCollectionRef) {
       if (selectedCity) {
-        setDocumentNonBlocking(doc(firestore, 'cities', selectedCity.id), data, { merge: true });
+        setDocumentNonBlocking(doc(citiesCollectionRef, selectedCity.id), data, { merge: true });
       } else {
-        addDocumentNonBlocking(collection(firestore, 'cities'), { ...data, status: 'activo' });
+        addDocumentNonBlocking(citiesCollectionRef, { ...data, status: 'activo' });
       }
     }
     setIsFormOpen(false);

@@ -23,7 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useAuth, useDoc, useFirebase, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useDoc, useFirebase, useFirestore, useMemoFirebase, useTenant, useUser } from "@/firebase"
 import { Loader2, Save } from "lucide-react"
 import { doc } from "firebase/firestore"
 import type { User } from "@/lib/types"
@@ -56,15 +56,19 @@ export default function ProfilePage() {
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const tenantId = useTenant();
 
   const userRef = useMemoFirebase(() => {
-    return firestore && authUser ? doc(firestore, 'users', authUser.uid) : null
-  }, [firestore, authUser]);
+    return firestore && authUser && tenantId ? doc(firestore, `tenants/${tenantId}/users`, authUser.uid) : null
+  }, [firestore, authUser, tenantId]);
 
   const { data: user, isLoading: userLoading } = useDoc<User>(userRef);
-  const { data: role, isLoading: roleLoading } = useDoc<any>(
-      useMemoFirebase(() => firestore && user ? doc(firestore, 'roles', user.roleId) : null, [firestore, user])
-  );
+  
+  const roleRef = useMemoFirebase(() => {
+      return firestore && user?.roleId && tenantId ? doc(firestore, `tenants/${tenantId}/roles`, user.roleId) : null
+  }, [firestore, user, tenantId]);
+
+  const { data: role, isLoading: roleLoading } = useDoc<any>(roleRef);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const [isChangingPassword, setIsChangingPassword] = React.useState(false);

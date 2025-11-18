@@ -40,7 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useTenant, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -54,20 +54,18 @@ export default function VotersPage() {
   const { toast } = useToast();
   const auth = useAuth();
   const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
+  const tenantId = useTenant();
 
-  const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
-  );
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
-  );
-  const { data: users, isLoading: usersLoading } = useCollection<User>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
-  );
-  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
-  );
-  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const votersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/voters`) : null, [firestore, tenantId]);
+  const citiesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/cities`) : null, [firestore, tenantId]);
+  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+  const rolesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/roles`) : null, [firestore, tenantId]);
+  const listsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/lists`) : null, [firestore, tenantId]);
+
+  const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
+  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
@@ -101,8 +99,9 @@ export default function VotersPage() {
     if (!currentUserData) return [];
 
     const currentUserRole = roles.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
+    const adminRoles = ['admin', 'super_admin', 'super', 'administrador'];
 
-    if (currentUserRole === 'admin') {
+    if (currentUserRole && adminRoles.includes(currentUserRole)) {
       return activeVoters;
     }
 
@@ -172,8 +171,8 @@ export default function VotersPage() {
   }
 
   const handleDelete = () => {
-    if (voterToDelete && firestore) {
-      setDocumentNonBlocking(doc(firestore, 'voters', voterToDelete.id), { status: 'inactivo' }, { merge: true });
+    if (voterToDelete && votersCollectionRef) {
+      setDocumentNonBlocking(doc(votersCollectionRef, voterToDelete.id), { status: 'inactivo' }, { merge: true });
       setVoterToDelete(null)
       toast({
           title: "Votante Archivado",
@@ -183,7 +182,7 @@ export default function VotersPage() {
   }
 
   const handleFormSubmit = async (data: VoterFormValues) => {
-    if (!firestore) return;
+    if (!firestore || !votersCollectionRef) return;
 
     try {
         const city = cities?.find(c => c.id === data.cityId);
@@ -213,14 +212,14 @@ export default function VotersPage() {
         }
         
         if (selectedVoter) {
-            setDocumentNonBlocking(doc(firestore, 'voters', selectedVoter.id), voterData, { merge: true });
+            setDocumentNonBlocking(doc(votersCollectionRef, selectedVoter.id), voterData, { merge: true });
         } else {
             const newVoter = {
                 ...voterData,
                 status: 'activo' as const,
                 registrationDate: format(new Date(), "yyyy-MM-dd"),
             };
-            addDocumentNonBlocking(collection(firestore, 'voters'), newVoter);
+            addDocumentNonBlocking(votersCollectionRef, newVoter);
         }
 
         toast({

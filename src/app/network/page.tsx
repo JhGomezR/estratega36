@@ -2,7 +2,7 @@
 "use client"
 import React from 'react';
 import dynamic from 'next/dynamic';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useTenant } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { User, Voter, Role, Campaign } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
@@ -23,20 +23,18 @@ const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
 
 export default function NetworkPage() {
     const firestore = useFirestore();
+    const tenantId = useTenant();
     const { user: authUser, isLoading: permissionsLoading, hasPermission } = usePermissions();
 
-    const { data: usersData, isLoading: usersLoading } = useCollection<User>(
-        useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore])
-    );
-    const { data: voters, isLoading: votersLoading } = useCollection<Voter>(
-        useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore])
-    );
-    const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
-      useMemoFirebase(() => (firestore ? collection(firestore, 'roles') : null), [firestore])
-    );
-    const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(
-        useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
-    );
+    const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+    const votersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/voters`) : null, [firestore, tenantId]);
+    const rolesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/roles`) : null, [firestore, tenantId]);
+    const campaignsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/campaigns`) : null, [firestore, tenantId]);
+
+    const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
+    const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
+    const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
+    const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollectionRef);
     
     const [selectedCampaignId, setSelectedCampaignId] = React.useState<string | null>(null);
 

@@ -10,31 +10,25 @@ import type { Tenant } from '@/lib/types';
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export async function initializeFirebase() {
   const isServer = typeof window === 'undefined';
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const defaultDb = getFirestore(app);
+
   if (isServer) {
     // On the server, we don't have a hostname, so we connect to the default DB for admin tasks
-    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    return getSdks(app);
+    return { ...getSdks(app), tenantFound: false, tenantId: null };
   }
 
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
   
-  // Whitelist development environments to default to 'ardila' tenant for testing
-  const isDevEnvironment = hostname.includes('localhost') || hostname.includes('cloudworkstations.dev');
-  const subdomain = isDevEnvironment ? 'ardila' : (parts.length > 2 ? parts[0] : null);
+  const isDevEnvironment = hostname.includes('localhost') || hostname.includes('cloudworkstations.dev') || hostname.includes('.web.app');
+  const subdomain = isDevEnvironment && parts.length <= 2 ? 'ardila' : (parts.length > 2 ? parts[0] : null);
 
-
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
   if (!subdomain) {
-      // This is the main domain (e.g., estratega360.com) or an invalid setup
-      // We can decide what to do here, maybe show a generic page or error
-      // For now, we connect to default but mark it as tenant not found.
-      return { ...getSdks(app), tenantFound: false, databaseId: 'default' };
+      return { ...getSdks(app), tenantFound: false, tenantId: null };
   }
 
-  // Connect to the 'default' database to find the tenant info
-  const defaultDb = getFirestore(app);
   const tenantsRef = collection(defaultDb, 'tenants');
   const q = query(tenantsRef, where("subdomain", "==", subdomain));
 
@@ -42,26 +36,21 @@ export async function initializeFirebase() {
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) {
       console.error(`Tenant with subdomain "${subdomain}" not found.`);
-      return { ...getSdks(app), tenantFound: false, databaseId: 'default' };
+      return { ...getSdks(app), tenantFound: false, tenantId: null };
     }
-
-    const tenantData = querySnapshot.docs[0].data() as Tenant;
-    const { databaseId } = tenantData;
-
-    // Now, get the specific firestore instance for this tenant
-    const tenantFirestore = getFirestore(app, databaseId);
     
+    // In a shared DB model, we always use the default firestore instance
     return {
       firebaseApp: app,
       auth: getAuth(app),
-      firestore: tenantFirestore,
+      firestore: defaultDb,
       tenantFound: true,
-      databaseId: databaseId,
+      tenantId: subdomain,
     };
 
   } catch (error) {
     console.error("Error fetching tenant data:", error);
-    return { ...getSdks(app), tenantFound: false, databaseId: 'default' };
+    return { ...getSdks(app), tenantFound: false, tenantId: null };
   }
 }
 
@@ -70,8 +59,6 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp),
-    tenantFound: true, // Assume tenant is found for default server-side connections
-    databaseId: 'default',
   };
 }
 

@@ -12,7 +12,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useFirestore, useMemoFirebase, useDoc, useCollection } from "@/firebase"
+import { useFirestore, useMemoFirebase, useDoc, useCollection, useTenant } from "@/firebase"
 import { doc, collection, writeBatch } from "firebase/firestore"
 import type { BrandingSettings, ManagedList } from "@/lib/types"
 import { Loader2, PlusCircle, Trash2, Upload } from "lucide-react"
@@ -135,12 +135,13 @@ const defaultLists: Record<string, string[]> = {
 
 export default function SettingsPage() {
   const firestore = useFirestore();
+  const tenantId = useTenant();
   const { toast } = useToast();
   
-  const brandingSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
+  const brandingSettingsRef = useMemoFirebase(() => tenantId ? doc(firestore, `tenants/${tenantId}/settings/branding`) : null, [firestore, tenantId]);
   const { data: brandingSettings, isLoading: brandingLoading } = useDoc<BrandingSettings>(brandingSettingsRef);
   
-  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, "lists") : null, [firestore]);
+  const listsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/lists`) : null, [firestore, tenantId]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
   const [isSaving, setIsSaving] = React.useState(false);
@@ -162,17 +163,6 @@ export default function SettingsPage() {
     return listsMap;
   }, [managedLists]);
 
-
-  React.useEffect(() => {
-    if (firestore && !listsLoading && managedLists?.length === 0) {
-        const batch = writeBatch(firestore);
-        Object.entries(defaultLists).forEach(([key, value]) => {
-            const docRef = doc(firestore, 'lists', key);
-            batch.set(docRef, { name: listTitles[key], items: value });
-        })
-        batch.commit().catch(e => console.error("Error initializing lists", e));
-    }
-  }, [firestore, listsLoading, managedLists])
 
   React.useEffect(() => {
     if (brandingSettings) {
@@ -200,9 +190,9 @@ export default function SettingsPage() {
   }
   
   const handleListUpdate = (listKey: string, newItems: string[]) => {
-      if (!firestore) return;
+      if (!firestore || !tenantId) return;
       try {
-          const listRef = doc(firestore, 'lists', listKey);
+          const listRef = doc(firestore, `tenants/${tenantId}/lists`, listKey);
           setDocumentNonBlocking(listRef, { items: newItems }, { merge: true });
       } catch(error) {
            toast({
@@ -231,7 +221,6 @@ export default function SettingsPage() {
     try {
         let logoUrl = brandingSettings?.logoUrl;
         
-        // If a new logo file is selected, use its preview data URL.
         if (logoFile) {
             logoUrl = logoPreview!;
         }
