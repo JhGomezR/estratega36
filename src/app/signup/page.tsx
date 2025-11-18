@@ -34,8 +34,6 @@ import { createTenantAndUser, checkSubdomainAvailability } from './actions'
 import { useRouter } from 'next/navigation'
 import { useDebounce } from 'use-debounce'
 
-export const maxDuration = 60; 
-
 const formSchema = z
   .object({
     companyName: z.string().min(2, 'El nombre de la empresa es requerido.'),

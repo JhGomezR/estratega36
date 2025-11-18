@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Initializes the Firebase Admin SDK.
  * This module ensures that the Admin SDK is initialized as a singleton.

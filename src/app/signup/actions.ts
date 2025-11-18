@@ -16,15 +16,6 @@ const signUpFormSchema = z.object({
 
 type SignUpFormValues = z.infer<typeof signUpFormSchema>
 
-function generateRandomString(length: number): string {
-  const characters = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let result = ''
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length))
-  }
-  return result
-}
-
 export async function checkSubdomainAvailability(
   subdomain: string
 ): Promise<{ exists: boolean }> {
@@ -32,67 +23,39 @@ export async function checkSubdomainAvailability(
     if (!subdomain) {
       return { exists: false }
     }
-    const tenantsRef = adminDb.collection('tenants')
-    const existingTenant = await tenantsRef.doc(subdomain).get()
+    // All tenants are in the default DB, so we check there.
+    const existingTenant = await adminDb.collection('tenants').doc(subdomain).get()
     return { exists: existingTenant.exists }
   } catch (error) {
     console.error('Error checking subdomain:', error)
+    // Fail safe: if we can't check, assume it exists to prevent overwrites.
     return { exists: true }
   }
 }
 
-async function initializeTenantDatabase(
-  databaseId: string,
+async function initializeTenantData(
+  tenantId: string,
   adminUser: Omit<User, 'id'>,
-  adminUserId: string,
+  adminUserId: string
 ) {
   try {
-    const tenantDb = admin.firestore().database(databaseId)
+    // All data is written to the default DB, but under the tenant's path.
+    const batch = adminDb.batch();
 
-    const batch = tenantDb.batch()
-
-    // 1. Create Admin Role
-    const adminRoleRef = tenantDb.collection('roles').doc('admin');
-    batch.set(adminRoleRef, {
-        name: 'Admin',
-        permissions: [
-            "campaign:create", "campaign:read", "campaign:update", "campaign:delete",
-            "voter:create", "voter:read", "voter:update", "voter:delete",
-            "user:create", "user:read", "user:update", "user:delete",
-            "role:create", "role:read", "role:update", "role:delete",
-            "city:create", "city:read", "city:update", "city:delete",
-            "task:create", "task:read", "task:update", "task:delete",
-            "call:create", "call:read", "call:update", "call:delete",
-            "report:read",
-            "setting:update"
-        ],
-        status: 'activo'
-    });
-    
-    // 2. Create default lists
-    const defaultLists = {
-        identificationTypes: { name: "Tipos de Documento", items: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte']},
-        taskPriorities: { name: "Prioridades de Tareas", items: ['normal', 'alta', 'urgente']},
-        taskStatuses: { name: "Estados de Tareas", items: ['pendiente', 'en_curso', 'finalizada', 'archivada']},
-        campaignTypes: { name: "Tipos de Campaña", items: ['presidencia', 'alcaldia', 'gobernacion']},
-        campaignStatuses: { name: "Estados de Campaña", items: ['Futura', 'En Campaña', 'Finalizada', 'Archivada']},
-    };
-
-    for (const [key, value] of Object.entries(defaultLists)) {
-        const listRef = tenantDb.collection('lists').doc(key);
-        batch.set(listRef, value);
-    }
-    
-    // 3. Create admin user profile inside the tenant's DB
-    const userRef = tenantDb.collection('users').doc(adminUserId);
+    // The user profile is now stored under the tenant's subcollection
+    const userRef = adminDb.doc(`tenants/${tenantId}/users/${adminUserId}`);
     batch.set(userRef, adminUser);
 
+    // We can also add tenant-specific roles, lists, etc. here if needed in the future.
+    // For now, roles and lists are global in the default DB.
 
     await batch.commit();
-    console.log(`Database ${databaseId} initialized successfully.`);
+    console.log(`Initial data for tenant ${tenantId} created successfully in the default database.`);
     
   } catch (error) {
-    console.error(`Error initializing tenant database ${databaseId}:`, error);
+    console.error(`Error initializing data for tenant ${tenantId}:`, error);
+    // This is a critical error, we should probably handle it (e.g., by cleaning up the created user/tenant)
+    // For now, we throw to make the failure visible.
     throw error;
   }
 }
@@ -119,10 +82,10 @@ export async function createTenantAndUser(
       disabled: false,
     });
     
-    const databaseId = `(default)`; // All tenants share the default database in this architecture
+    // All tenants will use the single, default database.
+    const databaseId = `(default)`;
 
-    const newTenant: Tenant = {
-      id: data.subdomain,
+    const newTenant: Omit<Tenant, 'id'> = {
       companyName: data.companyName,
       subdomain: data.subdomain,
       plan: data.plan,
@@ -131,6 +94,7 @@ export async function createTenantAndUser(
       createdAt: new Date().toISOString(),
       status: 'active',
     };
+    // Create the main tenant document in the `tenants` collection.
     await tenantsRef.doc(data.subdomain).set(newTenant);
 
     const adminProfile: Omit<User, 'id'> = {
@@ -138,7 +102,6 @@ export async function createTenantAndUser(
       lastName,
       email: userRecord.email!,
       roleId: 'admin',
-      tenantId: data.subdomain,
       idType: 'admin',
       idNumber: '00000000',
       phone: '0000000000',
@@ -148,19 +111,19 @@ export async function createTenantAndUser(
       status: 'activo',
     };
     
-    // This now writes to the main DB, which seems to be the intended pattern
-    await adminDb.collection('users').doc(userRecord.uid).set(adminProfile);
-
+    // Now, initialize the tenant's specific data within the default database.
+    // This includes creating the admin's user profile within the tenant's subcollection.
+    await initializeTenantData(data.subdomain, adminProfile, userRecord.uid);
+    
     // Also write default roles to the main DB if they don't exist
     const adminRoleDoc = await adminDb.collection('roles').doc('admin').get();
     if (!adminRoleDoc.exists) {
          await adminDb.collection('roles').doc('admin').set({
             name: 'Admin',
-            permissions: [ "campaign:create", "campaign:read", "campaign:update", "campaign:delete", "voter:create", "voter:read", "voter:update", "voter:delete", "user:create", "user:read", "user:update", "user-delete", "role:create", "role:read", "role:update", "role:delete", "city:create", "city:read", "city:update", "city:delete", "task:create", "task:read", "task:update", "task:delete", "call:create", "call:read", "call:update", "call:delete", "report:read", "setting:update" ],
+            permissions: [ "campaign:create", "campaign:read", "campaign:update", "campaign:delete", "voter:create", "voter:read", "voter:update", "voter:delete", "user:create", "user:read", "user:update", "user:delete", "role:create", "role:read", "role:update", "role:delete", "city:create", "city:read", "city:update", "city:delete", "task:create", "task:read", "task:update", "task:delete", "call:create", "call:read", "call:update", "call:delete", "report:read", "setting:update" ],
             status: 'activo'
         });
     }
-
 
     return { success: true };
   } catch (error: any) {

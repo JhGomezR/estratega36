@@ -1,7 +1,4 @@
 
-
-
-
 export type WithId<T> = T & { id: string };
 
 export type Tenant = {
@@ -89,7 +86,6 @@ export type User = WithId<{
   avatar: string;
   status: 'activo' | 'inactivo';
   parentId?: string;
-  tenantId?: string; // Reference to the tenant this user belongs to
 }>;
 
 export type City = WithId<{

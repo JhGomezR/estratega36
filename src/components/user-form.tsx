@@ -278,7 +278,7 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                     </FormControl>
                     <SelectContent>
                         <SelectItem value="none">Ninguno (Nivel Superior)</SelectItem>
-                        {allUsers.filter(u => u.id !== user?.id && u.email !== 'axdrcys@gmail.com').map(u => (
+                        {allUsers.filter(u => u.id !== user?.id).map(u => (
                             <SelectItem key={u.id} value={u.id}>
                                 {u.firstName} {u.lastName}
                             </SelectItem>
