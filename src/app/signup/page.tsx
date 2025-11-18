@@ -34,7 +34,7 @@ import { createTenantAndUser, checkSubdomainAvailability } from './actions'
 import { useRouter } from 'next/navigation'
 import { useDebounce } from 'use-debounce'
 
-export const maxDuration = 300; // 5 minutes timeout for server action
+export const maxDuration = 60; 
 
 const formSchema = z
   .object({
