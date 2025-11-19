@@ -23,7 +23,7 @@ import {
   PhoneForwarded
 } from "lucide-react"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { collection, collectionGroup, query, where } from "firebase/firestore"
 import { type Campaign, type Voter, type User, type Task, type Call, type City } from '@/lib/types'
 import { subDays, parseISO, isToday, isWithinInterval, startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns'
 import { WeeklyVoterChart } from '@/components/weekly-voter-chart'
@@ -36,12 +36,18 @@ export default function Dashboard() {
   const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
   const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   const callsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `calls`) : null, [firestore]);
-  const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
+  
+  const citiesQuery = useMemoFirebase(() => 
+    firestore 
+      ? query(collectionGroup(firestore, 'cities'), where('status', '==', 'activo'))
+      : null,
+    [firestore]
+  );
 
   const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
   const { data: callsData, isLoading: callsLoading } = useCollection<Call>(callsCollectionRef);
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesQuery);
   
   const activeVoters = React.useMemo(() => {
     return votersData?.filter(v => v.status === 'activo');
@@ -143,7 +149,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{isLoading ? '...' : cities?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
-              Total de municipios en el sistema
+              Total de municipios activos en el sistema
             </p>
           </CardContent>
         </Card>
