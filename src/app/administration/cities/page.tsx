@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2, ChevronRight, Building, Globe, MapPin } from "lucide-react"
 import type { City, Department, Country } from "@/lib/types"
 import { CityForm } from "@/components/city-form"
+import { CountryForm } from "@/components/country-form"
+import { DepartmentForm } from "@/components/department-form"
 import {
   Dialog,
   DialogContent,
@@ -32,25 +34,19 @@ import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocki
 import { collection, doc } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
 
 type FormMode = 'country' | 'department' | 'city';
 
 export default function CitiesPage() {
   const firestore = useFirestore();
 
-  // State for selections
   const [selectedCountryId, setSelectedCountryId] = React.useState<string | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = React.useState<string | null>(null);
-
-  // State for forms and dialogs
   const [formMode, setFormMode] = React.useState<FormMode | null>(null);
   const [editingItem, setEditingItem] = React.useState<any | null>(null);
   const [itemToDelete, setItemToDelete] = React.useState<{ type: FormMode, path: string, name: string} | null>(null);
 
-
-  // Data fetching
   const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, `countries`) : null, [firestore]);
   const { data: countries, isLoading: countriesLoading } = useCollection<Country>(countriesRef);
 
@@ -60,7 +56,6 @@ export default function CitiesPage() {
   const citiesRef = useMemoFirebase(() => firestore && selectedCountryId && selectedDepartmentId ? collection(firestore, `countries/${selectedCountryId}/departments/${selectedDepartmentId}/cities`) : null, [firestore, selectedCountryId, selectedDepartmentId]);
   const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesRef);
   
-  // Reset selections when parent changes
   React.useEffect(() => {
     setSelectedDepartmentId(null);
   }, [selectedCountryId]);
@@ -93,19 +88,15 @@ export default function CitiesPage() {
     if (!firestore) return;
     
     let collectionRef;
-    if (formMode === 'country') {
-      collectionRef = countriesRef;
-    } else if (formMode === 'department') {
-      collectionRef = departmentsRef;
-    } else if (formMode === 'city') {
-      collectionRef = citiesRef;
-    }
+    if (formMode === 'country') collectionRef = countriesRef;
+    else if (formMode === 'department') collectionRef = departmentsRef;
+    else if (formMode === 'city') collectionRef = citiesRef;
 
     if (collectionRef) {
       if (editingItem) {
         setDocumentNonBlocking(doc(collectionRef, editingItem.id), data, { merge: true });
       } else {
-        addDocumentNonBlocking(collectionRef, data);
+        addDocumentNonBlocking(collectionRef, { ...data, status: data.status || 'activo' });
       }
     }
     setFormMode(null);
@@ -113,18 +104,51 @@ export default function CitiesPage() {
   }
 
   const ListItem = ({ item, isSelected, onClick, onEdit, onDelete, icon }: { item: any, isSelected: boolean, onClick: () => void, onEdit: () => void, onDelete: () => void, icon: React.ReactNode }) => (
-    <div className={cn("flex items-center justify-between p-2 rounded-md cursor-pointer", isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted")}>
-        <div className="flex items-center gap-3 flex-1" onClick={onClick}>
+    <div className={cn("flex items-center justify-between p-2 rounded-md", isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted")}>
+        <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={onClick}>
             {icon}
-            <span className="font-medium flex-1 truncate">{item.name}</span>
+            <div className="flex-1 truncate">
+              <span className="font-medium">{item.name}</span>
+            </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex items-center">
+            {item.status === 'inactivo' && <Badge variant="outline" className="mr-2 border-amber-500 text-amber-600">Inactivo</Badge>}
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
         </div>
     </div>
   );
+
+  const renderDialogContent = () => {
+    const title = `${editingItem ? 'Editar' : 'Nuevo'} ${formMode === 'country' ? 'País' : formMode === 'department' ? 'Departamento' : 'Ciudad'}`;
+    switch(formMode) {
+      case 'country':
+        return (
+          <>
+            <DialogTitle>{title}</DialogTitle>
+            <CountryForm country={editingItem} onSubmit={handleFormSubmit} onCancel={() => setFormMode(null)} />
+          </>
+        )
+      case 'department':
+        return (
+          <>
+            <DialogTitle>{title}</DialogTitle>
+            <DepartmentForm department={editingItem} onSubmit={handleFormSubmit} onCancel={() => setFormMode(null)} />
+          </>
+        )
+      case 'city':
+        return (
+          <>
+            <DialogTitle>{title}</DialogTitle>
+            <CityForm city={editingItem} onSubmit={handleFormSubmit} onCancel={() => setFormMode(null)} />
+          </>
+        )
+      default:
+        return null;
+    }
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -207,6 +231,7 @@ export default function CitiesPage() {
                            <span className="font-medium">{city.name}</span>
                         </div>
                         <div className="flex items-center">
+                            {city.status === 'inactivo' && <Badge variant="outline" className="mr-2 border-amber-500 text-amber-600">Inactivo</Badge>}
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit('city', city)}><Edit className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => confirmDelete('city', city)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
@@ -218,27 +243,10 @@ export default function CitiesPage() {
       </div>
       
        <Dialog open={!!formMode} onOpenChange={(open) => !open && setFormMode(null)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>{editingItem ? 'Editar' : 'Nuevo'} {formMode === 'country' ? 'País' : formMode === 'department' ? 'Departamento' : 'Ciudad'}</DialogTitle>
+                {renderDialogContent()}
             </DialogHeader>
-            {formMode === 'country' && (
-                <div className="space-y-4 py-4">
-                    <Input placeholder="Nombre del país" defaultValue={editingItem?.name} onBlur={(e) => handleFormSubmit({ name: e.target.value })} autoFocus/>
-                </div>
-            )}
-            {formMode === 'department' && (
-                 <div className="space-y-4 py-4">
-                    <Input placeholder="Nombre del departamento" defaultValue={editingItem?.name} onBlur={(e) => handleFormSubmit({ name: e.target.value })} autoFocus/>
-                </div>
-            )}
-             {formMode === 'city' && (
-                 <CityForm
-                    city={editingItem}
-                    onSubmit={handleFormSubmit}
-                    onCancel={() => setFormMode(null)}
-                />
-            )}
           </DialogContent>
         </Dialog>
         

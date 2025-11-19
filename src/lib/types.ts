@@ -79,16 +79,21 @@ export type User = WithId<{
 
 export type Country = WithId<{
     name: string;
+    currency: string;
+    language: string;
+    status: 'activo' | 'inactivo';
 }>;
 
 export type Department = WithId<{
     name: string;
+    status: 'activo' | 'inactivo';
 }>;
 
 export type City = WithId<{
   name: string;
   latitude: number;
   longitude: number;
+  status: 'activo' | 'inactivo';
 }>;
 
 export type Role = WithId<{
