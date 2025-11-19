@@ -17,7 +17,7 @@ import { type Voter } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
 
-const processVoterData = (voters: Voter[] | null) => {
+const processVoterData = (voters: Voter[] | undefined) => {
   if (!voters) {
     return [];
   }
@@ -55,7 +55,7 @@ const processVoterData = (voters: Voter[] | null) => {
 }
 
 
-export function VoterRegistrationChart({ voters, isLoading }: { voters: Voter[] | null, isLoading: boolean }) {
+export function VoterRegistrationChart({ voters, isLoading }: { voters: Voter[] | undefined, isLoading: boolean }) {
   
   const voterRegistrationChartData = processVoterData(voters);
   

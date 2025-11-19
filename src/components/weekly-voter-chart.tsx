@@ -18,7 +18,7 @@ import { startOfWeek, endOfWeek, eachDayOfInterval, format, subWeeks, getDay } f
 import { es } from 'date-fns/locale';
 import { Skeleton } from './ui/skeleton';
 
-const processDailyVoterData = (voters: Voter[] | null) => {
+const processDailyVoterData = (voters: Voter[] | undefined) => {
   if (!voters) {
     return [];
   }
@@ -57,7 +57,7 @@ const processDailyVoterData = (voters: Voter[] | null) => {
 };
 
 
-export function WeeklyVoterChart({ voters, isLoading }: { voters: Voter[] | null, isLoading: boolean }) {
+export function WeeklyVoterChart({ voters, isLoading }: { voters: Voter[] | undefined, isLoading: boolean }) {
   
   const chartData = React.useMemo(() => processDailyVoterData(voters), [voters]);
 

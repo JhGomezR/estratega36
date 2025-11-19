@@ -38,43 +38,49 @@ export default function Dashboard() {
   const callsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `calls`) : null, [firestore]);
   const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
 
-  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
+  const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
-  const { data: calls, isLoading: callsLoading } = useCollection<Call>(callsCollectionRef);
+  const { data: callsData, isLoading: callsLoading } = useCollection<Call>(callsCollectionRef);
   const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
   
-  const promoters = users?.filter(u => u.roleId === 'promoter' || u.roleId === 'lider');
+  const activeVoters = React.useMemo(() => {
+    return votersData?.filter(v => v.status === 'activo');
+  }, [votersData]);
+  
+  const activeCalls = React.useMemo(() => {
+    return callsData?.filter(c => c.status_call === 'activo');
+  }, [callsData]);
 
   const { newVotersToday } = React.useMemo(() => {
-    if (!voters) return { newVotersToday: 0 };
+    if (!activeVoters) return { newVotersToday: 0 };
     
-    let newVotersToday = 0;
+    let newVotersTodayCount = 0;
 
-    voters.forEach(voter => {
+    activeVoters.forEach(voter => {
       try {
         const registrationDate = parseISO(voter.registrationDate);
         if (isToday(registrationDate)) {
-          newVotersToday++;
+          newVotersTodayCount++;
         }
       } catch {
         // Ignore invalid dates
       }
     });
     
-    return { newVotersToday };
-  }, [voters]);
+    return { newVotersToday: newVotersTodayCount };
+  }, [activeVoters]);
 
   const callStats = React.useMemo(() => {
-    if (!calls) return { attended: 0, total: 0 };
-    const attended = calls.filter(c => c.status === 'atendida').length;
-    return { attended, total: calls.length };
-  }, [calls]);
+    if (!activeCalls) return { attended: 0, total: 0 };
+    const attended = activeCalls.filter(c => c.status === 'atendida').length;
+    return { attended, total: activeCalls.length };
+  }, [activeCalls]);
 
   const topLeaders = React.useMemo(() => {
-    if (!voters || !users) return [];
+    if (!activeVoters || !users) return [];
     
     const promoterCounts: Record<string, number> = {};
-    voters.forEach(voter => {
+    activeVoters.forEach(voter => {
         promoterCounts[voter.promoterId] = (promoterCounts[voter.promoterId] || 0) + 1;
     });
 
@@ -89,7 +95,7 @@ export default function Dashboard() {
         .sort((a, b) => b.voterCount - a.voterCount)
         .slice(0, 5);
 
-  }, [voters, users]);
+  }, [activeVoters, users]);
 
 
   const isLoading = votersLoading || usersLoading || callsLoading || citiesLoading;
@@ -107,9 +113,9 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? '...' : voters?.length ?? 0}</div>
+            <div className="text-2xl font-bold">{isLoading ? '...' : activeVoters?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">
-              Total de votantes registrados
+              Total de votantes activos registrados
             </p>
           </CardContent>
         </Card>
@@ -149,7 +155,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{isLoading ? '...' : `${callStats.attended} / ${callStats.total}`}</div>
             <p className="text-xs text-muted-foreground">
-              Llamadas atendidas del total
+              Llamadas atendidas del total de activos
             </p>
           </CardContent>
         </Card>
@@ -159,16 +165,16 @@ export default function Dashboard() {
         <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>Registros Diarios de Votantes</CardTitle>
-            <CardDescription>Semana actual vs. semana anterior.</CardDescription>
+            <CardDescription>Semana actual vs. semana anterior (solo votantes activos).</CardDescription>
           </CardHeader>
           <CardContent>
-            <WeeklyVoterChart voters={voters} isLoading={isLoading}/>
+            <WeeklyVoterChart voters={activeVoters} isLoading={isLoading}/>
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Top 5 Líderes con más Votantes</CardTitle>
-            <CardDescription>Conteo de los 5 líderes que han ingresado más votantes.</CardDescription>
+            <CardDescription>Conteo de los 5 líderes que han ingresado más votantes activos.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -219,11 +225,11 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle>Registros Mensuales</CardTitle>
             <CardDescription>
-              Conteo de nuevos votantes registrados cada mes durante el año actual.
+              Conteo de nuevos votantes activos registrados cada mes durante el año actual.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <VoterRegistrationChart voters={voters} isLoading={isLoading} />
+            <VoterRegistrationChart voters={activeVoters} isLoading={isLoading} />
           </CardContent>
         </Card>
       </div>
