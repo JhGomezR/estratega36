@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -20,10 +19,8 @@ import { useAuth, useFirestore, useMemoFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import type { Role, User, Tenant } from "@/lib/types";
-import { createTenantAndUser } from "@/app/signup/actions";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { createUser } from "../administration/users/actions";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -63,55 +60,16 @@ export default function LoginPage() {
       });
       router.push("/");
     } catch (error: any) {
-      const isLoginError = error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password';
-      
-      if (isLoginError && data.email === 'axdrcys@gmail.com') {
-        try {
-          // This will now use the server action to create the tenant and user.
-          await createTenantAndUser({
-            companyName: 'Ardila Campaña',
-            fullName: 'AXCYS Admin',
-            subdomain: 'ardila',
-            email: data.email,
-            password: data.password,
-            plan: '360',
-          });
-
-          // After successful creation, try to sign in again.
-          await signInWithEmailAndPassword(auth, data.email, data.password);
-          
-          toast({
-            title: "Cuenta de Administrador Creada",
-            description: "Se ha creado la cuenta y el inquilino de desarrollo 'ardila'. Has iniciado sesión.",
-          });
-          router.push("/");
-
-        } catch (creationError: any) {
-           console.error("Admin creation/login error:", creationError);
-           let description = "No se pudo iniciar sesión ni crear la cuenta de administrador.";
-           if (creationError.message?.includes('auth/email-already-exists')) {
-               description = "El email ya está registrado. Si olvidaste la contraseña, contacta a soporte.";
-           } else if (creationError.code === 'auth/wrong-password') {
-                description = "La contraseña es incorrecta. Por favor, inténtalo de nuevo.";
-           }
-           toast({
-            variant: "destructive",
-            title: "Error Crítico",
-            description: description,
-          });
-        }
-      } else {
-        console.error(error);
-        let description = "Ocurrió un error inesperado.";
-        if (isLoginError) {
-          description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
-        }
-        toast({
-          variant: "destructive",
-          title: "Error de Autenticación",
-          description,
-        });
+      console.error(error);
+      let description = "Ocurrió un error inesperado.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
       }
+      toast({
+        variant: "destructive",
+        title: "Error de Autenticación",
+        description,
+      });
     } finally {
       setIsSubmitting(false);
     }

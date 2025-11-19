@@ -1,16 +1,4 @@
-
 export type WithId<T> = T & { id: string };
-
-export type Tenant = {
-  id: string;
-  companyName: string;
-  subdomain: string;
-  plan: 'basico' | 'estratega' | '360';
-  databaseId: string;
-  ownerUid: string;
-  createdAt: string;
-  status: 'active' | 'suspended' | 'deleted';
-};
 
 export type Voter = WithId<{
   firstName: string;
@@ -39,7 +27,6 @@ export type Investor = {
 
 export type Campaign = WithId<{
   name: string;
-  subdomain?: string;
   description: string;
   campaignType: string;
   hasInvestors: boolean;

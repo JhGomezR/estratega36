@@ -1,4 +1,3 @@
-
 'use server'
 
 import { adminAuth, adminDb } from '@/firebase/admin'
@@ -9,12 +8,10 @@ import type { User } from '@/lib/types'
  * Creates a new user in Firebase Authentication and a corresponding user profile in Firestore.
  * This is a server action and should only be called from a server environment.
  * @param data - The user data from the form.
- * @param tenantId - The ID of the tenant where the user profile will be created.
  * @returns An object with the new user's UID or an error message.
  */
 export async function createUser(
-  data: UserFormValues,
-  tenantId: string
+  data: UserFormValues
 ): Promise<{ uid?: string; error?: string }> {
   try {
     const { password, ...profileData } = data
@@ -23,7 +20,7 @@ export async function createUser(
       return { error: 'La contraseña es obligatoria para nuevos usuarios.' }
     }
 
-    // 1. Create the user in Firebase Authentication (this is global)
+    // 1. Create the user in Firebase Authentication
     const userRecord = await adminAuth.createUser({
       email: profileData.email,
       password: password,
@@ -31,10 +28,10 @@ export async function createUser(
       disabled: false,
     })
 
-    // 2. Create the user profile in the specific tenant's subcollection in Firestore
+    // 2. Create the user profile in Firestore
     const newUserProfile: Partial<User> = {
       ...profileData,
-      email: profileData.email, // Ensure email is part of the profile
+      email: profileData.email,
       avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
       status: 'activo' as const,
     }
@@ -43,7 +40,7 @@ export async function createUser(
         delete newUserProfile.parentId;
     }
 
-    await adminDb.collection('tenants').doc(tenantId).collection('users').doc(userRecord.uid).set(newUserProfile)
+    await adminDb.collection('users').doc(userRecord.uid).set(newUserProfile)
 
     return { uid: userRecord.uid }
 

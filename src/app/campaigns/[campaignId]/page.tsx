@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import Link from "next/link"
@@ -20,7 +19,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { useDoc, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { Campaign, ManagedList, Campaign as CampaignType, GeneratedStrategy } from "@/lib/types"
 import { format, parseISO, isToday } from "date-fns"
@@ -46,24 +45,23 @@ export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter();
   const campaignId = params.campaignId as string;
-  const tenantId = useTenant();
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedStrategy, setSelectedStrategy] = React.useState<GeneratedStrategy | null>(null);
 
   const firestore = useFirestore()
   const campaignRef = useMemoFirebase(() => {
-    return firestore && tenantId && campaignId ? doc(firestore, `tenants/${tenantId}/campaigns`, campaignId) : null
-  }, [firestore, tenantId, campaignId]);
+    return firestore && campaignId ? doc(firestore, `campaigns`, campaignId) : null
+  }, [firestore, campaignId]);
 
   const { data: campaign, isLoading } = useDoc<Campaign>(campaignRef);
   
   const strategiesRef = useMemoFirebase(() => {
-      return firestore && tenantId && campaignId ? collection(firestore, `tenants/${tenantId}/campaigns`, campaignId, 'generatedStrategies') : null
-  }, [firestore, tenantId, campaignId]);
+      return firestore && campaignId ? collection(firestore, `campaigns`, campaignId, 'generatedStrategies') : null
+  }, [firestore, campaignId]);
   const { data: strategies, isLoading: strategiesLoading } = useCollection<GeneratedStrategy>(strategiesRef);
 
-  const listsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/lists`) : null, [firestore, tenantId]);
+  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `lists`) : null, [firestore]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
   const lists = React.useMemo(() => {

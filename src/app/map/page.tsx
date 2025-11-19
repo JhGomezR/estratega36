@@ -1,9 +1,8 @@
-
 "use client";
 import * as React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { VotersMap } from '@/components/voters-map';
-import { useCollection, useFirestore, useMemoFirebase, useTenant } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Voter, City } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
@@ -28,10 +27,9 @@ function generateColorFromString(str: string): string {
 export default function MapPage() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const firestore = useFirestore();
-  const tenantId = useTenant();
 
-  const votersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/voters`) : null, [firestore, tenantId]);
-  const citiesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/cities`) : null, [firestore, tenantId]);
+  const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
+  const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
 
   const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);

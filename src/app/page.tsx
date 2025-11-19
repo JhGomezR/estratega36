@@ -1,4 +1,3 @@
-
 "use client"
 import React from 'react'
 import {
@@ -23,7 +22,7 @@ import {
   CalendarDays,
   PhoneForwarded
 } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { type Campaign, type Voter, type User, type Task, type Call, type City } from '@/lib/types'
 import { subDays, parseISO, isToday, isWithinInterval, startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns'
@@ -33,12 +32,11 @@ import { VoterRegistrationChart } from '@/components/voter-registration-chart'
 
 export default function Dashboard() {
   const firestore = useFirestore();
-  const tenantId = useTenant();
 
-  const votersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/voters`) : null, [firestore, tenantId]);
-  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
-  const callsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/calls`) : null, [firestore, tenantId]);
-  const citiesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/cities`) : null, [firestore, tenantId]);
+  const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
+  const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
+  const callsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `calls`) : null, [firestore]);
+  const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
 
   const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);

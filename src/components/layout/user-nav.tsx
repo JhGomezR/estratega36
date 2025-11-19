@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -13,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth, useDoc, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useAuth, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { User } from "@/lib/types"
 import { LogOut, User as UserIcon } from "lucide-react"
@@ -25,11 +24,10 @@ export function UserNav() {
   const firestore = useFirestore();
   const auth = useAuth();
   const router = useRouter();
-  const tenantId = useTenant();
   
   const userRef = useMemoFirebase(() => {
-    return firestore && authUser && tenantId ? doc(firestore, `tenants/${tenantId}/users`, authUser.uid) : null
-  }, [firestore, authUser, tenantId]);
+    return firestore && authUser ? doc(firestore, `users`, authUser.uid) : null
+  }, [firestore, authUser]);
 
   const { data: user } = useDoc<User>(userRef);
 

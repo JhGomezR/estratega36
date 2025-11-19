@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, type ReactNode, useState, useEffect } from 'react';
@@ -8,8 +7,7 @@ import type { FirebaseApp } from 'firebase/app';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
-import { Loader2, ServerCrash } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { firebaseConfig } from './config';
 
@@ -21,49 +19,27 @@ interface FirebaseServices {
   firebaseApp: FirebaseApp;
   auth: Auth;
   firestore: Firestore;
-  tenantFound: boolean;
-  tenantId: string | null;
 }
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const [services, setServices] = useState<FirebaseServices | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
-    // Public pages that don't need tenant data can use a default firebase instance.
-    const publicPages = ['/login', '/signup'];
-    if (publicPages.includes(pathname)) {
-        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-        const defaultServices = getSdks(app);
-        setServices({...defaultServices, tenantFound: true, tenantId: null } as FirebaseServices);
-        setIsLoading(false);
-        return;
-    }
-
     const init = async () => {
       setIsLoading(true);
-      setError(null);
       try {
-        // initializeFirebase finds the tenant and returns the sdks
-        const firebaseServices = await initializeFirebase();
-        if (!firebaseServices.tenantFound) {
-            const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-            const subdomain = hostname.split('.')[0]
-            setError(`No pudimos encontrar una cuenta asociada con el subdominio <code class="font-mono font-bold bg-muted p-1 rounded-sm">${subdomain}</code>.<br/>Por favor, verifica la URL o contacta a soporte.`);
-        }
+        const firebaseServices = initializeFirebase();
         setServices(firebaseServices as FirebaseServices);
       } catch (err: any) {
         console.error("Failed to initialize Firebase services:", err);
-        setError("Ocurrió un error al inicializar los servicios. Por favor, intenta de nuevo más tarde.");
-        setServices(null);
       } finally {
         setIsLoading(false);
       }
     };
     init();
-  }, [pathname]);
+  }, []);
 
   if (isLoading) {
     return (
@@ -73,29 +49,16 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     );
   }
 
-  // If an error occurred (like tenant not found), show error page.
-  if (error && !['/login', '/signup'].includes(pathname)) {
-    return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center">
-            <div className="container mx-auto p-4">
-                <ServerCrash className="mx-auto h-24 w-24 text-destructive opacity-50" />
-                <h1 className="mt-8 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-                    Inquilino no encontrado
-                </h1>
-                <p className="mt-6 text-base leading-7 text-muted-foreground" dangerouslySetInnerHTML={{ __html: error }} />
-                <div className="mt-10 flex items-center justify-center gap-x-6">
-                    <Button asChild>
-                        <a href="/signup">Crear una nueva cuenta</a>
-                    </Button>
-                </div>
-            </div>
-        </div>
-    );
+  if (!services) {
+    // This can be a more elaborate error screen
+    return <div>Error: Firebase could not be initialized.</div>;
   }
   
-  if (!services) {
-      if (['/login', '/signup'].includes(pathname)) return <>{children}</>;
-      return null;
+  // Public pages like login/signup don't need the full provider context if they handle auth differently
+  // But for simplicity, we'll wrap everything.
+  const publicPages = ['/login'];
+  if (publicPages.includes(pathname) && !services.auth.currentUser) {
+      return <>{children}</>;
   }
 
   return (
@@ -103,7 +66,6 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       firebaseApp={services.firebaseApp}
       auth={services.auth}
       firestore={services.firestore}
-      tenantId={services.tenantId}
     >
       {children}
     </FirebaseProvider>

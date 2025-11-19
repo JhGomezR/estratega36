@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -153,7 +152,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   React.useEffect(() => {
     if (!isUserLoading && !user) {
-      if (pathname !== '/signup') { // Don't redirect if on signup page
+      if (pathname !== '/login') {
         router.push('/login');
       }
     }
@@ -205,7 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [settings]);
 
 
-  if (pathname === '/login' || pathname === '/signup') {
+  if (pathname === '/login' ) {
     return <>{children}</>;
   }
 

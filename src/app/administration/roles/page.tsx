@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import {
@@ -39,7 +38,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -60,8 +59,7 @@ const actionLabels: Record<string, string> = {
 
 export default function RolesPage() {
   const firestore = useFirestore();
-  const tenantId = useTenant();
-  const rolesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/roles`) : null, [firestore, tenantId]);
+  const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
   
   const { data: rolesData, isLoading } = useCollection<Role>(rolesCollectionRef);
 

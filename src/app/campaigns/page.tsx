@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import Link from "next/link"
@@ -31,7 +30,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import {
@@ -63,11 +62,10 @@ const CAMPAIGNS_PER_PAGE = 15;
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
-  const tenantId = useTenant();
-  const campaignsCollection = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/campaigns`) : null, [firestore, tenantId]);
+  const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, `campaigns`) : null, [firestore]);
   const { data: campaignsData, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollection);
 
-  const listsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/lists`) : null, [firestore, tenantId]);
+  const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `lists`) : null, [firestore]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
   
   const [selectedCampaign, setSelectedCampaign] = React.useState<Campaign | null>(null);

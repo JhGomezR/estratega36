@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import {
@@ -37,14 +36,13 @@ import {
   AlertDialogTitle as AlertDialogTitleElement,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 
 export default function CitiesPage() {
   const firestore = useFirestore();
-  const tenantId = useTenant();
-  const citiesCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/cities`) : null, [firestore, tenantId]);
+  const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
 
   const { data: citiesData, isLoading } = useCollection<City>(citiesCollectionRef);
 

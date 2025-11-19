@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import { useForm, useFieldArray } from "react-hook-form"
@@ -41,7 +40,6 @@ const investorSchema = z.object({
 
 const campaignFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
-  subdomain: z.string().optional(),
   description: z.string().min(10, "La descripción debe tener al menos 10 caracteres."),
   campaignType: z.string({ required_error: "Debe seleccionar un tipo de campaña." }),
   goal: z.string().min(5, "El objetivo debe tener al menos 5 caracteres."),
@@ -67,7 +65,6 @@ interface CampaignFormProps {
 export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFormProps) {
   const defaultValues = React.useMemo(() => ({
     name: campaign?.name ?? "",
-    subdomain: campaign?.subdomain ?? "",
     description: campaign?.description ?? "",
     campaignType: campaign?.campaignType ?? "",
     goal: campaign?.goal ?? "",
@@ -122,10 +119,8 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
   function handleFormSubmit(data: CampaignFormValues) {
     let finalData = { ...data };
     
-    // If the campaign is being manually set to "Finalizada"
     if (finalData.status === 'Finalizada' && campaign?.status !== 'Finalizada') {
         const todayString = format(new Date(), 'yyyy-MM-dd');
-        // Only update endDate if it's in the future, to not alter past dates.
         if (isFuture(parseISO(finalData.endDate))) {
           finalData.endDate = todayString;
         }
@@ -137,7 +132,7 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1">
           <FormField
             control={form.control}
             name="name"
@@ -147,22 +142,6 @@ export function CampaignForm({ campaign, lists, onSubmit, onCancel }: CampaignFo
                 <FormControl>
                   <Input placeholder="Ej: Alcaldía 2025" {...field} />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="subdomain"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Subdominio</FormLabel>
-                <FormControl>
-                  <Input placeholder="ej: ardila" {...field} />
-                </FormControl>
-                 <FormDescription>
-                  El prefijo para la URL (ej. 'ardila' para ardila.estratega360.com)
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
