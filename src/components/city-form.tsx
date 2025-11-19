@@ -18,22 +18,20 @@ import { Input } from "@/components/ui/input"
 
 const cityFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
-  department: z.string().min(3, "El departamento debe tener al menos 3 caracteres."),
-  country: z.string().min(3, "El país debe tener al menos 3 caracteres."),
   latitude: z.preprocess(
     (a) => parseFloat(z.string().parse(a)),
-    z.number().min(-90).max(90)
+    z.number().min(-90, "La latitud debe estar entre -90 y 90.").max(90, "La latitud debe estar entre -90 y 90.")
   ),
   longitude: z.preprocess(
     (a) => parseFloat(z.string().parse(a)),
-    z.number().min(-180).max(180)
+    z.number().min(-180, "La longitud debe estar entre -180 y 180.").max(180, "La longitud debe estar entre -180 y 180.")
   ),
 });
 
 type CityFormValues = z.infer<typeof cityFormSchema>;
 
 interface CityFormProps {
-  city?: Omit<City, 'id' | 'status'> | null;
+  city?: Omit<City, 'id'> | null;
   onSubmit: (data: CityFormValues) => void;
   onCancel: () => void;
 }
@@ -43,25 +41,17 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
     resolver: zodResolver(cityFormSchema),
     defaultValues: {
       name: city?.name ?? "",
-      department: city?.department ?? "",
-      country: city?.country ?? "Colombia",
       latitude: city?.latitude ?? 0,
       longitude: city?.longitude ?? 0,
     },
   });
 
   React.useEffect(() => {
-    if (city) {
-      form.reset(city);
-    } else {
-        form.reset({
-            name: "",
-            department: "",
-            country: "Colombia",
-            latitude: 0,
-            longitude: 0,
-        });
-    }
+    form.reset({
+      name: city?.name ?? "",
+      latitude: city?.latitude ?? 0,
+      longitude: city?.longitude ?? 0,
+    });
   }, [city, form]);
 
 
@@ -85,32 +75,6 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
             </FormItem>
           )}
         />
-         <FormField
-            control={form.control}
-            name="department"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Departamento</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ej: Cundinamarca" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-         <FormField
-            control={form.control}
-            name="country"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>País</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
             control={form.control}
@@ -139,7 +103,7 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
             )}
             />
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar
           </Button>

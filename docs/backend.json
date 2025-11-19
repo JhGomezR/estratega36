@@ -1,120 +1,35 @@
 
 {
   "entities": {
-    "Tenant": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Tenant",
-      "description": "Represents a single tenant (customer account) in the multi-tenant system.",
-      "type": "object",
-      "properties": {
-        "companyName": {
-          "type": "string",
-          "description": "The name of the tenant's company or organization."
-        },
-        "subdomain": {
-          "type": "string",
-          "description": "The unique subdomain chosen by the tenant (e.g., 'ardila')."
-        },
-        "plan": {
-          "type": "string",
-          "enum": ["basico", "estratega", "360"],
-          "description": "The subscription plan of the tenant."
-        },
-        "databaseId": {
-            "type": "string",
-            "description": "The ID of the isolated Firestore database for this tenant."
-        },
-        "ownerUid": {
-            "type": "string",
-            "description": "The UID of the user who created and owns this tenant account."
-        },
-        "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The timestamp when the tenant was created."
-        },
-        "status": {
-            "type": "string",
-            "enum": ["active", "suspended", "deleted"],
-            "default": "active"
-        }
-      },
-      "required": ["companyName", "subdomain", "plan", "databaseId", "ownerUid", "createdAt", "status"]
-    },
     "Campaign": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Campaign",
       "type": "object",
       "description": "Represents a political campaign.",
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name of the campaign."
-        },
-        "subdomain": {
-          "type": "string",
-          "description": "The subdomain associated with this campaign (e.g., 'ardila')."
-        },
-        "description": {
-          "type": "string",
-          "description": "Detailed description of the campaign."
-        },
-        "campaignType": {
-          "type": "string",
-          "description": "The type of campaign (e.g., 'presidencia', 'alcaldia')."
-        },
-        "goal": {
-          "type": "string",
-          "description": "The primary goal of the campaign."
-        },
-        "startDate": {
-          "type": "string",
-          "description": "Start date of the campaign.",
-          "format": "date"
-        },
-        "endDate": {
-          "type": "string",
-          "description": "End date of the campaign.",
-          "format": "date"
-        },
-        "hasInvestors": {
-          "type": "boolean"
-        },
-        "investors": {
-          "type": "array",
-          "items": {
-            "$ref": "#/entities/Investor"
-          }
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the campaign, e.g., 'Futura', 'En Campaña', 'Finalizada', 'Archivada'."
-        },
-        "progress": {
-            "type": "number"
-        }
+        "name": { "type": "string", "description": "Name of the campaign." },
+        "description": { "type": "string", "description": "Detailed description of the campaign." },
+        "campaignType": { "type": "string", "description": "The type of campaign (e.g., 'presidencia', 'alcaldia')." },
+        "goal": { "type": "string", "description": "The primary goal of the campaign." },
+        "startDate": { "type": "string", "description": "Start date of the campaign.", "format": "date" },
+        "endDate": { "type": "string", "description": "End date of the campaign.", "format": "date" },
+        "hasInvestors": { "type": "boolean" },
+        "investors": { "type": "array", "items": { "$ref": "#/entities/Investor" } },
+        "status": { "type": "string", "description": "The status of the campaign, e.g., 'Futura', 'En Campaña', 'Finalizada', 'Archivada'." },
+        "progress": { "type": "number" }
       },
-      "required": [
-        "name",
-        "description",
-        "campaignType",
-        "goal",
-        "startDate",
-        "endDate",
-        "status",
-        "progress"
-      ]
+      "required": ["name", "description", "campaignType", "goal", "startDate", "endDate", "status", "progress"]
     },
     "Investor": {
-        "title": "Investor",
-        "type": "object",
-        "properties": {
-            "firstName": {"type": "string"},
-            "lastName": {"type": "string"},
-            "description": {"type": "string"},
-            "investmentAmount": {"type": "number"}
-        },
-        "required": ["firstName", "lastName", "investmentAmount"]
+      "title": "Investor",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "description": { "type": "string" },
+        "investmentAmount": { "type": "number" }
+      },
+      "required": ["firstName", "lastName", "investmentAmount"]
     },
     "Voter": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -122,65 +37,24 @@
       "type": "object",
       "description": "Represents a registered voter.",
       "properties": {
-        "firstName": {
-          "type": "string"
-        },
-        "lastName": {
-          "type": "string"
-        },
-        "idType": {
-            "type": "string"
-        },
-        "idNumber": {
-            "type": "string"
-        },
-        "email": {
-          "type": "string",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string"
-        },
-        "address": {
-          "type": "string"
-        },
-        "cityId": {
-          "type": "string"
-        },
-        "vereda": {
-            "type": "string"
-        },
-        "promoterId": {
-          "type": "string"
-        },
-        "registrationDate": {
-            "type": "string",
-            "format": "date"
-        },
-        "latitude": {
-            "type": "number"
-        },
-        "longitude": {
-            "type": "number"
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the voter, e.g., 'activo', 'inactivo'.",
-          "default": "activo"
-        }
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "idType": { "type": "string" },
+        "idNumber": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "countryId": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "cityId": { "type": "string" },
+        "vereda": { "type": "string" },
+        "promoterId": { "type": "string" },
+        "registrationDate": { "type": "string", "format": "date" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "status": { "type": "string", "description": "The status of the voter, e.g., 'activo', 'inactivo'.", "default": "activo" }
       },
-      "required": [
-        "firstName",
-        "lastName",
-        "idType",
-        "idNumber",
-        "address",
-        "cityId",
-        "vereda",
-        "promoterId",
-        "registrationDate",
-        "status"
-      ]
+      "required": ["firstName", "lastName", "idType", "idNumber", "address", "countryId", "departmentId", "cityId", "vereda", "promoterId", "registrationDate", "status"]
     },
     "Task": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -188,30 +62,13 @@
       "type": "object",
       "description": "Represents a task for a campaign.",
       "properties": {
-        "title": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "assignedToId": {
-          "type": "string"
-        },
-        "startDate": {
-          "type": "string",
-          "format": "date"
-        },
-        "dueDate": {
-          "type": "string",
-          "format": "date"
-        },
-        "priority": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the task, e.g., 'pendiente', 'en_curso', 'finalizada', 'archivada'."
-        }
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "assignedToId": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "dueDate": { "type": "string", "format": "date" },
+        "priority": { "type": "string" },
+        "status": { "type": "string", "description": "The status of the task, e.g., 'pendiente', 'en_curso', 'finalizada', 'archivada'." }
       },
       "required": ["title", "assignedToId", "startDate", "dueDate", "priority", "status"]
     },
@@ -221,66 +78,22 @@
       "type": "object",
       "description": "Represents a user of the application.",
       "properties": {
-        "firstName": {
-          "type": "string"
-        },
-        "lastName": {
-          "type": "string"
-        },
-         "idType": {
-            "type": "string"
-        },
-        "idNumber": {
-            "type": "string"
-        },
-        "email": {
-          "type": "string",
-          "format": "email"
-        },
-        "username": {
-            "type": "string"
-        },
-        "password": {
-            "type": "string"
-        },
-        "phone": {
-            "type": "string"
-        },
-        "roleId": {
-          "type": "string"
-        },
-        "cityIds": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
-        "campaignIds": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
-        "avatar": {
-            "type": "string",
-            "format": "uri"
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the user, e.g., 'activo', 'inactivo'.",
-          "default": "activo"
-        },
-        "parentId": {
-            "type": "string",
-            "description": "The ID of the user who registered this user, establishing the hierarchy."
-        }
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "idType": { "type": "string" },
+        "idNumber": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "phone": { "type": "string" },
+        "roleId": { "type": "string" },
+        "cityIds": { "type": "array", "items": { "type": "string" } },
+        "campaignIds": { "type": "array", "items": { "type": "string" } },
+        "avatar": { "type": "string", "format": "uri" },
+        "status": { "type": "string", "description": "The status of the user, e.g., 'activo', 'inactivo'.", "default": "activo" },
+        "parentId": { "type": "string", "description": "The ID of the user who registered this user, establishing the hierarchy." }
       },
-      "required": [
-        "firstName",
-        "lastName",
-        "email",
-        "password",
-        "roleId",
-        "cityIds",
-        "campaignIds",
-        "status"
-      ]
+      "required": ["firstName", "lastName", "email", "password", "roleId", "cityIds", "campaignIds", "status"]
     },
     "Role": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -288,9 +101,7 @@
       "type": "object",
       "description": "Represents a role within the application.",
       "properties": {
-        "name": {
-          "type": "string"
-        },
+        "name": { "type": "string" },
         "permissions": {
           "type": "array",
           "items": {
@@ -308,53 +119,41 @@
             ]
           }
         },
-        "status": {
-          "type": "string",
-          "description": "The status of the role, e.g., 'activo', 'inactivo'.",
-          "default": "activo"
-        }
+        "status": { "type": "string", "description": "The status of the role, e.g., 'activo', 'inactivo'.", "default": "activo" }
       },
-      "required": [
-        "name",
-        "permissions",
-        "status"
-      ]
+      "required": ["name", "permissions", "status"]
+    },
+     "Country": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Country",
+      "type": "object",
+      "description": "Represents a country.",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Department": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Department",
+      "type": "object",
+      "description": "Represents a department or state within a country.",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
     },
     "City": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "City",
       "type": "object",
-      "description": "Represents a city.",
+      "description": "Represents a city or municipality within a department.",
       "properties": {
-        "name": {
-          "type": "string"
-        },
-        "department": {
-          "type": "string"
-        },
-        "country": {
-          "type": "string"
-        },
-        "latitude": {
-            "type": "number"
-        },
-        "longitude": {
-            "type": "number"
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the city, e.g., 'activo', 'inactivo'.",
-          "default": "activo"
-        }
+        "name": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" }
       },
-      "required": [
-        "name",
-        "department",
-        "country",
-        "latitude",
-        "longitude",
-        "status"
-      ]
+      "required": ["name", "latitude", "longitude"]
     },
     "Call": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -362,31 +161,12 @@
       "type": "object",
       "description": "Represents a call to a voter.",
       "properties": {
-        "voterId": {
-          "type": "string",
-          "description": "The ID of the voter to be called."
-        },
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user who made the call."
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the call."
-        },
-        "callDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date and time the call was attended."
-        },
-        "attempts": {
-          "type": "number",
-          "description": "Number of attempts made to call the voter."
-        },
-        "details": {
-            "type": "string",
-            "description": "Details or notes from the call."
-        }
+        "voterId": { "type": "string", "description": "The ID of the voter to be called." },
+        "userId": { "type": "string", "description": "The ID of the user who made the call." },
+        "status": { "type": "string", "description": "The status of the call." },
+        "callDate": { "type": "string", "format": "date-time", "description": "The date and time the call was attended." },
+        "attempts": { "type": "number", "description": "Number of attempts made to call the voter." },
+        "details": { "type": "string", "description": "Details or notes from the call." }
       },
       "required": ["voterId", "status", "attempts"]
     },
@@ -492,82 +272,56 @@
     ]
   },
   "firestore": {
-    "/tenants/{tenantId}": {
-        "schema": {
-            "$ref": "#/entities/Tenant"
-        },
-        "description": "Stores information about each tenant (customer account)."
-    },
-    "/tenants/{tenantId}/users/{userId}": {
-        "schema": {
-            "$ref": "#/entities/User"
-        },
-        "description": "Stores user profiles specific to a tenant."
-    },
     "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/User"
-      },
-      "description": "DEPRECATED - Stores user profiles. Should be moved under /tenants/{tenantId}/users/{userId}."
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles."
     },
     "/roles/{roleId}": {
-      "schema": {
-        "$ref": "#/entities/Role"
-      },
+      "schema": { "$ref": "#/entities/Role" },
       "description": "Stores role definitions, with specific roles for 'admin', 'campaign_manager', and 'promoter'."
     },
     "/campaigns/{campaignId}": {
-      "schema": {
-        "$ref": "#/entities/Campaign"
-      },
+      "schema": { "$ref": "#/entities/Campaign" },
       "description": "Stores campaign information."
     },
-     "/campaigns/{campaignId}/generatedStrategies/{strategyId}": {
-      "schema": {
-        "$ref": "#/entities/GeneratedStrategy"
-      },
+    "/campaigns/{campaignId}/generatedStrategies/{strategyId}": {
+      "schema": { "$ref": "#/entities/GeneratedStrategy" },
       "description": "Stores AI-generated strategies for a specific campaign."
     },
     "/voters/{voterId}": {
-      "schema": {
-        "$ref": "#/entities/Voter"
-      },
+      "schema": { "$ref": "#/entities/Voter" },
       "description": "Stores voter information."
     },
-    "/cities/{cityId}": {
-      "schema": {
-        "$ref": "#/entities/City"
-      },
-      "description": "Stores city information."
+    "/countries/{countryId}": {
+        "schema": { "$ref": "#/entities/Country" },
+        "description": "Stores country information."
+    },
+    "/countries/{countryId}/departments/{departmentId}": {
+        "schema": { "$ref": "#/entities/Department" },
+        "description": "Stores department/state information for a country."
+    },
+    "/countries/{countryId}/departments/{departmentId}/cities/{cityId}": {
+        "schema": { "$ref": "#/entities/City" },
+        "description": "Stores city/municipality information for a department."
     },
     "/tasks/{taskId}": {
-      "schema": {
-        "$ref": "#/entities/Task"
-      },
+      "schema": { "$ref": "#/entities/Task" },
       "description": "Stores campaign tasks."
     },
-     "/calls/{callId}": {
-      "schema": {
-        "$ref": "#/entities/Call"
-      },
+    "/calls/{callId}": {
+      "schema": { "$ref": "#/entities/Call" },
       "description": "Stores call records for voters."
     },
     "/settings/branding": {
-      "schema": {
-        "$ref": "#/entities/BrandingSettings"
-      },
+      "schema": { "$ref": "#/entities/BrandingSettings" },
       "description": "Stores the single document for application branding settings."
     },
-     "/settings/socialApi": {
-      "schema": {
-        "$ref": "#/entities/SocialApiSettings"
-      },
+    "/settings/socialApi": {
+      "schema": { "$ref": "#/entities/SocialApiSettings" },
       "description": "Stores API tokens for social media integrations."
     },
     "/lists/{listId}": {
-      "schema": {
-        "$ref": "#/entities/ManagedList"
-      },
+      "schema": { "$ref": "#/entities/ManagedList" },
       "description": "Stores documents for user-managed lists. The document ID is the list name (e.g., 'taskPriorities')."
     },
     "/keywords/{keywordId}": {

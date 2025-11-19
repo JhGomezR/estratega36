@@ -3,7 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Voter, City, User, ManagedList } from "@/lib/types"
+import type { Voter, City, User, ManagedList, Country, Department } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -21,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection } from "firebase/firestore"
 
 const voterFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -29,6 +31,8 @@ const voterFormSchema = z.object({
   idNumber: z.string().min(5, "El número de documento es requerido."),
   email: z.string().email("El correo electrónico no es válido.").optional().or(z.literal('')),
   phone: z.string().min(7, "El celular no es válido.").optional().or(z.literal('')),
+  countryId: z.string({ required_error: "Debe seleccionar un país." }),
+  departmentId: z.string({ required_error: "Debe seleccionar un departamento." }),
   cityId: z.string({ required_error: "Debe seleccionar una ciudad." }),
   vereda: z.string().min(2, "La vereda o localidad es requerida."),
   address: z.string().min(5, "La dirección es requerida."),
@@ -39,14 +43,15 @@ export type VoterFormValues = z.infer<typeof voterFormSchema>;
 
 interface VoterFormProps {
   voter?: Voter | null;
-  cities: City[];
   promoters: User[];
   lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: VoterFormValues) => void;
   onCancel: () => void;
 }
 
-export function VoterForm({ voter, cities, promoters, lists, onSubmit, onCancel }: VoterFormProps) {
+export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: VoterFormProps) {
+  const firestore = useFirestore();
+
   const form = useForm<VoterFormValues>({
     resolver: zodResolver(voterFormSchema),
     defaultValues: {
@@ -56,12 +61,36 @@ export function VoterForm({ voter, cities, promoters, lists, onSubmit, onCancel 
       idNumber: voter?.idNumber ?? "",
       email: voter?.email ?? "",
       phone: voter?.phone ?? "",
+      countryId: voter?.countryId,
+      departmentId: voter?.departmentId,
       cityId: voter?.cityId ?? undefined,
       vereda: voter?.vereda ?? "",
       address: voter?.address ?? "",
       promoterId: voter?.promoterId ?? undefined,
     },
   });
+  
+  const selectedCountryId = form.watch("countryId");
+  const selectedDepartmentId = form.watch("departmentId");
+
+  const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore]);
+  const { data: countries, isLoading: countriesLoading } = useCollection<Country>(countriesRef);
+
+  const departmentsRef = useMemoFirebase(() => (firestore && selectedCountryId) ? collection(firestore, `countries/${selectedCountryId}/departments`) : null, [firestore, selectedCountryId]);
+  const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsRef);
+
+  const citiesRef = useMemoFirebase(() => (firestore && selectedCountryId && selectedDepartmentId) ? collection(firestore, `countries/${selectedCountryId}/departments/${selectedDepartmentId}/cities`) : null, [firestore, selectedCountryId, selectedDepartmentId]);
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesRef);
+
+  React.useEffect(() => {
+    form.setValue('departmentId', '');
+    form.setValue('cityId', '');
+  }, [selectedCountryId, form]);
+
+   React.useEffect(() => {
+    form.setValue('cityId', '');
+  }, [selectedDepartmentId, form]);
+
 
   return (
     <Form {...form}>
@@ -164,21 +193,61 @@ export function VoterForm({ voter, cities, promoters, lists, onSubmit, onCancel 
             />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="countryId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>País</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={countriesLoading ? "Cargando..." : "Selecciona país"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {countries?.map(country => <SelectItem key={country.id} value={country.id}>{country.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="departmentId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Departamento</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountryId || departmentsLoading}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={departmentsLoading ? "Cargando..." : "Selecciona dpto."} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {departments?.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
            <FormField
               control={form.control}
               name="cityId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Ciudad/Municipio</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDepartmentId || citiesLoading}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una ciudad" />
+                        <SelectValue placeholder={citiesLoading ? "Cargando..." : "Selecciona ciudad"} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {cities.map(city => (
+                      {cities?.map(city => (
                         <SelectItem key={city.id} value={city.id}>
                           {city.name}
                         </SelectItem>
@@ -189,6 +258,9 @@ export function VoterForm({ voter, cities, promoters, lists, onSubmit, onCancel 
                 </FormItem>
               )}
             />
+        </div>
+
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="vereda"
@@ -202,21 +274,20 @@ export function VoterForm({ voter, cities, promoters, lists, onSubmit, onCancel 
                 </FormItem>
               )}
             />
+             <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Dirección</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Ej: Calle 50 # 20-30" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
         </div>
-
-        <FormField
-            control={form.control}
-            name="address"
-            render={({ field }) => (
-            <FormItem>
-                <FormLabel>Dirección</FormLabel>
-                <FormControl>
-                <Input placeholder="Ej: Calle 50 # 20-30" {...field} />
-                </FormControl>
-                <FormMessage />
-            </FormItem>
-            )}
-        />
        
         <FormField
             control={form.control}

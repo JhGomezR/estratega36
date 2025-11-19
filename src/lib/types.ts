@@ -7,6 +7,8 @@ export type Voter = WithId<{
   idNumber: string;
   email?: string;
   phone?: string;
+  countryId: string;
+  departmentId: string;
   cityId: string;
   vereda: string;
   address: string;
@@ -75,13 +77,18 @@ export type User = WithId<{
   parentId?: string;
 }>;
 
+export type Country = WithId<{
+    name: string;
+}>;
+
+export type Department = WithId<{
+    name: string;
+}>;
+
 export type City = WithId<{
   name: string;
-  department: string;
-  country: string;
   latitude: number;
   longitude: number;
-  status: 'activo' | 'inactivo';
 }>;
 
 export type Role = WithId<{
