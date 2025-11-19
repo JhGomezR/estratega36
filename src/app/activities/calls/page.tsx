@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc, writeBatch } from "firebase/firestore"
 import type { Call, Voter, User } from "@/lib/types"
 import { CallForm } from "@/components/call-form"
@@ -68,13 +68,12 @@ const CALLS_PER_PAGE = 15;
 
 export default function CallsPage() {
   const firestore = useFirestore();
-  const tenantId = useTenant();
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
-  const callsCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/calls`) : null, [firestore, tenantId]);
-  const votersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/voters`) : null, [firestore, tenantId]);
-  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+  const callsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `calls`) : null, [firestore]);
+  const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
+  const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
 
   const { data: callsData, isLoading: callsLoading } = useCollection<Call>(callsCollectionRef);
   const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
@@ -583,3 +582,5 @@ export default function CallsPage() {
     </div>
   )
 }
+
+    

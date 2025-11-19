@@ -12,7 +12,7 @@ import { format, isPast } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { doc } from 'firebase/firestore';
-import { useFirestore, useTenant } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,7 +113,6 @@ const TaskCard = ({ task, user, allStatuses, onEdit, onDelete, onView, onStatusC
 
 export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDeleteTask, onViewTask }: KanbanBoardProps) => {
     const firestore = useFirestore();
-    const tenantId = useTenant();
     const { toast } = useToast();
 
     const handleStatusChange = (task: Task, newStatus: string) => {
@@ -126,8 +125,8 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
             return;
         }
 
-        if (firestore && tenantId) {
-            setDocumentNonBlocking(doc(firestore, `tenants/${tenantId}/tasks`, task.id), { status: newStatus }, { merge: true });
+        if (firestore) {
+            setDocumentNonBlocking(doc(firestore, `tasks`, task.id), { status: newStatus }, { merge: true });
         }
     };
 
@@ -205,3 +204,5 @@ export const KanbanBoard = ({ tasks, users, lists, isLoading, onEditTask, onDele
         </div>
     );
 };
+
+    

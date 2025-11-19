@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
-import { useCollection, useFirestore, useMemoFirebase, useTenant } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import type { Task, User } from "@/lib/types"
 import { isSameDay, parseISO, isWithinInterval, addMonths, subMonths, format, isToday } from 'date-fns'
@@ -116,10 +116,9 @@ function DayWithTasks({
 
 export default function CalendarPage() {
   const firestore = useFirestore()
-  const tenantId = useTenant();
 
-  const tasksCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/tasks`) : null, [firestore, tenantId]);
-  const usersCollectionRef = useMemoFirebase(() => tenantId ? collection(firestore, `tenants/${tenantId}/users`) : null, [firestore, tenantId]);
+  const tasksCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `tasks`) : null, [firestore]);
+  const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   
   const { data: tasksData, isLoading: tasksLoading } = useCollection<Task>(tasksCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
@@ -321,3 +320,5 @@ export default function CalendarPage() {
     </div>
   )
 }
+
+    
