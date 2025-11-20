@@ -56,6 +56,21 @@ export default function CitiesPage() {
   const citiesRef = useMemoFirebase(() => firestore && selectedCountryId && selectedDepartmentId ? collection(firestore, `countries/${selectedCountryId}/departments/${selectedDepartmentId}/cities`) : null, [firestore, selectedCountryId, selectedDepartmentId]);
   const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesRef);
   
+  const sortedCountries = React.useMemo(() => {
+    if (!countries) return [];
+    return [...countries].sort((a, b) => a.name.localeCompare(b.name));
+  }, [countries]);
+
+  const sortedDepartments = React.useMemo(() => {
+    if (!departments) return [];
+    return [...departments].sort((a, b) => a.name.localeCompare(b.name));
+  }, [departments]);
+
+  const sortedCities = React.useMemo(() => {
+    if (!cities) return [];
+    return [...cities].sort((a, b) => a.name.localeCompare(b.name));
+  }, [cities]);
+  
   React.useEffect(() => {
     setSelectedDepartmentId(null);
   }, [selectedCountryId]);
@@ -162,7 +177,7 @@ export default function CitiesPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div className="space-y-1">
-                <CardTitle>Países</CardTitle>
+                <CardTitle>Países ({sortedCountries.length})</CardTitle>
                 <CardDescription>Selecciona un país.</CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={() => handleAddNew('country')}><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button>
@@ -170,7 +185,7 @@ export default function CitiesPage() {
           <CardContent>
             <ScrollArea className="h-96">
                 {countriesLoading ? <p>Cargando...</p> :
-                 countries?.map(country => (
+                 sortedCountries?.map(country => (
                      <ListItem 
                         key={country.id}
                         item={country}
@@ -189,7 +204,7 @@ export default function CitiesPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between">
              <div className="space-y-1">
-                <CardTitle>Departamentos</CardTitle>
+                <CardTitle>Departamentos ({sortedDepartments.length})</CardTitle>
                 <CardDescription>Selecciona un dpto.</CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={() => handleAddNew('department')} disabled={!selectedCountryId}><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button>
@@ -197,7 +212,7 @@ export default function CitiesPage() {
           <CardContent>
             <ScrollArea className="h-96">
                 {departmentsLoading ? <p>Cargando...</p> : !selectedCountryId ? <p className="text-muted-foreground text-sm text-center pt-4">Selecciona un país.</p> :
-                 departments?.map(dept => (
+                 sortedDepartments?.map(dept => (
                       <ListItem 
                         key={dept.id}
                         item={dept}
@@ -216,7 +231,7 @@ export default function CitiesPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between">
              <div className="space-y-1">
-                <CardTitle>Ciudades</CardTitle>
+                <CardTitle>Ciudades ({sortedCities.length})</CardTitle>
                 <CardDescription>Municipios.</CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={() => handleAddNew('city')} disabled={!selectedDepartmentId}><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button>
@@ -224,7 +239,7 @@ export default function CitiesPage() {
           <CardContent>
             <ScrollArea className="h-96">
                 {citiesLoading ? <p>Cargando...</p> : !selectedDepartmentId ? <p className="text-muted-foreground text-sm text-center pt-4">Selecciona un departamento.</p> :
-                 cities?.map(city => (
+                 sortedCities?.map(city => (
                     <div key={city.id} className="p-2 rounded-md hover:bg-muted flex items-center justify-between">
                         <div className="flex items-center gap-3">
                            <Building className="h-5 w-5" />
