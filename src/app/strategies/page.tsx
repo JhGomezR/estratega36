@@ -1,6 +1,6 @@
 "use client"
 import { StrategiesClient } from "@/components/strategies-client";
-import { useAuth, useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { useUser, useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Campaign, Role, User } from "@/lib/types";
 import { collection, doc } from "firebase/firestore";
 import React from "react";
@@ -9,7 +9,7 @@ export const maxDuration = 120; // Aumenta el timeout a 2 minutos
 
 export default function StrategiesPage() {
   const firestore = useFirestore();
-  const { user } = useAuth();
+  const { user } = useUser();
 
   const { data: campaignsData, isLoading: campaignsLoading } = useCollection<Campaign>(
     useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
