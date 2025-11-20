@@ -206,6 +206,7 @@
       "properties": {
         "campaignId": { "type": "string" },
         "generatedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "archived"], "default": "active" },
         "inputs": {
           "type": "object",
           "properties": {
@@ -231,7 +232,7 @@
           "required": ["diagnostico", "marca", "audiencia", "operacion", "consistencia", "microtargeting", "recomendaciones", "riesgos"]
         }
       },
-      "required": ["campaignId", "generatedAt", "inputs", "outputs"]
+      "required": ["campaignId", "generatedAt", "inputs", "outputs", "status"]
     },
     "Keyword": {
         "title": "Keyword",
@@ -339,5 +340,3 @@
     }
   }
 }
-
-    

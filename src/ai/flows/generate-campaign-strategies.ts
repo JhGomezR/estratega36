@@ -229,6 +229,7 @@ export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInp
     const strategyData = {
       campaignId: data.campaignId,
       generatedAt: new Date().toISOString(),
+      status: 'active' as const,
       inputs: data.inputs,
       outputs: data.outputs
     };

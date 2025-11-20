@@ -144,6 +144,7 @@ export type ManagedList = WithId<{
 export type GeneratedStrategy = WithId<{
     campaignId: string;
     generatedAt: string;
+    status: 'active' | 'archived';
     inputs: {
         campaignData: string;
         lugar: string;
@@ -194,5 +195,3 @@ export type Tenant = WithId<{
     createdAt: string;
     status: 'active' | 'inactive';
 }>;
-
-    

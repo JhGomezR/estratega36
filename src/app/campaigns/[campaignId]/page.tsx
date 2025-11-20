@@ -24,7 +24,7 @@ import { doc, collection, query, where } from "firebase/firestore"
 import type { Campaign, ManagedList, Campaign as CampaignType, GeneratedStrategy } from "@/lib/types"
 import { format, parseISO, isToday } from "date-fns"
 import { es } from 'date-fns/locale'
-import { ArrowLeft, Edit, Loader2, FileText } from "lucide-react"
+import { ArrowLeft, Edit, Loader2, FileText, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionModal } from "@/components/ui/dialog"
@@ -32,6 +32,17 @@ import { CampaignForm } from "@/components/campaign-form"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 const statusColors: Record<string, string> = {
   'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
@@ -42,10 +53,13 @@ const statusColors: Record<string, string> = {
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter();
+  const { toast } = useToast();
   const campaignId = params.campaignId as string;
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedStrategy, setSelectedStrategy] = React.useState<GeneratedStrategy | null>(null);
+  const [strategyToArchive, setStrategyToArchive] = React.useState<GeneratedStrategy | null>(null);
+
 
   const firestore = useFirestore()
   const campaignRef = useMemoFirebase(() => {
@@ -56,7 +70,7 @@ export default function CampaignDetailPage() {
   
   const strategiesQuery = useMemoFirebase(() => {
     if (!firestore || !campaignId) return null;
-    return query(collection(firestore, `strategies`), where('campaignId', '==', campaignId));
+    return query(collection(firestore, `strategies`), where('campaignId', '==', campaignId), where('status', '==', 'active'));
   }, [firestore, campaignId]);
 
   const { data: strategies, isLoading: strategiesLoading } = useCollection<GeneratedStrategy>(strategiesQuery);
@@ -85,6 +99,31 @@ export default function CampaignDetailPage() {
     }
     setIsFormOpen(false);
   }
+
+  const confirmArchiveStrategy = (strategy: GeneratedStrategy) => {
+    setStrategyToArchive(strategy);
+  };
+
+  const handleArchiveStrategy = () => {
+    if (!strategyToArchive || !firestore) return;
+    try {
+        const strategyRef = doc(firestore, `strategies`, strategyToArchive.id);
+        setDocumentNonBlocking(strategyRef, { status: 'archived' }, { merge: true });
+        toast({
+            title: "Estrategia Archivada",
+            description: "La estrategia ha sido movida al archivo.",
+        });
+    } catch(error) {
+        console.error("Error archiving strategy:", error);
+        toast({
+            variant: "destructive",
+            title: "Error al archivar",
+            description: "No se pudo archivar la estrategia. Inténtalo de nuevo.",
+        });
+    } finally {
+        setStrategyToArchive(null);
+    }
+  };
 
   if (isLoading || listsLoading || strategiesLoading) {
     return (
@@ -195,9 +234,11 @@ export default function CampaignDetailPage() {
                                 <TableRow key={strategy.id}>
                                     <TableCell>{format(new Date(strategy.generatedAt), "dd/MM/yyyy 'a las' HH:mm")}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="outline" size="sm" onClick={() => setSelectedStrategy(strategy)}>
-                                            <FileText className="mr-2 h-4 w-4" />
-                                            Ver
+                                        <Button variant="ghost" size="icon" onClick={() => setSelectedStrategy(strategy)}>
+                                            <FileText className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => confirmArchiveStrategy(strategy)}>
+                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -288,8 +329,21 @@ export default function CampaignDetailPage() {
             </ScrollArea>
         </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!strategyToArchive} onOpenChange={(open) => !open && setStrategyToArchive(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro de que quieres archivar esta estrategia?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción no se puede deshacer. La estrategia dejará de ser visible en esta lista.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setStrategyToArchive(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleArchiveStrategy}>Archivar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </div>
   )
 }
-
-    
