@@ -17,14 +17,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Generic rule to allow open access to any collection.
+     * @description Generic rule to allow open access to any top-level collection.
      * @path /{collection}/{docId}
-     * @allow (get, list, create, update, delete) Any authenticated user can access any document.
-     * @deny (none) This rule provides completely open access for prototyping.
-     * @principle Open access for rapid development.
      */
-    match /{path=**}/{document} {
-      allow get, list, create, update, delete: if true;
+    match /{document=**} {
+      allow read, write: if true;
     }
 
     /**
@@ -68,11 +65,36 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows read and write access to city information.
-     * @path /cities/{cityId}
+     * @description Allows read and write access to country information.
+     * @path /countries/{countryId}
      */
-    match /cities/{cityId} {
+    match /countries/{countryId} {
       allow get, list, create, update, delete: if true;
+        
+        /**
+        * @description Allows read and write access to department information.
+        * @path /countries/{countryId}/departments/{departmentId}
+        */
+        match /departments/{departmentId} {
+            allow get, list, create, update, delete: if true;
+
+             /**
+             * @description Allows read and write access to city information.
+             * @path /countries/{countryId}/departments/{departmentId}/cities/{cityId}
+             */
+            match /cities/{cityId} {
+                allow get, list, create, update, delete: if true;
+            }
+        }
+    }
+    
+    // Rules for Collection Group Queries
+    match /{path=**}/departments/{departmentId} {
+      allow get, list: if true;
+    }
+
+    match /{path=**}/cities/{cityId} {
+      allow get, list: if true;
     }
 
     /**
