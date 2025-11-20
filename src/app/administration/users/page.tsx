@@ -248,7 +248,13 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {user.cityIds.map(id => <Badge variant="outline" key={id}>{cities?.find(c=>c.id === id)?.name}</Badge>)}
+                      {user.cityIds.map(id => {
+                        const cityName = cities?.find(c => c.id === id)?.name;
+                        if (cityName) {
+                          return <Badge variant="outline" key={id}>{cityName}</Badge>;
+                        }
+                        return null;
+                      })}
                     </div>
                   </TableCell>
                   <TableCell>
