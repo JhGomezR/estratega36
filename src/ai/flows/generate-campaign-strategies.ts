@@ -229,7 +229,7 @@ export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInp
     const { firestore } = initializeFirebase();
     if (!firestore) throw new Error("Firestore is not initialized.");
 
-    const strategyRef = collection(firestore, `campaigns/${data.campaignId}/generatedStrategies`);
+    const strategyRef = collection(firestore, `strategies`);
 
     const docRef = await addDoc(strategyRef, {
       campaignId: data.campaignId,
@@ -245,3 +245,5 @@ export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInp
     return { success: false };
   }
 }
+
+    

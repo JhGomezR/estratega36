@@ -289,9 +289,9 @@
       "schema": { "$ref": "#/entities/Campaign" },
       "description": "Stores campaign information."
     },
-    "/campaigns/{campaignId}/generatedStrategies/{strategyId}": {
+    "/strategies/{strategyId}": {
       "schema": { "$ref": "#/entities/GeneratedStrategy" },
-      "description": "Stores AI-generated strategies for a specific campaign."
+      "description": "Stores AI-generated strategies, linked to a campaign via campaignId."
     },
     "/voters/{voterId}": {
       "schema": { "$ref": "#/entities/Voter" },
@@ -339,3 +339,5 @@
     }
   }
 }
+
+    

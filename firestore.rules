@@ -50,9 +50,9 @@ service cloud.firestore {
 
     /**
      * @description Allows read and write access to AI-generated campaign strategies.
-     * @path /campaigns/{campaignId}/generatedStrategies/{strategyId}
+     * @path /strategies/{strategyId}
      */
-    match /campaigns/{campaignId}/generatedStrategies/{strategyId} {
+    match /strategies/{strategyId} {
       allow read, write: if true;
     }
 
@@ -161,3 +161,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

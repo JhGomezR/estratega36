@@ -1,3 +1,4 @@
+
 export type WithId<T> = T & { id: string };
 
 export type Voter = WithId<{
@@ -183,3 +184,15 @@ export type SocialApiSettings = {
   facebookGraphApiToken?: string;
   facebookAppId?: string;
 };
+
+export type Tenant = WithId<{
+    companyName: string;
+    subdomain: string;
+    plan: 'basico' | 'estratega' | '360';
+    databaseId: string;
+    ownerUid: string;
+    createdAt: string;
+    status: 'active' | 'inactive';
+}>;
+
+    

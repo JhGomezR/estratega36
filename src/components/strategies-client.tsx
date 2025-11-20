@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import { useState } from 'react'
@@ -111,8 +110,11 @@ interface StrategiesClientProps {
 
 export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps) {
   const [strategy, setStrategy] = useState<StrategyResult>({})
+  const [formValues, setFormValues] = useState<z.infer<typeof formSchema> | null>(null);
   const [isOverallGenerating, setIsOverallGenerating] = useState(false)
   const [sectionStatus, setSectionStatus] = useState<SectionStatus>(initialSectionStatus)
+  const [isSaving, setIsSaving] = useState(false);
+
   const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -130,6 +132,7 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
     setIsOverallGenerating(true);
     setStrategy({});
     setSectionStatus(initialSectionStatus);
+    setFormValues(values);
     
     const generatedOutputs: StrategyResult = {};
 
@@ -155,33 +158,52 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
         }
     }
     
-    // Save the complete strategy to Firestore
-    try {
-        const { campaignId, ...inputs } = values;
-        await saveGeneratedStrategy({
-            campaignId,
-            inputs,
-            outputs: generatedOutputs as Record<SectionKey, string>
-        });
-        toast({
-            title: "Estrategia Guardada",
-            description: "La estrategia completa ha sido guardada en la base de datos.",
-            action: <Save className="h-5 w-5" />,
-        });
-    } catch (e) {
-        console.error("Error saving the whole strategy:", e);
-        toast({
-            variant: "destructive",
-            title: "Error al Guardar Estrategia",
-            description: "No se pudo guardar la estrategia en la base de datos.",
-        });
-    }
-    
     setIsOverallGenerating(false);
-    form.reset({ campaignData: '', lugar: '', objectives: '', resourceConstraints: '', campaignId: values.campaignId });
   }
 
+  const handleSaveStrategy = async () => {
+    if (!formValues || Object.keys(strategy).length !== sectionKeys.length) {
+      toast({
+        variant: "destructive",
+        title: "Estrategia Incompleta",
+        description: "No se puede guardar una estrategia incompleta o con errores.",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { campaignId, ...inputs } = formValues;
+      const result = await saveGeneratedStrategy({
+        campaignId,
+        inputs,
+        outputs: strategy as Record<SectionKey, string>,
+      });
+
+      if (result.success) {
+        toast({
+          title: "Estrategia Guardada",
+          description: "La estrategia completa ha sido guardada en la base de datos.",
+          action: <Save className="h-5 w-5" />,
+        });
+      } else {
+        throw new Error("El guardado falló en el servidor.");
+      }
+    } catch (e) {
+      console.error("Error saving strategy:", e);
+      toast({
+        variant: "destructive",
+        title: "Error al Guardar",
+        description: "No se pudo guardar la estrategia. Inténtalo de nuevo.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+
   const hasStarted = isOverallGenerating || Object.values(strategy).some(v => v);
+  const isComplete = Object.values(sectionStatus).every(s => s === 'completed');
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -317,13 +339,21 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
                         Generando estrategia... Este proceso puede tardar hasta 2 minutos. Por favor, no cierres esta ventana.
                     </div>
                 )}
-                <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Contenido Generado por IA</AlertTitle>
-                    <AlertDescription>
-                        Este contenido es una base generada por inteligencia artificial. Recuerda revisarlo y ajustarlo a tus necesidades.
-                    </AlertDescription>
-                </Alert>
+                 {isComplete && (
+                   <div className="flex items-center justify-between">
+                     <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Revisa y Guarda tu Estrategia</AlertTitle>
+                        <AlertDescription>
+                            El contenido ha sido generado. Revísalo y guárdalo para el historial de tu campaña.
+                        </AlertDescription>
+                    </Alert>
+                     <Button onClick={handleSaveStrategy} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Guardar
+                    </Button>
+                   </div>
+                 )}
                 <CardTitle className="pt-4">Estrategia de Campaña Generada</CardTitle>
             </CardHeader>
             <CardContent>
@@ -364,3 +394,5 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
     </div>
   )
 }
+
+    
