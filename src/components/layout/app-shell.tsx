@@ -139,7 +139,7 @@ function MainNav() {
 }
 
 
-function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const firestore = useFirestore();
     const { role, hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
@@ -260,34 +260,4 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             </div>
         </div>
     )
-}
-
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, isUserLoading } = useUser();
-
-  React.useEffect(() => {
-    // Redirect to login if not authenticated and not on a public page
-    if (!isUserLoading && !user && pathname !== '/login' && pathname !== '/signup') {
-      router.push('/login');
-    }
-  }, [isUserLoading, user, router, pathname]);
-
-  // For public pages, just render the children
-  if (pathname === '/login' || pathname === '/signup') {
-    return <>{children}</>;
-  }
-
-  // While checking auth state, show a global loader
-  if (isUserLoading || !user) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin" />
-      </div>
-    );
-  }
-
-  // If authenticated, render the full app shell
-  return <AuthenticatedAppShell>{children}</AuthenticatedAppShell>;
 }
