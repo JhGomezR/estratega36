@@ -19,8 +19,8 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
-import { doc } from "firebase/firestore"
+import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase"
+import { doc, collection, query, where } from "firebase/firestore"
 import type { Campaign, ManagedList, Campaign as CampaignType, GeneratedStrategy } from "@/lib/types"
 import { format, parseISO, isToday } from "date-fns"
 import { es } from 'date-fns/locale'
@@ -30,8 +30,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionModal } from "@/components/ui/dialog"
 import { CampaignForm } from "@/components/campaign-form"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { useCollection } from "@/firebase/firestore/use-collection"
-import { collection } from "firebase/firestore"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -56,10 +54,12 @@ export default function CampaignDetailPage() {
 
   const { data: campaign, isLoading } = useDoc<Campaign>(campaignRef);
   
-  const strategiesRef = useMemoFirebase(() => {
-      return firestore && campaignId ? collection(firestore, `campaigns`, campaignId, 'generatedStrategies') : null
+  const strategiesQuery = useMemoFirebase(() => {
+    if (!firestore || !campaignId) return null;
+    return query(collection(firestore, `strategies`), where('campaignId', '==', campaignId));
   }, [firestore, campaignId]);
-  const { data: strategies, isLoading: strategiesLoading } = useCollection<GeneratedStrategy>(strategiesRef);
+
+  const { data: strategies, isLoading: strategiesLoading } = useCollection<GeneratedStrategy>(strategiesQuery);
 
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `lists`) : null, [firestore]);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
@@ -291,3 +291,5 @@ export default function CampaignDetailPage() {
     </div>
   )
 }
+
+    
