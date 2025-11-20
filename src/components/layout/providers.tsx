@@ -3,8 +3,8 @@
 
 import React from 'react';
 import { ThemeProvider } from 'next-themes';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FacebookProvider } from '@/hooks/useFacebook';
+import { Toaster } from '../ui/toaster';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -14,9 +14,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <FirebaseClientProvider>
-        <FacebookProvider>{children}</FacebookProvider>
-      </FirebaseClientProvider>
+      <FacebookProvider>
+        {children}
+        <Toaster />
+      </FacebookProvider>
     </ThemeProvider>
   );
 }
