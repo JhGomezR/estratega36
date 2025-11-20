@@ -34,6 +34,17 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Lightbulb, Loader2, CheckCircle, AlertTriangle, Info, Save } from 'lucide-react'
@@ -340,19 +351,38 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
                     </div>
                 )}
                  {isComplete && (
-                   <div className="flex items-center justify-between">
-                     <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>Revisa y Guarda tu Estrategia</AlertTitle>
-                        <AlertDescription>
-                            El contenido ha sido generado. Revísalo y guárdalo para el historial de tu campaña.
-                        </AlertDescription>
-                    </Alert>
-                     <Button onClick={handleSaveStrategy} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Guardar
-                    </Button>
-                   </div>
+                     <div className="flex items-center justify-between">
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Generación Completa</AlertTitle>
+                            <AlertDescription>
+                                La estrategia ha sido generada. Revisa el contenido y guárdalo.
+                            </AlertDescription>
+                        </Alert>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button disabled={isSaving}>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    Revisar y Guardar
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>¿Confirmar y Guardar Estrategia?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción guardará la estrategia generada en el historial de la campaña seleccionada.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleSaveStrategy} disabled={isSaving}>
+                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Confirmar y Guardar
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
                  )}
                 <CardTitle className="pt-4">Estrategia de Campaña Generada</CardTitle>
             </CardHeader>
@@ -394,5 +424,3 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
     </div>
   )
 }
-
-    
