@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { collection, collectionGroup } from "firebase/firestore"
 import { ScrollArea } from "./ui/scroll-area"
 import { usePermissions } from "@/hooks/usePermissions"
 
@@ -61,19 +61,8 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
   const isAdmin = currentUserRole?.name.toLowerCase().includes('admin');
   const firestore = useFirestore();
 
-  const { data: countries, isLoading: countriesLoading } = useCollection<Country>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore])
-  );
-
-  const [departmentData, setDepartmentData] = React.useState<Record<string, Department[]>>({});
-  const [cityData, setCityData] = React.useState<Record<string, City[]>>({});
-
-  const { data: allDepartments } = useCollection<Department>(
-    useMemoFirebase(() => firestore ? collection(firestore, 'departments') : null, [firestore])
-  );
-
   const { data: allCities, isLoading: citiesLoading } = useCollection<City>(
-      useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+    useMemoFirebase(() => firestore ? collectionGroup(firestore, 'cities') : null, [firestore])
   );
 
   const form = useForm<UserFormValues>({
