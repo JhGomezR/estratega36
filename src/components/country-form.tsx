@@ -43,13 +43,23 @@ export function CountryForm({ country, onSubmit, onCancel }: CountryFormProps) {
   });
 
   React.useEffect(() => {
-    form.reset({
-      name: country?.name ?? "",
-      currency: country?.currency ?? "",
-      language: country?.language ?? "",
-      status: country?.status ?? 'activo',
-    });
+    if (country) {
+      form.reset({
+        name: country.name,
+        currency: country.currency,
+        language: country.language,
+        status: country.status ?? 'activo',
+      });
+    } else {
+       form.reset({
+        name: "",
+        currency: "",
+        language: "",
+        status: 'activo',
+      });
+    }
   }, [country, form]);
+
 
   return (
     <Form {...form}>

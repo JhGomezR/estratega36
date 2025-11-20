@@ -39,10 +39,17 @@ export function DepartmentForm({ department, onSubmit, onCancel }: DepartmentFor
   });
 
   React.useEffect(() => {
-    form.reset({
-      name: department?.name ?? "",
-      status: department?.status ?? 'activo',
-    });
+    if (department) {
+      form.reset({
+        name: department.name,
+        status: department.status ?? 'activo',
+      });
+    } else {
+        form.reset({
+            name: "",
+            status: 'activo',
+        });
+    }
   }, [department, form]);
 
 
