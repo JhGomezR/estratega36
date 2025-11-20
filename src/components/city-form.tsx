@@ -49,13 +49,16 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
   });
 
   React.useEffect(() => {
-    form.reset({
-      name: city?.name ?? "",
-      latitude: city?.latitude ?? 0,
-      longitude: city?.longitude ?? 0,
-      status: city?.status ?? 'activo',
-    });
-  }, [city, form]);
+    if (city) {
+        form.reset({
+            name: city.name,
+            latitude: city.latitude,
+            longitude: city.longitude,
+            status: city.status ?? 'activo',
+        });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   function handleFormSubmit(data: CityFormValues) {
