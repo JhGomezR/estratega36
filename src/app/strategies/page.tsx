@@ -23,28 +23,18 @@ export default function StrategiesPage() {
   );
 
   const activeCampaigns = React.useMemo(() => {
-    if (!campaignsData || !user) return [];
+    if (!campaignsData || !user || !currentUserData || !roles) return [];
     
     const allActiveCampaigns = campaignsData.filter(c => c.status === 'En Campaña');
 
-    // Super admin bypass
-    if (user.email === 'axdrcys@gmail.com') {
-        return allActiveCampaigns;
-    }
-
-    // Role-based check
-    if (!currentUserData || !roles) return [];
-
     const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
-    const adminRoleIds = roles
-        .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
-        .map(r => r.id);
+    const userRole = roles.find(r => r.id === currentUserData.roleId)?.name?.toLowerCase();
 
-    if (adminRoleIds.includes(currentUserData.roleId)) {
+    if (userRole && adminRoleNames.includes(userRole)) {
         return allActiveCampaigns;
     }
     
-    // Default user filter
+    // For non-admin users, filter by their assigned campaigns.
     return allActiveCampaigns.filter(c => 
       currentUserData.campaignIds.includes(c.id)
     );
