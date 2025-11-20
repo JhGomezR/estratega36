@@ -112,6 +112,8 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
     }
     onSubmit(finalData);
   }
+  
+  const showPasswordChange = isAdmin && user;
 
   return (
     <Form {...form}>
@@ -223,7 +225,7 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
                 </FormItem>
                 )}
             />
-            {(!user || isAdmin) && (
+            {(!user || showPasswordChange) && (
               <FormField
                   control={form.control}
                   name="password"

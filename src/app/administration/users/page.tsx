@@ -36,10 +36,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -69,25 +68,9 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null)
   
   const users = React.useMemo(() => {
-    if (!usersData || !authUser || !currentUserData || !roles) return [];
-  
-    const activeUsers = usersData.filter(u => u.status !== 'inactivo');
-
-    const isAdmin = currentUserRole?.name?.toLowerCase().includes('admin');
-
-    if (isAdmin) {
-        return activeUsers;
-    }
-
-    if (currentUserRole?.name?.toLowerCase() === 'lider') {
-        const teamMemberIds = usersData.filter(u => u.parentId === authUser.uid).map(u => u.id);
-        const allTeamIds = [authUser.uid, ...teamMemberIds];
-        return activeUsers.filter(u => allTeamIds.includes(u.id));
-    }
-    
-    return activeUsers.filter(u => u.id === authUser.uid);
-
-  }, [usersData, authUser, currentUserData, roles, currentUserRole]);
+    if (!usersData) return [];
+    return usersData.filter(u => u.status !== 'inactivo');
+  }, [usersData]);
 
 
   const lists = React.useMemo(() => {
@@ -128,8 +111,13 @@ export default function UsersPage() {
       if (selectedUser) {
         // Editing an existing user
         const { password, email, ...firestoreData } = data;
-         const finalData: Partial<UserFormValues> = { ...firestoreData };
-        if ('parentId' in finalData && (finalData.parentId === 'none' || !finalData.parentId)) {
+        const finalData: Partial<UserFormValues> = { ...firestoreData };
+
+        if (!password) {
+            delete (finalData as any).password;
+        }
+
+        if (finalData.parentId === 'none' || !finalData.parentId) {
             delete finalData.parentId;
         }
         setDocumentNonBlocking(doc(firestore, `users`, selectedUser.id), finalData, { merge: true });
@@ -167,6 +155,8 @@ export default function UsersPage() {
   }
   
   const isLoading = permissionsLoading || usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
+
+  const isAdmin = currentUserRole?.name.toLowerCase().includes('admin');
 
   return (
     <div className="flex flex-col gap-8">
