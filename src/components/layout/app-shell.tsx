@@ -138,7 +138,7 @@ function MainNav() {
 }
 
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, onLogout }: { children: React.ReactNode, onLogout: () => void }) {
     const firestore = useFirestore();
     const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
     const { data: settings } = useDoc<BrandingSettings>(settingsRef);
@@ -203,7 +203,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             <span className="font-semibold text-lg text-primary invisible md:visible">EstrategaCRM</span>
                     )}
                 </div>
-                <UserNav />
+                <UserNav onLogout={onLogout} />
                 </header>
                 <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-muted/40">
                 {children}

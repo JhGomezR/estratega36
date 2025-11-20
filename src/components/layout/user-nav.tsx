@@ -16,25 +16,16 @@ import { useAuth, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { User } from "@/lib/types"
 import { LogOut, User as UserIcon } from "lucide-react"
-import { signOut } from "firebase/auth"
-import { useRouter } from "next/navigation"
 
-export function UserNav() {
+export function UserNav({ onLogout }: { onLogout: () => void }) {
   const { user: authUser } = useAuth();
   const firestore = useFirestore();
-  const auth = useAuth();
-  const router = useRouter();
   
   const userRef = useMemoFirebase(() => {
     return firestore && authUser ? doc(firestore, `users`, authUser.uid) : null
   }, [firestore, authUser]);
 
   const { data: user } = useDoc<User>(userRef);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/login');
-  }
 
   return (
     <DropdownMenu>
@@ -67,7 +58,7 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem onClick={onLogout}>
           <LogOut className="mr-2" />
           <span>Cerrar Sesión</span>
         </DropdownMenuItem>
