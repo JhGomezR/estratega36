@@ -39,7 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -220,6 +220,13 @@ export default function UsersPage() {
             </TableHeader>
             <TableBody>
               {isLoading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
+              {!isLoading && users.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center h-24">
+                      No hay usuarios para mostrar.
+                  </TableCell>
+                </TableRow>
+              )}
               {users?.map((user) => (
                 <TableRow key={user.id}>
                    <TableCell className="font-medium">
