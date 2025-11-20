@@ -22,20 +22,39 @@ export function usePermissions() {
   const { data: role, isLoading: isRoleLoading } = useDoc<Role>(roleRef)
 
   const permissions = useMemo(() => {
+    if (user?.email === 'axdrcys@gmail.com') {
+        const allPermissions = new Set<string>();
+         Object.keys(permissionGroups).forEach(module => {
+            permissionGroups[module].forEach(action => {
+                allPermissions.add(`${module}:${action}`);
+            });
+        });
+        return allPermissions;
+    }
     if (!role) return new Set<string>()
     return new Set(role.permissions)
-  }, [role])
+  }, [role, user])
   
   const hasPermission = (permission: string) => {
-    // Super admin bypass
-    if (authUser?.email === 'axdrcys@gmail.com') return true;
     return permissions.has(permission)
   }
   
   const hasAnyPermission = (permissionsToCheck: string[]) => {
-      if (authUser?.email === 'axdrcys@gmail.com') return true;
       return permissionsToCheck.some(p => permissions.has(p));
   }
+  
+  const permissionGroups: Record<string, readonly string[]> = {
+    campaign: ["read", "create", "update", "delete"],
+    voter: ["read", "create", "update", "delete"],
+    user: ["read", "create", "update", "delete"],
+    role: ["read", "create", "update", "delete"],
+    city: ["read", "create", "update", "delete"],
+    task: ["read", "create", "update", "delete"],
+    call: ["read", "create", "update", "delete"],
+    report: ["read"],
+    setting: ["update"],
+  };
+
 
   return {
     user,

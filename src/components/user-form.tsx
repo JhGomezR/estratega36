@@ -23,9 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { ScrollArea } from "./ui/scroll-area"
+import { usePermissions } from "@/hooks/usePermissions"
 
 const userFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -56,8 +57,8 @@ interface UserFormProps {
 
 export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, onCancel }: UserFormProps) {
   const { user: authUser } = useAuth();
-  const { user: currentUserData } = useUser();
-  const isAdmin = currentUserData?.email === 'axdrcys@gmail.com';
+  const { role: currentUserRole } = usePermissions();
+  const isAdmin = currentUserRole?.name.toLowerCase().includes('admin');
   const firestore = useFirestore();
 
   const { data: countries, isLoading: countriesLoading } = useCollection<Country>(
@@ -115,7 +116,7 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-        {!isAdmin && (
+        {!isAdmin && user && user.id === authUser?.uid && (
             <FormField
             control={form.control}
             name="parentId"
@@ -222,7 +223,7 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
                 </FormItem>
                 )}
             />
-            {!user && (
+            {(!user || isAdmin) && (
               <FormField
                   control={form.control}
                   name="password"
@@ -230,7 +231,7 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
                   <FormItem>
                       <FormLabel>Contraseña</FormLabel>
                       <FormControl>
-                      <Input type="password" placeholder="Mínimo 6 caracteres" {...field} />
+                      <Input type="password" placeholder={user ? "Dejar en blanco para no cambiar" : "Mínimo 6 caracteres"} {...field} />
                       </FormControl>
                       <FormMessage />
                   </FormItem>
@@ -279,7 +280,7 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
             />
         </div>
 
-        {isAdmin && (
+        {isAdmin && user?.id !== authUser?.uid && (
              <FormField
                 control={form.control}
                 name="parentId"

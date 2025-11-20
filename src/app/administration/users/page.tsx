@@ -39,18 +39,19 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { createUser } from "./actions"
+import { usePermissions } from "@/hooks/usePermissions"
 
 
 export default function UsersPage() {
   const firestore = useFirestore();
   const { user: authUser } = useAuth();
   const { toast } = useToast();
-  const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
+  const { hasPermission, isLoading: permissionsLoading, user: currentUserData, role: currentUserRole } = usePermissions();
 
   const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
@@ -66,39 +67,27 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null)
-
+  
   const users = React.useMemo(() => {
-    if (!usersData || !currentUser || !roles) return [];
-
+    if (!usersData || !authUser || !currentUserData || !roles) return [];
+  
     const activeUsers = usersData.filter(u => u.status !== 'inactivo');
 
-    // Super admin can see everyone
-    if (authUser?.email === 'axdrcys@gmail.com') {
-      return activeUsers;
-    }
-    
-    const currentUserData = usersData.find(u => u.id === currentUser.uid);
-    if (!currentUserData) return [];
-    
-    const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
-    const adminRoleIds = roles
-        .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
-        .map(r => r.id);
+    const isAdmin = currentUserRole?.name?.toLowerCase().includes('admin');
 
-    if (adminRoleIds.includes(currentUserData.roleId)) {
+    if (isAdmin) {
         return activeUsers;
     }
 
-    if (currentUserData.roleId === 'lider') {
-        const teamMemberIds = usersData.filter(u => u.parentId === currentUser.uid).map(u => u.id);
-        const allTeamIds = [currentUser.uid, ...teamMemberIds];
+    if (currentUserRole?.name?.toLowerCase() === 'lider') {
+        const teamMemberIds = usersData.filter(u => u.parentId === authUser.uid).map(u => u.id);
+        const allTeamIds = [authUser.uid, ...teamMemberIds];
         return activeUsers.filter(u => allTeamIds.includes(u.id));
     }
     
-    // Other roles can only see themselves
-    return activeUsers.filter(u => u.id === currentUser.uid);
+    return activeUsers.filter(u => u.id === authUser.uid);
 
-  }, [usersData, currentUser, roles, authUser]);
+  }, [usersData, authUser, currentUserData, roles, currentUserRole]);
 
 
   const lists = React.useMemo(() => {
@@ -177,7 +166,7 @@ export default function UsersPage() {
     return roles?.find(r => r.id === roleId)?.name ?? 'N/A'
   }
   
-  const isLoading = currentUserLoading || usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
+  const isLoading = permissionsLoading || usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
 
   return (
     <div className="flex flex-col gap-8">
@@ -268,7 +257,7 @@ export default function UsersPage() {
                     </Button>
                     <AlertDialog open={!!userToDelete && userToDelete.id === user.id} onOpenChange={(open) => !open && setUserToDelete(null)}>
                       <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={() => confirmDelete(user)}>
+                         <Button variant="ghost" size="icon" onClick={() => confirmDelete(user)} disabled={user.email === 'axdrcys@gmail.com'}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
