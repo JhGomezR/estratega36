@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2 } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Eye } from "lucide-react"
 import type { User, Role, City, Campaign, ManagedList } from "@/lib/types"
 import { UserForm, type UserFormValues } from "@/components/user-form"
 import {
@@ -25,7 +26,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -67,6 +68,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null)
+  const [citiesToView, setCitiesToView] = React.useState<{ user: User, cities: City[] } | null>(null);
   
   const users = React.useMemo(() => {
     if (!usersData) return [];
@@ -96,6 +98,11 @@ export default function UsersPage() {
 
   const confirmDelete = (user: User) => {
     setUserToDelete(user)
+  }
+  
+  const handleViewCities = (user: User) => {
+    const assignedCities = cities?.filter(c => user.cityIds.includes(c.id)) || [];
+    setCitiesToView({ user, cities: assignedCities });
   }
 
   const handleDelete = () => {
@@ -234,14 +241,12 @@ export default function UsersPage() {
                     <Badge variant="secondary" className="capitalize">{getRoleName(user.roleId)}</Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {user.cityIds.map(id => {
-                        const cityName = cities?.find(c => c.id === id)?.name;
-                        if (cityName) {
-                          return <Badge variant="outline" key={id}>{cityName}</Badge>;
-                        }
-                        return null;
-                      })}
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">{user.cityIds.length} de {cities?.length || 0}</span>
+                         <Button variant="outline" size="sm" className="h-7" onClick={() => handleViewCities(user)}>
+                            <Eye className="h-3 w-3 mr-1" />
+                            Ver
+                        </Button>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -279,6 +284,31 @@ export default function UsersPage() {
           </Table>
         </CardContent>
       </Card>
+      
+        <Dialog open={!!citiesToView} onOpenChange={(open) => !open && setCitiesToView(null)}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Ciudades Asignadas a {citiesToView?.user.firstName}</DialogTitle>
+                    <DialogDescription>
+                        Listado completo de las ciudades a las que este usuario tiene acceso.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-80 overflow-y-auto p-1">
+                    <ul className="space-y-2">
+                        {citiesToView?.cities.map(city => (
+                            <li key={city.id} className="text-sm p-2 bg-muted/50 rounded-md">
+                                {city.name}
+                            </li>
+                        ))}
+                    </ul>
+                     {citiesToView?.cities.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">Este usuario no tiene ciudades asignadas.</p>
+                     )}
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
   )
 }
+
+    
