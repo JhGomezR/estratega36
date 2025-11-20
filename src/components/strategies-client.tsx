@@ -350,15 +350,20 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
                         Generando estrategia... Este proceso puede tardar hasta 2 minutos. Por favor, no cierres esta ventana.
                     </div>
                 )}
-                 {isComplete && (
-                     <div className="flex items-center justify-between">
-                        <Alert>
-                            <Info className="h-4 w-4" />
-                            <AlertTitle>Generación Completa</AlertTitle>
-                            <AlertDescription>
-                                La estrategia ha sido generada. Revisa el contenido y guárdalo.
-                            </AlertDescription>
-                        </Alert>
+                {isComplete && (
+                  <div className="space-y-4">
+                     <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Contenido Generado por IA</AlertTitle>
+                        <AlertDescription>
+                            Este contenido es una base generada por inteligencia artificial. Recuerda revisarlo y ajustarlo a tus necesidades.
+                        </AlertDescription>
+                    </Alert>
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                        <div>
+                            <h3 className="font-semibold">Generación Completa</h3>
+                            <p className="text-sm text-muted-foreground">La estrategia ha sido generada. Revisa el contenido y guárdalo.</p>
+                        </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button disabled={isSaving}>
@@ -383,6 +388,7 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
                             </AlertDialogContent>
                         </AlertDialog>
                     </div>
+                  </div>
                  )}
                 <CardTitle className="pt-4">Estrategia de Campaña Generada</CardTitle>
             </CardHeader>
