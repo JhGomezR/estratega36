@@ -32,7 +32,7 @@ const cityFormSchema = z.object({
 type CityFormValues = z.infer<typeof cityFormSchema>;
 
 interface CityFormProps {
-  city?: Omit<City, 'id'> | null;
+  city?: City | null;
   onSubmit: (data: CityFormValues) => void;
   onCancel: () => void;
 }
