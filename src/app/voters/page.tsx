@@ -55,13 +55,11 @@ export default function VotersPage() {
   const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
   const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
-  const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
   const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `lists`) : null, [firestore]);
 
   const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
@@ -129,7 +127,10 @@ export default function VotersPage() {
     return listsMap;
   }, [managedLists]);
   
-  const getCityName = (cityId: string) => cities?.find(c => c.id === cityId)?.name ?? 'N/A'
+  const [cityNames, setCityNames] = React.useState<Record<string, string>>({});
+  
+  const getCityName = (cityId: string) => cityNames[cityId] || 'N/A';
+  
   const getPromoterName = (promoterId: string) => {
       const promoter = users?.find(p => p.id === promoterId);
       return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
@@ -145,7 +146,7 @@ export default function VotersPage() {
       getCityName(voter.cityId).toLowerCase().includes(lowercasedQuery) ||
       getPromoterName(voter.promoterId).toLowerCase().includes(lowercasedQuery)
     );
-  }, [voters, searchQuery, cities, users]);
+  }, [voters, searchQuery, cityNames, users]);
   
   const paginatedVoters = React.useMemo(() => {
     const startIndex = (currentPage - 1) * VOTERS_PER_PAGE;
@@ -179,20 +180,11 @@ export default function VotersPage() {
     }
   }
 
-  const handleFormSubmit = async (data: VoterFormValues) => {
+  const handleFormSubmit = async (data: VoterFormValues, cityName: string, departmentName: string, countryName: string) => {
     if (!firestore || !votersCollectionRef) return;
 
     try {
-        const city = cities?.find(c => c.id === data.cityId);
-        const addressParts = [
-            data.address,
-            data.vereda,
-            city?.name,
-            city?.department,
-            city?.country
-        ].filter(Boolean);
-        
-        const fullAddress = addressParts.join(', ');
+        const fullAddress = [data.address, data.vereda, cityName, departmentName, countryName].filter(Boolean).join(', ');
 
         const geocodeResult = await geocodeAddress({ address: fullAddress });
 
@@ -237,7 +229,7 @@ export default function VotersPage() {
     }
   };
 
-  const isLoading = currentUserLoading || votersLoading || citiesLoading || usersLoading || rolesLoading || listsLoading;
+  const isLoading = currentUserLoading || votersLoading || usersLoading || rolesLoading || listsLoading;
 
 
   return (
@@ -261,11 +253,11 @@ export default function VotersPage() {
             {promoters.length > 0 ? (
               <VoterForm
                 voter={selectedVoter}
-                cities={cities || []}
                 promoters={promoters}
                 lists={lists}
                 onSubmit={handleFormSubmit}
                 onCancel={() => setIsFormOpen(false)}
+                onCityNamesChange={setCityNames}
               />
             ) : (
                <div className="py-10 text-center">

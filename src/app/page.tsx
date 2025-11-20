@@ -23,7 +23,7 @@ import {
   PhoneForwarded
 } from "lucide-react"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection, collectionGroup, query, where } from "firebase/firestore"
+import { collection, query, where } from "firebase/firestore"
 import { type Campaign, type Voter, type User, type Task, type Call, type City } from '@/lib/types'
 import { subDays, parseISO, isToday, isWithinInterval, startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns'
 import { WeeklyVoterChart } from '@/components/weekly-voter-chart'
@@ -37,17 +37,9 @@ export default function Dashboard() {
   const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   const callsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `calls`) : null, [firestore]);
   
-  const citiesQuery = useMemoFirebase(() => 
-    firestore 
-      ? query(collectionGroup(firestore, 'cities'), where('status', '==', 'activo'))
-      : null,
-    [firestore]
-  );
-
   const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
   const { data: callsData, isLoading: callsLoading } = useCollection<Call>(callsCollectionRef);
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesQuery);
   
   const activeVoters = React.useMemo(() => {
     return votersData?.filter(v => v.status === 'activo');
@@ -57,10 +49,11 @@ export default function Dashboard() {
     return callsData?.filter(c => c.status_call === 'activo');
   }, [callsData]);
 
-  const { newVotersToday } = React.useMemo(() => {
-    if (!activeVoters) return { newVotersToday: 0 };
+  const { newVotersToday, cityCount } = React.useMemo(() => {
+    if (!activeVoters) return { newVotersToday: 0, cityCount: 0 };
     
     let newVotersTodayCount = 0;
+    const uniqueCityIds = new Set<string>();
 
     activeVoters.forEach(voter => {
       try {
@@ -68,12 +61,15 @@ export default function Dashboard() {
         if (isToday(registrationDate)) {
           newVotersTodayCount++;
         }
+        if (voter.cityId) {
+            uniqueCityIds.add(voter.cityId);
+        }
       } catch {
         // Ignore invalid dates
       }
     });
     
-    return { newVotersToday: newVotersTodayCount };
+    return { newVotersToday: newVotersTodayCount, cityCount: uniqueCityIds.size };
   }, [activeVoters]);
 
   const callStats = React.useMemo(() => {
@@ -104,7 +100,7 @@ export default function Dashboard() {
   }, [activeVoters, users]);
 
 
-  const isLoading = votersLoading || usersLoading || callsLoading || citiesLoading;
+  const isLoading = votersLoading || usersLoading || callsLoading;
 
 
   return (
@@ -142,14 +138,14 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Municipios Registrados
+              Municipios con Votantes
             </CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? '...' : cities?.length ?? 0}</div>
+            <div className="text-2xl font-bold">{isLoading ? '...' : cityCount}</div>
             <p className="text-xs text-muted-foreground">
-              Total de municipios activos en el sistema
+              Municipios únicos con votantes registrados
             </p>
           </CardContent>
         </Card>

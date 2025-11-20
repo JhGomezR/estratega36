@@ -3,7 +3,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role, City, Campaign, ManagedList } from "@/lib/types"
+import type { User, Role, City, Campaign, ManagedList, Country, Department } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -23,7 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useAuth, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { collection } from "firebase/firestore"
+import { ScrollArea } from "./ui/scroll-area"
 
 const userFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -45,7 +47,6 @@ export type UserFormValues = z.infer<typeof userFormSchema>;
 interface UserFormProps {
   user?: User | null;
   roles: Role[];
-  cities: City[];
   campaigns: Campaign[];
   lists: Record<string, ManagedList | undefined>;
   allUsers: User[];
@@ -53,10 +54,26 @@ interface UserFormProps {
   onCancel: () => void;
 }
 
-export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSubmit, onCancel }: UserFormProps) {
+export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, onCancel }: UserFormProps) {
   const { user: authUser } = useAuth();
   const { user: currentUserData } = useUser();
   const isAdmin = currentUserData?.email === 'axdrcys@gmail.com';
+  const firestore = useFirestore();
+
+  const { data: countries, isLoading: countriesLoading } = useCollection<Country>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore])
+  );
+
+  const [departmentData, setDepartmentData] = React.useState<Record<string, Department[]>>({});
+  const [cityData, setCityData] = React.useState<Record<string, City[]>>({});
+
+  const { data: allDepartments } = useCollection<Department>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'departments') : null, [firestore])
+  );
+
+  const { data: allCities, isLoading: citiesLoading } = useCollection<City>(
+      useMemoFirebase(() => firestore ? collection(firestore, 'cities') : null, [firestore])
+  );
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -301,8 +318,9 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                             <FormLabel>Ciudades Asignadas</FormLabel>
                             <FormDescription>Selecciona las ciudades a las que este usuario tendrá acceso.</FormDescription>
                         </div>
-                        <div className="max-h-48 overflow-y-auto space-y-2 rounded-md border p-4">
-                            {cities.map((city) => (
+                        <ScrollArea className="h-48 rounded-md border p-4">
+                          <div className="space-y-2">
+                            {allCities?.map((city) => (
                                 <FormField
                                     key={city.id}
                                     control={form.control}
@@ -324,7 +342,8 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                                     )}
                                 />
                             ))}
-                        </div>
+                           </div>
+                        </ScrollArea>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -338,7 +357,8 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                             <FormLabel>Campañas Asignadas</FormLabel>
                             <FormDescription>Selecciona las campañas activas para este usuario.</FormDescription>
                         </div>
-                        <div className="max-h-48 overflow-y-auto space-y-2 rounded-md border p-4">
+                        <ScrollArea className="h-48 rounded-md border p-4">
+                          <div className="space-y-2">
                             {campaigns.map((campaign) => (
                                 <FormField
                                     key={campaign.id}
@@ -361,7 +381,8 @@ export function UserForm({ user, roles, cities, campaigns, lists, allUsers, onSu
                                     )}
                                 />
                             ))}
-                        </div>
+                          </div>
+                        </ScrollArea>
                         <FormMessage />
                     </FormItem>
                 )}

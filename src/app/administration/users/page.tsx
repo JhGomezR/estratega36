@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { createUser } from "./actions"
@@ -54,13 +54,12 @@ export default function UsersPage() {
 
   const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
-  const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
   const campaignsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `campaigns`) : null, [firestore]);
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `lists`) : null, [firestore]);
 
   const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
+  const { data: cities, isLoading: citiesLoading } = useCollection<City>(useMemoFirebase(() => firestore ? collectionGroup(firestore, 'cities') : null, [firestore]));
   const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollectionRef);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
 
@@ -201,7 +200,6 @@ export default function UsersPage() {
             <UserForm
               user={selectedUser}
               roles={roles || []}
-              cities={cities || []}
               campaigns={campaigns?.filter(c => c.status === 'En Campaña') || []}
               lists={lists}
               allUsers={usersData || []}

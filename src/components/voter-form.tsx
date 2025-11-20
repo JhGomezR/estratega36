@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { collection, doc } from "firebase/firestore"
 
 const voterFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -45,11 +45,12 @@ interface VoterFormProps {
   voter?: Voter | null;
   promoters: User[];
   lists: Record<string, ManagedList | undefined>;
-  onSubmit: (data: VoterFormValues) => void;
+  onSubmit: (data: VoterFormValues, cityName: string, departmentName: string, countryName: string) => void;
   onCancel: () => void;
+  onCityNamesChange: (cityNames: Record<string, string>) => void;
 }
 
-export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: VoterFormProps) {
+export function VoterForm({ voter, promoters, lists, onSubmit, onCancel, onCityNamesChange }: VoterFormProps) {
   const firestore = useFirestore();
 
   const form = useForm<VoterFormValues>({
@@ -61,9 +62,9 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: Voter
       idNumber: voter?.idNumber ?? "",
       email: voter?.email ?? "",
       phone: voter?.phone ?? "",
-      countryId: voter?.countryId,
-      departmentId: voter?.departmentId,
-      cityId: voter?.cityId ?? undefined,
+      countryId: voter?.countryId ?? "",
+      departmentId: voter?.departmentId ?? "",
+      cityId: voter?.cityId ?? "",
       vereda: voter?.vereda ?? "",
       address: voter?.address ?? "",
       promoterId: voter?.promoterId ?? undefined,
@@ -83,18 +84,49 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: Voter
   const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesRef);
 
   React.useEffect(() => {
-    form.setValue('departmentId', '');
-    form.setValue('cityId', '');
+    if (voter) {
+        form.reset({
+            ...voter,
+            countryId: voter.countryId || "",
+            departmentId: voter.departmentId || "",
+            cityId: voter.cityId || "",
+        });
+    }
+  }, [voter, form]);
+
+  React.useEffect(() => {
+    if (cities) {
+        const cityMap = cities.reduce((acc, city) => {
+            acc[city.id] = city.name;
+            return acc;
+        }, {} as Record<string, string>);
+        onCityNamesChange(cityMap);
+    }
+  }, [cities, onCityNamesChange]);
+
+  React.useEffect(() => {
+    if (form.getValues('countryId') !== selectedCountryId) {
+        form.setValue('departmentId', '');
+        form.setValue('cityId', '');
+    }
   }, [selectedCountryId, form]);
 
    React.useEffect(() => {
-    form.setValue('cityId', '');
+    if (form.getValues('departmentId') !== selectedDepartmentId) {
+        form.setValue('cityId', '');
+    }
   }, [selectedDepartmentId, form]);
 
+  function handleFormSubmit(data: VoterFormValues) {
+    const countryName = countries?.find(c => c.id === data.countryId)?.name || '';
+    const departmentName = departments?.find(d => d.id === data.departmentId)?.name || '';
+    const cityName = cities?.find(c => c.id === data.cityId)?.name || '';
+    onSubmit(data, cityName, departmentName, countryName);
+  }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -200,7 +232,7 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: Voter
             render={({ field }) => (
               <FormItem>
                 <FormLabel>País</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={countriesLoading ? "Cargando..." : "Selecciona país"} />
