@@ -3,8 +3,8 @@
 
 import { ai } from '@/ai/genkit'
 import { z } from 'zod'
-import { getFirestore, collection, addDoc } from 'firebase/firestore'
-import { initializeFirebase } from '@/firebase'
+import { adminDb } from '@/firebase/admin'
+import { collection, addDoc } from 'firebase/firestore'
 
 const GenerateCampaignStrategyInputSchema = z.object({
   campaignData: z
@@ -190,7 +190,7 @@ const riesgosFlow = createSectionFlow(
   'riesgos',
   `You are an expert political campaign strategist. Generate ONLY the "Riesgos Potenciales" section. Be extremely detailed. Your response must be between 550 and 600 words.
   Based on:
-  - Campaign Data: {{{campaignData}}}
+  - CampaignData: {{{campaignData}}}
   - Location: {{{lugar}}}
   - Objectives: {{{objectives}}}
 
@@ -226,17 +226,14 @@ const SaveStrategyInputSchema = z.object({
 
 export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInputSchema>): Promise<{ success: boolean, id?: string }> {
   try {
-    const { firestore } = initializeFirebase();
-    if (!firestore) throw new Error("Firestore is not initialized.");
-
-    const strategyRef = collection(firestore, `strategies`);
-
-    const docRef = await addDoc(strategyRef, {
+    const strategyData = {
       campaignId: data.campaignId,
       generatedAt: new Date().toISOString(),
       inputs: data.inputs,
       outputs: data.outputs
-    });
+    };
+    
+    const docRef = await adminDb.collection('strategies').add(strategyData);
 
     console.log("Strategy saved with ID: ", docRef.id);
     return { success: true, id: docRef.id };
@@ -245,5 +242,3 @@ export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInp
     return { success: false };
   }
 }
-
-    
