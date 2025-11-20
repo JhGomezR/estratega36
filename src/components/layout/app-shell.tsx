@@ -28,11 +28,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { UserNav } from "./user-nav"
-import { useAuth, useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { BrandingSettings } from "@/lib/types"
 import Image from "next/image"
-import { signOut } from "firebase/auth"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useMemo } from "react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -140,49 +139,9 @@ function MainNav() {
 
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-    const router = useRouter();
     const firestore = useFirestore();
-    const { role, hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
-    const pathname = usePathname();
-
     const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
     const { data: settings } = useDoc<BrandingSettings>(settingsRef);
-    
-    const navLinks = useMemo(() => {
-        const links = ["/"]; // Start with Dashboard as the base link
-        if (hasPermission("campaign:read")) links.push("/campaigns");
-        if (hasPermission("voter:read")) {
-        links.push("/voters");
-        links.push("/map");
-        }
-        if (hasPermission("user:read")) links.push("/network");
-        if (hasAnyPermission(["task:read", "call:read"])) {
-            if(hasPermission("task:read")) links.push("/activities/calendar");
-            if(hasPermission("call:read")) links.push("/activities/calls");
-            if(hasPermission("task:read")) links.push("/activities/tasks");
-        }
-        if(hasPermission("report:read")) {
-            links.push("/analysis");
-            links.push("/strategies");
-            links.push("/social-listening");
-        }
-        return links;
-    }, [hasPermission, hasAnyPermission]);
-
-    React.useEffect(() => {
-        if (permissionsLoading) return;
-
-        const adminRoles = ['admin', 'super', 'super_admin', 'administrador'];
-        const isAdmin = role?.name && adminRoles.includes(role.name.toLowerCase());
-        
-        if (!isAdmin && navLinks.length > 1 && pathname === '/') {
-        const firstModule = navLinks.filter(p => p !== '/').sort()[0];
-        if (firstModule) {
-            router.replace(firstModule);
-        }
-        }
-    }, [permissionsLoading, navLinks, pathname, router, role]);
-
 
     React.useEffect(() => {
         if (settings) {
@@ -192,14 +151,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (settings.sidebarColor) root.style.setProperty('--sidebar-background', settings.sidebarColor);
         }
     }, [settings]);
-
-    if (permissionsLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="h-10 w-10 animate-spin" />
-            </div>
-        );
-    }
     
     return (
         <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from '@/components/layout/providers';
 import { AppShell } from '@/components/layout/app-shell';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'EstrategaCRM',
@@ -17,7 +18,7 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body>
         <Providers>
-          <AppShell>{children}</AppShell>
+          <FirebaseClientProvider>{children}</FirebaseClientProvider>
         </Providers>
       </body>
     </html>

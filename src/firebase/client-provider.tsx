@@ -2,15 +2,14 @@
 
 import React, { useMemo, type ReactNode, useState, useEffect } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
-import { initializeFirebase, getSdks } from '@/firebase';
+import { initializeFirebase } from '@/firebase';
 import type { FirebaseApp } from 'firebase/app';
-import { initializeApp, getApps, getApp } from 'firebase/app';
 import type { Auth, User } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { firebaseConfig } from './config';
 import { onAuthStateChanged } from 'firebase/auth';
+import { AppShell } from '@/components/layout/app-shell';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -64,8 +63,8 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     }
   }, [user, isAuthLoading, isPublicPage, router]);
 
-  // Render loading state
-  if (!services || (isAuthLoading && !isPublicPage)) {
+  // Render loading state while checking auth on protected pages
+  if (isAuthLoading && !isPublicPage) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin" />
@@ -73,19 +72,31 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     );
   }
 
-  // Render public pages without provider if not authenticated
+  // If on a public page, render it directly.
+  // If user is logged in, they will be redirected by other logic if they visit /login for example.
   if (isPublicPage) {
     return <>{children}</>;
   }
+
+  // If we are here, we are on a protected page. If services or user are not ready, show loader.
+  // This case might be brief as the main loading logic is above.
+  if (!services || !user) {
+     return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin" />
+      </div>
+    );
+  }
   
-  // If we are here, user is authenticated and services are available
+  // User is authenticated, services are available, and it's a protected page.
+  // Render the full app shell with Firebase context.
   return (
     <FirebaseProvider
       firebaseApp={services.firebaseApp}
       auth={services.auth}
       firestore={services.firestore}
     >
-      {children}
+      <AppShell>{children}</AppShell>
     </FirebaseProvider>
   );
 }
