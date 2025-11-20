@@ -1,21 +1,11 @@
+
 "use client"
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import type { Role, User } from "@/lib/types"
+import { permissionGroups } from "@/lib/types"
 import { doc } from "firebase/firestore"
 import { useMemo } from "react"
-
-const permissionGroups: Record<string, readonly string[]> = {
-    campaign: ["read", "create", "update", "delete"],
-    voter: ["read", "create", "update", "delete"],
-    user: ["read", "create", "update", "delete"],
-    role: ["read", "create", "update", "delete"],
-    city: ["read", "create", "update", "delete"],
-    task: ["read", "create", "update", "delete"],
-    call: ["read", "create", "update", "delete"],
-    report: ["read"],
-    setting: ["update"],
-};
 
 export function usePermissions() {
   const { user: authUser, isUserLoading: isAuthLoading } = useUser()
