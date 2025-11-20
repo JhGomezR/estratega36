@@ -27,6 +27,7 @@ import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebas
 import { collection, collectionGroup } from "firebase/firestore"
 import { ScrollArea } from "./ui/scroll-area"
 import { usePermissions } from "@/hooks/usePermissions"
+import { Separator } from "./ui/separator"
 
 const userFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -84,6 +85,8 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
   });
 
   const email = form.watch("email");
+  const selectedCityIds = form.watch("cityIds");
+
 
   React.useEffect(() => {
     if (email) {
@@ -103,6 +106,13 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
   }
   
   const showPasswordChange = isAdmin && user;
+
+  const allCityIds = React.useMemo(() => allCities?.map(c => c.id) || [], [allCities]);
+  const areAllCitiesSelected = allCityIds.length > 0 && selectedCityIds.length === allCityIds.length;
+
+  const handleSelectAllCities = (checked: boolean) => {
+    form.setValue('cityIds', checked ? allCityIds : [], { shouldValidate: true });
+  }
 
   return (
     <Form {...form}>
@@ -306,11 +316,25 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
                 name="cityIds"
                 render={() => (
                     <FormItem>
-                        <div className="mb-4">
+                        <div className="mb-2">
                             <FormLabel>Ciudades Asignadas</FormLabel>
                             <FormDescription>Selecciona las ciudades a las que este usuario tendrá acceso.</FormDescription>
                         </div>
-                        <ScrollArea className="h-48 rounded-md border p-4">
+                        <div className="flex items-center space-x-2 pb-2">
+                            <Checkbox
+                                id="select-all-cities"
+                                checked={areAllCitiesSelected}
+                                onCheckedChange={handleSelectAllCities}
+                            />
+                            <label
+                                htmlFor="select-all-cities"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                                Seleccionar todas las ciudades
+                            </label>
+                        </div>
+                        <Separator />
+                        <ScrollArea className="h-40 rounded-md border p-4 mt-2">
                           <div className="space-y-2">
                             {allCities?.map((city) => (
                                 <FormField
