@@ -73,13 +73,11 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
   }
 
   // If on a public page, render it directly.
-  // If user is logged in, they will be redirected by other logic if they visit /login for example.
   if (isPublicPage) {
     return <>{children}</>;
   }
-
-  // If we are here, we are on a protected page. If services or user are not ready, show loader.
-  // This case might be brief as the main loading logic is above.
+  
+  // If we are on a protected page but not yet authenticated (or services not ready), show a loader.
   if (!services || !user) {
      return (
       <div className="flex h-screen items-center justify-center">

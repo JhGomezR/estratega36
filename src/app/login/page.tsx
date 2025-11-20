@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -15,12 +16,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAuth, useFirestore, useMemoFirebase } from "@/firebase";
+import { initializeFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { createUser } from "../administration/users/actions";
+import { signInWithEmailAndPassword, type Auth } from "firebase/auth";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -36,11 +36,16 @@ const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 export default function LoginPage() {
-  const auth = useAuth();
-  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [auth, setAuth] = React.useState<Auth | null>(null);
+
+  React.useEffect(() => {
+    // Initialize Firebase and get the auth instance on the client
+    const { auth: firebaseAuth } = initializeFirebase();
+    setAuth(firebaseAuth);
+  }, []);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -51,6 +56,14 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
+    if (!auth) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "El servicio de autenticación no está listo. Por favor, espera un momento.",
+        });
+        return;
+    }
     setIsSubmitting(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
@@ -121,7 +134,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || !auth}>
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
