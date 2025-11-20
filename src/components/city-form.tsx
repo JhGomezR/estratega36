@@ -56,9 +56,15 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
             longitude: city.longitude,
             status: city.status ?? 'activo',
         });
+    } else {
+       form.reset({
+        name: "",
+        latitude: 0,
+        longitude: 0,
+        status: 'activo',
+      });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [city, form]);
 
 
   function handleFormSubmit(data: CityFormValues) {
