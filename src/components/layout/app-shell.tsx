@@ -139,76 +139,148 @@ function MainNav() {
 }
 
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const firestore = useFirestore();
-  const auth = useAuth();
-  const { user, isUserLoading } = useUser();
-  const { role, hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
+function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
+    const router = useRouter();
+    const firestore = useFirestore();
+    const { role, hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
+    const pathname = usePathname();
 
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
-  const { data: settings } = useDoc<BrandingSettings>(settingsRef);
-  
+    const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "settings", "branding") : null, [firestore]);
+    const { data: settings } = useDoc<BrandingSettings>(settingsRef);
+    
+    const navLinks = useMemo(() => {
+        const links = ["/"]; // Start with Dashboard as the base link
+        if (hasPermission("campaign:read")) links.push("/campaigns");
+        if (hasPermission("voter:read")) {
+        links.push("/voters");
+        links.push("/map");
+        }
+        if (hasPermission("user:read")) links.push("/network");
+        if (hasAnyPermission(["task:read", "call:read"])) {
+            if(hasPermission("task:read")) links.push("/activities/calendar");
+            if(hasPermission("call:read")) links.push("/activities/calls");
+            if(hasPermission("task:read")) links.push("/activities/tasks");
+        }
+        if(hasPermission("report:read")) {
+            links.push("/analysis");
+            links.push("/strategies");
+            links.push("/social-listening");
+        }
+        return links;
+    }, [hasPermission, hasAnyPermission]);
+
+    React.useEffect(() => {
+        if (permissionsLoading) return;
+
+        const adminRoles = ['admin', 'super', 'super_admin', 'administrador'];
+        const isAdmin = role?.name && adminRoles.includes(role.name.toLowerCase());
+        
+        if (!isAdmin && navLinks.length > 1 && pathname === '/') {
+        const firstModule = navLinks.filter(p => p !== '/').sort()[0];
+        if (firstModule) {
+            router.replace(firstModule);
+        }
+        }
+    }, [permissionsLoading, navLinks, pathname, router, role]);
+
+
+    React.useEffect(() => {
+        if (settings) {
+        const root = document.documentElement;
+        if (settings.primaryColor) root.style.setProperty('--primary', settings.primaryColor);
+        if (settings.accentColor) root.style.setProperty('--accent', settings.accentColor);
+        if (settings.sidebarColor) root.style.setProperty('--sidebar-background', settings.sidebarColor);
+        }
+    }, [settings]);
+
+    if (permissionsLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin" />
+            </div>
+        );
+    }
+    
+    return (
+        <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+            <div className="hidden border-r bg-sidebar md:block">
+                <div className="flex h-full max-h-screen flex-col gap-2">
+                    <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                        <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary">
+                            <IconEstratega className="h-6 w-6" />
+                            <span className="">EstrategaCRM</span>
+                        </Link>
+                    </div>
+                    <ScrollArea className="flex-1">
+                        <div className="py-4 px-2">
+                            <MainNav />
+                        </div>
+                    </ScrollArea>
+                </div>
+            </div>
+            <div className="flex flex-col">
+                <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 backdrop-blur-sm">
+                <Sheet>
+                    <SheetTrigger asChild>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0 md:hidden"
+                    >
+                        <Menu className="h-5 w-5" />
+                        <span className="sr-only">Toggle navigation menu</span>
+                    </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
+                    <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                        <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary">
+                            <IconEstratega className="h-6 w-6" />
+                            <span className="">EstrategaCRM</span>
+                        </Link>
+                    </div>
+                    <ScrollArea className="flex-1">
+                            <div className="py-4 px-2">
+                            <MainNav />
+                            </div>
+                    </ScrollArea>
+                    </SheetContent>
+                </Sheet>
+                <div className="w-full flex-1 flex justify-center">
+                    {settings?.logoUrl ? (
+                            <Image src={settings.logoUrl} alt="Logo de Campaña" width={120} height={40} className="object-contain h-10 w-auto"/>
+                        ) : (
+                            <span className="font-semibold text-lg text-primary invisible md:visible">EstrategaCRM</span>
+                    )}
+                </div>
+                <UserNav />
+                </header>
+                <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-muted/40">
+                {children}
+                </main>
+            </div>
+        </div>
+    )
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
+
   React.useEffect(() => {
-    if (!isUserLoading && !user) {
-      if (pathname !== '/login') {
-        router.push('/login');
-      }
+    // Redirect to login if not authenticated and not on a public page
+    if (!isUserLoading && !user && pathname !== '/login' && pathname !== '/signup') {
+      router.push('/login');
     }
   }, [isUserLoading, user, router, pathname]);
 
-   const navLinks = useMemo(() => {
-    const links = ["/"]; // Start with Dashboard as the base link
-    if (hasPermission("campaign:read")) links.push("/campaigns");
-    if (hasPermission("voter:read")) {
-      links.push("/voters");
-      links.push("/map");
-    }
-    if (hasPermission("user:read")) links.push("/network");
-    if (hasAnyPermission(["task:read", "call:read"])) {
-        if(hasPermission("task:read")) links.push("/activities/calendar");
-        if(hasPermission("call:read")) links.push("/activities/calls");
-        if(hasPermission("task:read")) links.push("/activities/tasks");
-    }
-    if(hasPermission("report:read")) {
-        links.push("/analysis");
-        links.push("/strategies");
-        links.push("/social-listening");
-    }
-    return links;
-  }, [hasPermission, hasAnyPermission]);
-
-  React.useEffect(() => {
-    if (permissionsLoading) return;
-
-    const adminRoles = ['admin', 'super', 'super_admin', 'administrador'];
-    const isAdmin = role?.name && adminRoles.includes(role.name.toLowerCase());
-    
-    if (!isAdmin && navLinks.length > 1 && pathname === '/') {
-      const firstModule = navLinks.filter(p => p !== '/').sort()[0];
-      if (firstModule) {
-        router.replace(firstModule);
-      }
-    }
-  }, [permissionsLoading, navLinks, pathname, router, role]);
-
-
-  React.useEffect(() => {
-    if (settings) {
-      const root = document.documentElement;
-      if (settings.primaryColor) root.style.setProperty('--primary', settings.primaryColor);
-      if (settings.accentColor) root.style.setProperty('--accent', settings.accentColor);
-      if (settings.sidebarColor) root.style.setProperty('--sidebar-background', settings.sidebarColor);
-    }
-  }, [settings]);
-
-
-  if (pathname === '/login' ) {
+  // For public pages, just render the children
+  if (pathname === '/login' || pathname === '/signup') {
     return <>{children}</>;
   }
 
-  if (isUserLoading || !user || permissionsLoading) {
+  // While checking auth state, show a global loader
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin" />
@@ -216,63 +288,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
-     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-sidebar md:block">
-        <div className="flex h-full max-h-screen flex-col gap-2">
-            <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary">
-                    <IconEstratega className="h-6 w-6" />
-                    <span className="">EstrategaCRM</span>
-                </Link>
-            </div>
-            <ScrollArea className="flex-1">
-                <div className="py-4 px-2">
-                    <MainNav />
-                </div>
-            </ScrollArea>
-        </div>
-      </div>
-      <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 backdrop-blur-sm">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="shrink-0 md:hidden"
-              >
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
-               <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary">
-                    <IconEstratega className="h-6 w-6" />
-                    <span className="">EstrategaCRM</span>
-                </Link>
-               </div>
-               <ScrollArea className="flex-1">
-                    <div className="py-4 px-2">
-                      <MainNav />
-                    </div>
-               </ScrollArea>
-            </SheetContent>
-          </Sheet>
-          <div className="w-full flex-1 flex justify-center">
-             {settings?.logoUrl ? (
-                    <Image src={settings.logoUrl} alt="Logo de Campaña" width={120} height={40} className="object-contain h-10 w-auto"/>
-                ) : (
-                    <span className="font-semibold text-lg text-primary invisible md:visible">EstrategaCRM</span>
-            )}
-          </div>
-          <UserNav />
-        </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-muted/40">
-          {children}
-        </main>
-      </div>
-    </div>
-  )
+  // If authenticated, render the full app shell
+  return <AuthenticatedAppShell>{children}</AuthenticatedAppShell>;
 }
