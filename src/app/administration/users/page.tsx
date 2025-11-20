@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -37,7 +38,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
