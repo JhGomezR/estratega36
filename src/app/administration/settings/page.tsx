@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -18,6 +19,8 @@ import { Loader2, PlusCircle, Trash2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import Image from "next/image"
+import { Separator } from "@/components/ui/separator"
+import { FormDescription } from "@/components/ui/form"
 
 function hexToHsl(hex: string): string | null {
     if (!hex) return null;
@@ -150,6 +153,9 @@ export default function SettingsPage() {
   });
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
   const [logoFile, setLogoFile] = React.useState<File | null>(null);
+  const [loginImagePreview, setLoginImagePreview] = React.useState<string | null>(null);
+  const [loginImageFile, setLoginImageFile] = React.useState<File | null>(null);
+
 
   const lists = React.useMemo(() => {
     const listsMap: Record<string, string[]> = {};
@@ -171,6 +177,9 @@ export default function SettingsPage() {
       });
       if (brandingSettings.logoUrl) {
           setLogoPreview(brandingSettings.logoUrl);
+      }
+      if (brandingSettings.loginImageUrl) {
+          setLoginImagePreview(brandingSettings.loginImageUrl);
       }
       updateCssVariables(brandingSettings.primaryColor, brandingSettings.accentColor, brandingSettings.sidebarColor);
     }
@@ -212,22 +221,39 @@ export default function SettingsPage() {
       reader.readAsDataURL(file);
     }
   };
+  
+  const handleLoginImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setLoginImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLoginImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSaveBranding = async () => {
     if (!brandingSettingsRef) return;
     setIsSaving(true);
     try {
         let logoUrl = brandingSettings?.logoUrl;
+        let loginImageUrl = brandingSettings?.loginImageUrl;
         
         if (logoFile) {
             logoUrl = logoPreview!;
+        }
+        if (loginImageFile) {
+            loginImageUrl = loginImagePreview!;
         }
 
         const newBrandingSettings: BrandingSettings = {
             primaryColor: hexToHsl(colors.primaryColor)!,
             accentColor: hexToHsl(colors.accentColor)!,
             sidebarColor: hexToHsl(colors.sidebarColor)!,
-            logoUrl: logoUrl
+            logoUrl: logoUrl,
+            loginImageUrl: loginImageUrl,
         };
         
         setDocumentNonBlocking(brandingSettingsRef, newBrandingSettings, { merge: true });
@@ -284,47 +310,87 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <Label htmlFor="primary-color">Color Primario</Label>
-                <div className="flex items-center gap-2 col-span-2">
-                    <Input id="primary-color-picker" type="color" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-12 h-10 p-1" />
-                    <Input id="primary-color-text" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-40" />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label htmlFor="primary-color">Color Primario</Label>
+                    <div className="flex items-center gap-2 col-span-2">
+                        <Input id="primary-color-picker" type="color" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-12 h-10 p-1" />
+                        <Input id="primary-color-text" value={colors.primaryColor} onChange={e => handleColorChange('primaryColor', e.target.value)} className="w-40" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label htmlFor="accent-color">Color de Acento</Label>
+                    <div className="flex items-center gap-2 col-span-2">
+                         <Input id="accent-color-picker" type="color" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-12 h-10 p-1" />
+                        <Input id="accent-color-text" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-40" />
+                    </div>
+                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label htmlFor="sidebar-color">Color de Barra Lateral</Label>
+                    <div className="flex items-center gap-2 col-span-2">
+                         <Input id="sidebar-color-picker" type="color" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-12 h-10 p-1" />
+                        <Input id="sidebar-color-text" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-40" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <Label htmlFor="accent-color">Color de Acento</Label>
-                <div className="flex items-center gap-2 col-span-2">
-                     <Input id="accent-color-picker" type="color" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-12 h-10 p-1" />
-                    <Input id="accent-color-text" value={colors.accentColor} onChange={e => handleColorChange('accentColor', e.target.value)} className="w-40" />
-                </div>
-              </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <Label htmlFor="sidebar-color">Color de Barra Lateral</Label>
-                <div className="flex items-center gap-2 col-span-2">
-                     <Input id="sidebar-color-picker" type="color" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-12 h-10 p-1" />
-                    <Input id="sidebar-color-text" value={colors.sidebarColor} onChange={e => handleColorChange('sidebarColor', e.target.value)} className="w-40" />
-                </div>
-              </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <Label htmlFor="logo-upload">Logo de la Campaña</Label>
-                <div className="col-span-2">
-                    <Input id="logo-upload" type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
-                    <Button asChild variant="outline">
-                        <label htmlFor="logo-upload" className="cursor-pointer">
-                            <Upload className="mr-2 h-4 w-4"/>
-                            {logoFile ? "Cambiar logo" : "Seleccionar archivo"}
-                        </label>
-                    </Button>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-center">
-                <div className="w-48 h-48 rounded-lg border border-dashed flex items-center justify-center bg-muted/50">
-                    {logoPreview ? (
-                        <Image src={logoPreview} alt="Vista previa del logo" width={150} height={150} className="object-contain max-h-full max-w-full"/>
-                    ) : (
-                        <span className="text-sm text-muted-foreground text-center">Vista previa del logo</span>
-                    )}
+                <Separator />
+                <div className="space-y-4">
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                    <div className="pt-2">
+                        <Label htmlFor="logo-upload">Logo de la Campaña</Label>
+                        <FormDescription className="text-xs">
+                            Se mostrará en la barra de navegación superior.
+                        </FormDescription>
+                    </div>
+                    <div className="col-span-2">
+                        <div className="flex items-center gap-4">
+                           <div className="w-24 h-24 rounded-lg border border-dashed flex items-center justify-center bg-muted/50">
+                                {logoPreview ? (
+                                    <Image src={logoPreview} alt="Vista previa del logo" width={80} height={80} className="object-contain max-h-full max-w-full"/>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground text-center p-2">Vista previa</span>
+                                )}
+                            </div>
+                            <div className="flex-1">
+                                <Input id="logo-upload" type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                                <Button asChild variant="outline">
+                                    <label htmlFor="logo-upload" className="cursor-pointer">
+                                        <Upload className="mr-2 h-4 w-4"/>
+                                        {logoFile ? "Cambiar" : "Subir logo"}
+                                    </label>
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                     <div className="pt-2">
+                        <Label htmlFor="login-image-upload">Imagen de Fondo para Login</Label>
+                        <FormDescription className="text-xs">
+                            Imagen vertical recomendada (ej. 1200x1800px).
+                        </FormDescription>
+                    </div>
+                    <div className="col-span-2">
+                         <div className="flex items-center gap-4">
+                           <div className="w-24 h-24 rounded-lg border border-dashed flex items-center justify-center bg-muted/50 overflow-hidden">
+                                {loginImagePreview ? (
+                                    <Image src={loginImagePreview} alt="Vista previa de imagen de login" width={80} height={80} className="object-cover h-full w-full"/>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground text-center p-2">Vista previa</span>
+                                )}
+                            </div>
+                            <div className="flex-1">
+                                <Input id="login-image-upload" type="file" accept="image/*" onChange={handleLoginImageChange} className="hidden" />
+                                <Button asChild variant="outline">
+                                    <label htmlFor="login-image-upload" className="cursor-pointer">
+                                        <Upload className="mr-2 h-4 w-4"/>
+                                        {loginImageFile ? "Cambiar" : "Subir imagen"}
+                                    </label>
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
                 </div>
             </div>
         </CardContent>

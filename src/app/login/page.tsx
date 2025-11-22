@@ -16,11 +16,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { initializeFirebase } from "@/firebase";
+import { initializeFirebase, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, type Auth } from "firebase/auth";
+import { doc } from "firebase/firestore";
+import type { BrandingSettings } from "@/lib/types";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -40,6 +42,10 @@ export default function LoginPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [auth, setAuth] = React.useState<Auth | null>(null);
+  
+  const firestore = useFirestore();
+  const brandingSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, `settings/branding`) : null, [firestore]);
+  const { data: brandingSettings, isLoading: brandingLoading } = useDoc<BrandingSettings>(brandingSettingsRef);
 
   React.useEffect(() => {
     // Initialize Firebase and get the auth instance on the client
@@ -87,6 +93,9 @@ export default function LoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  const loginImageUrl = brandingSettings?.loginImageUrl || "https://picsum.photos/seed/10/1200/1800";
+
 
   return (
     <div className="w-full min-h-screen flex flex-col lg:flex-row">
@@ -148,14 +157,18 @@ export default function LoginPage() {
         </div>
       </div>
       <div className="hidden lg:block lg:w-1/2 relative">
-        <Image
-          src="https://picsum.photos/seed/10/1200/1800"
-          alt="Image"
-          fill
-          priority
-          data-ai-hint="political campaign"
-          className="object-cover dark:brightness-[0.2] dark:grayscale"
-        />
+        {brandingLoading ? (
+            <div className="h-full w-full bg-muted animate-pulse" />
+        ) : (
+            <Image
+                src={loginImageUrl}
+                alt="Imagen de fondo de inicio de sesión"
+                fill
+                priority
+                data-ai-hint="political campaign"
+                className="object-cover dark:brightness-[0.2] dark:grayscale"
+            />
+        )}
       </div>
     </div>
   );

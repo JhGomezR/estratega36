@@ -134,6 +134,7 @@ export type BrandingSettings = {
   accentColor?: string;
   sidebarColor?: string;
   logoUrl?: string;
+  loginImageUrl?: string;
 };
 
 export type ManagedList = WithId<{
