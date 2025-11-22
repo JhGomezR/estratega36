@@ -90,7 +90,7 @@ export default function LoginPage() {
 
   return (
     <div className="w-full min-h-screen flex flex-col lg:flex-row">
-      <div className="flex-1 flex items-center justify-center py-12 px-4 flex-grow">
+      <div className="flex-1 flex items-center justify-center py-12 px-4">
         <div className="mx-auto grid w-full max-w-sm gap-6">
           <div className="grid gap-2 text-center">
              <div className="flex justify-center items-center gap-2 mb-4">
@@ -147,7 +147,7 @@ export default function LoginPage() {
           </Form>
         </div>
       </div>
-      <div className="hidden lg:block flex-1 bg-muted">
+      <div className="hidden lg:block lg:w-1/2">
         <Image
           src="https://picsum.photos/seed/10/1200/1800"
           alt="Image"
