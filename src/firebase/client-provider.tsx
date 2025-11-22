@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, ReactNode, useCallback } from 'react';
@@ -21,7 +22,6 @@ interface FirebaseServices {
 const PUBLIC_PAGES = ['/login', '/signup'];
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 
-// Custom hook to handle inactivity logout
 const useInactivityTimeout = (onTimeout: () => void, timeout: number) => {
     const router = useRouter();
 
@@ -51,22 +51,56 @@ const useInactivityTimeout = (onTimeout: () => void, timeout: number) => {
     }, [resetTimer, router]);
 };
 
-export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-  const [services, setServices] = useState<FirebaseServices | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+function AuthGate({ children, onLogout }: { children: ReactNode, onLogout: () => void }) {
+  const { user, isUserLoading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    if (isUserLoading) return;
+
+    const isPublicPage = PUBLIC_PAGES.includes(pathname);
+
+    if (!user && !isPublicPage) {
+      router.push('/login');
+    }
+    if (user && isPublicPage) {
+      router.push('/');
+    }
+  }, [user, isUserLoading, pathname, router]);
+
+  if (isUserLoading || (!user && !PUBLIC_PAGES.includes(pathname))) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin" />
+      </div>
+    );
+  }
+
+  if (PUBLIC_PAGES.includes(pathname)) {
+    return <>{children}</>;
+  }
+
+  return <AppShell onLogout={onLogout}>{children}</AppShell>;
+}
+
+export function FirebaseClientProvider({ children }: { children: ReactNode }) {
+  const [services, setServices] = useState<FirebaseServices | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    const firebaseServices = initializeFirebase();
+    setServices(firebaseServices as FirebaseServices);
+  }, []);
 
   const handleLogout = useCallback(async (isTimeout = false) => {
     if (services?.auth) {
       await signOut(services.auth);
-      // setUser(null) will be handled by onAuthStateChanged
       if (isTimeout) {
-         toast({
-            title: "Sesión Cerrada por Inactividad",
-            description: "Has sido desconectado por seguridad.",
+        toast({
+          title: "Sesión Cerrada por Inactividad",
+          description: "Has sido desconectado por seguridad.",
         });
       }
       router.push('/login');
@@ -74,51 +108,9 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   }, [services, router, toast]);
 
   useInactivityTimeout(() => handleLogout(true), INACTIVITY_TIMEOUT);
-
-  useEffect(() => {
-    const firebaseServices = initializeFirebase();
-    setServices(firebaseServices as FirebaseServices);
-  }, []);
-
-  useEffect(() => {
-    if (!services) return;
-
-    const unsubscribe = onAuthStateChanged(services.auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setIsAuthLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [services]);
-
-  useEffect(() => {
-    if (isAuthLoading) return;
-
-    const isPublicPage = PUBLIC_PAGES.includes(pathname);
-
-    if (!user && !isPublicPage) {
-      router.push('/login');
-    }
-     if (user && isPublicPage) {
-      router.push('/');
-    }
-  }, [user, isAuthLoading, pathname, router]);
-
-  if (isAuthLoading || (!user && !PUBLIC_PAGES.includes(pathname))) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin" />
-      </div>
-    );
-  }
   
-  if (PUBLIC_PAGES.includes(pathname)) {
-    return <>{children}</>;
-  }
-
-
   if (!services) {
-     return (
+    return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin" />
       </div>
@@ -131,7 +123,9 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
       auth={services.auth}
       firestore={services.firestore}
     >
-      <AppShell onLogout={handleLogout}>{children}</AppShell>
+      <AuthGate onLogout={handleLogout}>
+        {children}
+      </AuthGate>
     </FirebaseProvider>
   );
 }
