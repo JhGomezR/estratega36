@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, ReactNode, useCallback } from 'react';
-import { FirebaseProvider } from '@/firebase/provider';
+import { FirebaseProvider, useUser } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth, User } from 'firebase/auth';
@@ -123,7 +123,7 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
       auth={services.auth}
       firestore={services.firestore}
     >
-      <AuthGate onLogout={handleLogout}>
+      <AuthGate onLogout={() => handleLogout()}>
         {children}
       </AuthGate>
     </FirebaseProvider>
