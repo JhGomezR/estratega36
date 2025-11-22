@@ -20,7 +20,6 @@ import { useToast } from "@/hooks/use-toast"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import Image from "next/image"
 import { Separator } from "@/components/ui/separator"
-import { FormDescription } from "@/components/ui/form"
 
 function hexToHsl(hex: string): string | null {
     if (!hex) return null;
@@ -338,9 +337,9 @@ export default function SettingsPage() {
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                     <div className="pt-2">
                         <Label htmlFor="logo-upload">Logo de la Campaña</Label>
-                        <FormDescription className="text-xs">
+                        <p className="text-xs text-muted-foreground">
                             Se mostrará en la barra de navegación superior.
-                        </FormDescription>
+                        </p>
                     </div>
                     <div className="col-span-2">
                         <div className="flex items-center gap-4">
@@ -366,9 +365,9 @@ export default function SettingsPage() {
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                      <div className="pt-2">
                         <Label htmlFor="login-image-upload">Imagen de Fondo para Login</Label>
-                        <FormDescription className="text-xs">
+                        <p className="text-xs text-muted-foreground">
                             Imagen vertical recomendada (ej. 1200x1800px).
-                        </FormDescription>
+                        </p>
                     </div>
                     <div className="col-span-2">
                          <div className="flex items-center gap-4">
@@ -418,3 +417,5 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+    
