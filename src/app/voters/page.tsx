@@ -71,16 +71,10 @@ export default function VotersPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
 
   const promoters = React.useMemo(() => {
-    if (!users || !roles) return [];
-    const requiredRoles = ['promotor', 'lider', 'voluntario'];
-    const promoterRoleIds = roles
-        .filter(r => requiredRoles.includes(r.name.toLowerCase()))
-        .map(r => r.id);
-        
-    if (promoterRoleIds.length === 0) return [];
-    
-    return users.filter(u => promoterRoleIds.includes(u.roleId) && u.status === 'activo');
-  }, [users, roles]);
+    if (!users) return [];
+    // Allow all active users to be selected as a promoter
+    return users.filter(u => u.status === 'activo');
+  }, [users]);
 
   const voters = React.useMemo(() => {
     if (!votersData || !currentUser || !users || !roles) return [];
@@ -250,23 +244,14 @@ export default function VotersPage() {
             <DialogHeader>
               <DialogTitle>{selectedVoter ? "Editar Votante" : "Registrar Votante"}</DialogTitle>
             </DialogHeader>
-            {promoters.length > 0 ? (
-              <VoterForm
-                voter={selectedVoter}
-                promoters={promoters}
-                lists={lists}
-                onSubmit={handleFormSubmit}
-                onCancel={() => setIsFormOpen(false)}
-                onCityNamesChange={setCityNames}
-              />
-            ) : (
-               <div className="py-10 text-center">
-                 <p className="mb-2 text-lg font-semibold">No se encontraron roles requeridos.</p>
-                 <p className="text-muted-foreground">
-                   Para registrar votantes, por favor crea al menos un rol de "Promotor", "Lider" o "Voluntario" y asigna usuarios a ese rol.
-                 </p>
-              </div>
-            )}
+            <VoterForm
+              voter={selectedVoter}
+              promoters={promoters}
+              lists={lists}
+              onSubmit={handleFormSubmit}
+              onCancel={() => setIsFormOpen(false)}
+              onCityNamesChange={setCityNames}
+            />
           </DialogContent>
         </Dialog>
       </div>
