@@ -48,15 +48,12 @@ export default function MapPage() {
     const departmentMap = new Map(allDepartments.map(d => [d.id, d.name]));
 
     return allCities
-      .map(city => {
-        const departmentName = departmentMap.get(city.parentDepartmentId) || 'Desconocido';
-        return {
-            ...city,
-            voterCount: counts.get(city.id) || 0,
-            color: generateColorFromString(city.id),
-            department: departmentName,
-        }
-      })
+      .map(city => ({
+        ...city,
+        voterCount: counts.get(city.id) || 0,
+        color: generateColorFromString(city.id),
+        department: departmentMap.get(city.parentDepartmentId) || 'Desconocido'
+      }))
       .filter(city => city.voterCount > 0)
       .sort((a, b) => b.voterCount - a.voterCount);
 
