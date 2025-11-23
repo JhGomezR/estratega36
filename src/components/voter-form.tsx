@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -47,10 +48,9 @@ interface VoterFormProps {
   lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: VoterFormValues, cityName: string, departmentName: string, countryName: string) => void;
   onCancel: () => void;
-  onCityNamesChange: (cityNames: Record<string, string>) => void;
 }
 
-export function VoterForm({ voter, promoters, lists, onSubmit, onCancel, onCityNamesChange }: VoterFormProps) {
+export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: VoterFormProps) {
   const firestore = useFirestore();
 
   const form = useForm<VoterFormValues>({
@@ -93,16 +93,6 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel, onCityN
         });
     }
   }, [voter, form]);
-
-  React.useEffect(() => {
-    if (cities) {
-        const cityMap = cities.reduce((acc, city) => {
-            acc[city.id] = city.name;
-            return acc;
-        }, {} as Record<string, string>);
-        onCityNamesChange(cityMap);
-    }
-  }, [cities, onCityNamesChange]);
 
   React.useEffect(() => {
     if (form.getValues('countryId') !== selectedCountryId) {
@@ -356,3 +346,5 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel, onCityN
     </Form>
   )
 }
+
+    

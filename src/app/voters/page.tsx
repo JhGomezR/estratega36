@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { collection, doc, collectionGroup } from "firebase/firestore"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { geocodeAddress } from "@/ai/flows/geocode-address"
@@ -58,11 +59,13 @@ export default function VotersPage() {
   const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `lists`) : null, [firestore]);
+  const citiesCollectionGroup = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'cities') : null, [firestore]);
 
   const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
+  const { data: allCities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionGroup);
 
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -121,7 +124,14 @@ export default function VotersPage() {
     return listsMap;
   }, [managedLists]);
   
-  const [cityNames, setCityNames] = React.useState<Record<string, string>>({});
+  const cityNames = React.useMemo(() => {
+    if (!allCities) return {};
+    return allCities.reduce((acc, city) => {
+        acc[city.id] = city.name;
+        return acc;
+    }, {} as Record<string, string>);
+  }, [allCities]);
+
   
   const getCityName = (cityId: string) => cityNames[cityId] || 'N/A';
   
@@ -223,7 +233,7 @@ export default function VotersPage() {
     }
   };
 
-  const isLoading = currentUserLoading || votersLoading || usersLoading || rolesLoading || listsLoading;
+  const isLoading = currentUserLoading || votersLoading || usersLoading || rolesLoading || listsLoading || citiesLoading;
 
 
   return (
@@ -250,7 +260,6 @@ export default function VotersPage() {
               lists={lists}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
-              onCityNamesChange={setCityNames}
             />
           </DialogContent>
         </Dialog>
@@ -368,3 +377,5 @@ export default function VotersPage() {
     </div>
   )
 }
+
+    
