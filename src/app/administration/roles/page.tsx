@@ -43,6 +43,7 @@ import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
 
 const actionIcons: Record<string, LucideIcon> = {
   read: Eye,
@@ -158,11 +159,12 @@ export default function RolesPage() {
                 <TableRow>
                   <TableHead>Rol</TableHead>
                   <TableHead>Permisos</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={3} className="text-center">Cargando...</TableCell></TableRow>}
+                {isLoading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
                 {roles?.map((role) => (
                   <TableRow key={role.id}>
                     <TableCell className="font-medium capitalize">{role.name}</TableCell>
@@ -189,6 +191,11 @@ export default function RolesPage() {
                           </div>
                         ))}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={role.status === 'activo' ? 'secondary' : 'outline'}>
+                            {role.status === 'activo' ? 'Activo' : 'Inactivo'}
+                        </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(role)} disabled={role.id === 'admin'}>
