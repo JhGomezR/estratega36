@@ -14,26 +14,47 @@ interface ChartData {
     value: number;
     isVoter?: boolean;
     isCampaign?: boolean;
+    isRole?: boolean;
 }
 
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
-    const userMap = new Map<string, ChartData>();
-    const rolesMap = new Map(roles.map(r => [r.id, r.name]));
-
-    users.forEach(user => {
-        const chartNode: ChartData = {
-            name: `${user.firstName} ${user.lastName}`,
-            id: user.id,
-            roleName: rolesMap.get(user.roleId) || 'Sin Rol',
+    // 1. Filter for active entities
+    const activeRoles = roles.filter(r => r.status === 'activo');
+    const activeUsers = users.filter(u => u.status === 'activo');
+    const activeVoters = voters.filter(v => v.status === 'activo');
+    
+    // 2. Create a map for roles
+    const roleMap = new Map<string, ChartData>();
+    activeRoles.forEach(role => {
+        roleMap.set(role.id, {
+            id: role.id,
+            name: role.name,
+            roleName: 'Rol',
+            isRole: true,
             children: [],
             value: 0
-        };
-        userMap.set(user.id, chartNode);
+        });
     });
-    
-    const campaignVoters = voters.filter(voter => userMap.has(voter.promoterId));
 
-    campaignVoters.forEach(voter => {
+    // 3. Create user nodes and group them under roles
+    const userMap = new Map<string, ChartData>();
+    activeUsers.forEach(user => {
+        const roleNode = roleMap.get(user.roleId);
+        if (roleNode && roleNode.children) {
+             const userNode: ChartData = {
+                name: `${user.firstName} ${user.lastName}`,
+                id: user.id,
+                roleName: roleNode.name,
+                children: [],
+                value: 0
+            };
+            userMap.set(user.id, userNode);
+            roleNode.children.push(userNode);
+        }
+    });
+
+    // 4. Attach voters to their respective users
+    activeVoters.forEach(voter => {
         const promoterNode = userMap.get(voter.promoterId);
         if (promoterNode && promoterNode.children) {
             const voterNode: ChartData = {
@@ -47,21 +68,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         }
     });
 
-    const topLevelNodes: ChartData[] = [];
-    users.forEach(user => {
-        const userNode = userMap.get(user.id);
-        if (!userNode) return;
-
-        if (user.parentId && userMap.has(user.parentId)) {
-            const parentNode = userMap.get(user.parentId);
-             if (parentNode && parentNode.children) {
-                 parentNode.children.push(userNode);
-             }
-        } else {
-            topLevelNodes.push(userNode);
-        }
-    });
-    
+    // 5. Calculate cumulative values (voter counts) upwards
     const calculateValues = (node: ChartData): number => {
         if (node.isVoter) {
             return 1;
@@ -70,27 +77,34 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             node.value = 0;
             return 0;
         }
-        let totalVoters = 0;
+        
+        let totalValue = 0;
         node.children.forEach(child => {
-            totalVoters += calculateValues(child);
+            totalValue += calculateValues(child);
         });
-        node.value = totalVoters;
-        return totalVoters;
+        node.value = totalValue;
+        return totalValue;
     };
 
+    // Filter out roles that have no users in this campaign
+    const campaignRoles = Array.from(roleMap.values()).filter(role => role.children && role.children.length > 0);
+
+    // 6. Create the root campaign node
     const campaignNode: ChartData = {
         name: campaign.name,
         roleName: campaign.campaignType,
         id: campaign.id,
         isCampaign: true,
-        children: topLevelNodes,
+        children: campaignRoles,
         value: 0
     };
     
+    // Calculate final values starting from the root
     calculateValues(campaignNode);
 
     return campaignNode;
 };
+
 
 interface NetworkHierarchyChartProps {
     campaign: Campaign;
@@ -153,6 +167,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         series.nodes.template.adapters.add("fill", function(fill, target) {
             const dataContext = target.dataItem?.dataContext as Partial<ChartData>;
             if (dataContext.isCampaign) return am5.color(0x1A237E);
+            if (dataContext.isRole) return am5.color(0x00897B);
             if (dataContext.isVoter) return am5.color(0xFFC107);
             const roleName = dataContext.roleName?.toLowerCase() || '';
             if (roleName.includes('lider')) return am5.color(0x4CAF50);
