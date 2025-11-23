@@ -17,13 +17,21 @@ interface ChartData {
     isRole?: boolean;
 }
 
+const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
+
 const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
-    // 1. Filter for active entities
-    const activeRoles = roles.filter(r => r.status === 'activo');
+    // 1. Filter for active, non-trashed, and non-admin roles
+    const activeRoles = roles.filter(role => 
+        role.status === 'activo' && 
+        !role.trash && 
+        !ADMIN_ROLE_NAMES.includes(role.name.toLowerCase())
+    );
+
+    // Filter for active users and voters
     const activeUsers = users.filter(u => u.status === 'activo');
     const activeVoters = voters.filter(v => v.status === 'activo');
     
-    // 2. Create a map for roles
+    // 2. Create a map for the filtered roles
     const roleMap = new Map<string, ChartData>();
     activeRoles.forEach(role => {
         roleMap.set(role.id, {
@@ -36,11 +44,11 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         });
     });
 
-    // 3. Create user nodes and group them under roles
+    // 3. Create user nodes and group them under their respective roles
     const userMap = new Map<string, ChartData>();
     activeUsers.forEach(user => {
         const roleNode = roleMap.get(user.roleId);
-        if (roleNode && roleNode.children) {
+        if (roleNode?.children) {
              const userNode: ChartData = {
                 name: `${user.firstName} ${user.lastName}`,
                 id: user.id,
@@ -53,10 +61,10 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         }
     });
 
-    // 4. Attach voters to their respective users
+    // 4. Attach voters to their respective users (promoters)
     activeVoters.forEach(voter => {
         const promoterNode = userMap.get(voter.promoterId);
-        if (promoterNode && promoterNode.children) {
+        if (promoterNode?.children) {
             const voterNode: ChartData = {
                 name: `${voter.firstName} ${voter.lastName}`,
                 id: voter.id,
@@ -78,15 +86,12 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
             return 0;
         }
         
-        let totalValue = 0;
-        node.children.forEach(child => {
-            totalValue += calculateValues(child);
-        });
+        const totalValue = node.children.reduce((sum, child) => sum + calculateValues(child), 0);
         node.value = totalValue;
         return totalValue;
     };
 
-    // Filter out roles that have no users in this campaign
+    // Filter out roles that ended up with no users in this campaign
     const campaignRoles = Array.from(roleMap.values()).filter(role => role.children && role.children.length > 0);
 
     // 6. Create the root campaign node
@@ -99,7 +104,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
         value: 0
     };
     
-    // Calculate final values starting from the root
+    // Calculate final values for all nodes starting from the root
     calculateValues(campaignNode);
 
     return campaignNode;

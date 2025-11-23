@@ -139,9 +139,6 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm col-span-2 sm:col-span-1">
                     <div className="space-y-0.5">
                         <FormLabel>Estado</FormLabel>
-                        <FormDescription>
-                            Define si el rol está activo o inactivo.
-                        </FormDescription>
                     </div>
                     <FormControl>
                         <Switch

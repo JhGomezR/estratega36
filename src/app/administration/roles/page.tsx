@@ -209,9 +209,9 @@ export default function RolesPage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogTitle>¿Estás seguro de eliminar?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta acción moverá el rol a la papelera. No será visible en la aplicación.
+                              Esta acción moverá el rol a la papelera. Y no será reversible.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
