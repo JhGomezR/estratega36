@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useLayoutEffect, useRef } from 'react';
@@ -169,7 +170,7 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             width: 70
         });
 
-        series.nodes.template.adapters.add("fill", function(fill, target) {
+        series.nodes.template.get("circle")?.adapters.add("fill", function(fill, target) {
             const dataContext = target.dataItem?.dataContext as Partial<ChartData>;
             if (dataContext.isCampaign) return am5.color(0x1A237E);
             if (dataContext.isRole) return am5.color(0x00897B);
