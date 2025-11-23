@@ -33,10 +33,12 @@ import {
     Palette,
     type LucideIcon
 } from "lucide-react"
+import { Switch } from "./ui/switch"
 
 const roleFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
   permissions: z.array(z.string()).min(1, "Debes seleccionar al menos un permiso."),
+  status: z.enum(['activo', 'inactivo']),
 });
 
 type RoleFormValues = z.infer<typeof roleFormSchema>;
@@ -74,6 +76,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
     defaultValues: {
       name: role?.name ?? "",
       permissions: role?.permissions ?? [],
+      status: role?.status ?? 'activo',
     },
   });
 
@@ -113,19 +116,41 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre del Rol</FormLabel>
-              <FormControl>
-                <Input placeholder="Ej: Voluntario" {...field} disabled={!!role}/>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+            <FormField
+            control={control}
+            name="name"
+            render={({ field }) => (
+                <FormItem className="col-span-2 sm:col-span-1">
+                <FormLabel>Nombre del Rol</FormLabel>
+                <FormControl>
+                    <Input placeholder="Ej: Voluntario" {...field} disabled={!!role}/>
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm col-span-2 sm:col-span-1">
+                    <div className="space-y-0.5">
+                        <FormLabel>Estado</FormLabel>
+                        <FormDescription>
+                            Define si el rol está activo o inactivo.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                        checked={field.value === 'activo'}
+                        onCheckedChange={(checked) => field.onChange(checked ? 'activo' : 'inactivo')}
+                        />
+                    </FormControl>
+                </FormItem>
+            )}
+            />
+        </div>
         
         <Card>
             <CardHeader>

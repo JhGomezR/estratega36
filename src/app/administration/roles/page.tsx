@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -92,13 +93,13 @@ export default function RolesPage() {
     }
   }
 
-  const handleFormSubmit = (data: Omit<Role, 'id' | 'status'>) => {
+  const handleFormSubmit = (data: Omit<Role, 'id'>) => {
     if (rolesCollectionRef) {
       if (selectedRole) {
         setDocumentNonBlocking(doc(rolesCollectionRef, selectedRole.id), data, { merge: true });
       } else {
         const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
-        setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), { ...data, status: 'activo' }, {});
+        setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), data, {});
       }
     }
     setIsFormOpen(false)
