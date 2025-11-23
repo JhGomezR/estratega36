@@ -30,7 +30,7 @@ export default function NetworkPage() {
     const campaignsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `campaigns`) : null, [firestore]);
 
     const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
-    const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
+    const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
     const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
     const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollectionRef);
     
@@ -58,27 +58,8 @@ export default function NetworkPage() {
         }
     }, [activeCampaigns, selectedCampaignId]);
     
-    const { filteredUsers, filteredVoters } = React.useMemo(() => {
-        if (!usersData || !voters || !roles || !selectedCampaignId) {
-            return { filteredUsers: [], filteredVoters: [] };
-        }
-
-        const adminRoleIds = new Set(roles.filter(r => ADMIN_ROLE_NAMES.includes(r.name.toLowerCase())).map(r => r.id));
-
-        const campaignUsers = usersData.filter(user => 
-            user.campaignIds.includes(selectedCampaignId) && !adminRoleIds.has(user.roleId)
-        );
-
-        const campaignUserIds = new Set(campaignUsers.map(u => u.id));
-        const campaignVoters = voters.filter(voter => campaignUserIds.has(voter.promoterId));
-        
-        return { filteredUsers: campaignUsers, filteredVoters: campaignVoters };
-
-    }, [usersData, voters, roles, selectedCampaignId]);
-
-
-    const isLoading = usersLoading || votersLoading || rolesLoading || campaignsLoading || permissionsLoading;
     const selectedCampaign = campaigns?.find(c => c.id === selectedCampaignId);
+    const isLoading = usersLoading || votersLoading || rolesLoading || campaignsLoading || permissionsLoading;
 
     return (
         <div className="flex flex-col gap-8">
@@ -112,11 +93,11 @@ export default function NetworkPage() {
                         <div className="flex items-center justify-center h-full">
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
-                    ) : (selectedCampaign && filteredUsers.length > 0) ? (
+                    ) : (selectedCampaign && usersData && votersData) ? (
                         <NetworkHierarchyChart 
                             campaign={selectedCampaign}
-                            users={filteredUsers}
-                            voters={filteredVoters}
+                            users={usersData}
+                            voters={votersData}
                             roles={roles || []}
                         />
                     ) : (
