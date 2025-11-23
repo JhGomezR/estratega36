@@ -39,6 +39,7 @@ const roleFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
   permissions: z.array(z.string()).min(1, "Debes seleccionar al menos un permiso."),
   status: z.enum(['activo', 'inactivo']),
+  trash: z.boolean().optional(),
 });
 
 type RoleFormValues = z.infer<typeof roleFormSchema>;
@@ -77,6 +78,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
       name: role?.name ?? "",
       permissions: role?.permissions ?? [],
       status: role?.status ?? 'activo',
+      trash: role?.trash ?? false,
     },
   });
 

@@ -69,7 +69,7 @@ export default function RolesPage() {
   const [roleToDelete, setRoleToDelete] = React.useState<Role | null>(null)
 
   const roles = React.useMemo(() => {
-    return rolesData?.filter(r => r.status !== 'inactivo');
+    return rolesData?.filter(r => !r.trash);
   }, [rolesData]);
 
   const handleAddNew = () => {
@@ -88,7 +88,7 @@ export default function RolesPage() {
 
   const handleDelete = () => {
     if (roleToDelete && rolesCollectionRef) {
-      setDocumentNonBlocking(doc(rolesCollectionRef, roleToDelete.id), { status: 'inactivo' }, { merge: true });
+      setDocumentNonBlocking(doc(rolesCollectionRef, roleToDelete.id), { trash: true }, { merge: true });
       setRoleToDelete(null)
     }
   }
@@ -99,7 +99,7 @@ export default function RolesPage() {
         setDocumentNonBlocking(doc(rolesCollectionRef, selectedRole.id), data, { merge: true });
       } else {
         const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
-        setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), data, {});
+        setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), {...data, trash: false }, {});
       }
     }
     setIsFormOpen(false)
@@ -204,7 +204,7 @@ export default function RolesPage() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Esto marcará el rol como inactivo.
+                              Esta acción moverá el rol a la papelera. No será visible en la aplicación.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

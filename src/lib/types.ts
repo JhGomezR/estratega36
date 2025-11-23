@@ -101,6 +101,7 @@ export type Role = WithId<{
   name: string;
   permissions: string[];
   status: 'activo' | 'inactivo';
+  trash?: boolean;
 }>;
 
 export const permissionGroups: Record<string, readonly string[]> = {
