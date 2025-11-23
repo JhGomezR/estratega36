@@ -20,17 +20,17 @@ interface ChartData {
 
 const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
 
-const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], roles: Role[]): ChartData => {
+const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
     // 1. Filter for active, non-trashed, and non-admin roles
-    const activeRoles = roles.filter(role => 
+    const activeRoles = allRoles.filter(role => 
         role.status === 'activo' && 
         !role.trash && 
         !ADMIN_ROLE_NAMES.includes(role.name.toLowerCase())
     );
 
-    // Filter for active users and voters
-    const activeUsers = users.filter(u => u.status === 'activo');
-    const activeVoters = voters.filter(v => v.status === 'activo');
+    // Filter for active users assigned to the current campaign, and active voters.
+    const activeUsersInCampaign = allUsers.filter(u => u.status === 'activo' && u.campaignIds.includes(campaign.id));
+    const activeVoters = allVoters.filter(v => v.status === 'activo');
     
     // 2. Create a map for the filtered roles
     const roleMap = new Map<string, ChartData>();
@@ -47,7 +47,7 @@ const buildChartData = (campaign: Campaign, users: User[], voters: Voter[], role
 
     // 3. Create user nodes and group them under their respective roles
     const userMap = new Map<string, ChartData>();
-    activeUsers.forEach(user => {
+    activeUsersInCampaign.forEach(user => {
         const roleNode = roleMap.get(user.roleId);
         if (roleNode?.children) {
              const userNode: ChartData = {
