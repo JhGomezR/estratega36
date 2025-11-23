@@ -49,7 +49,7 @@ const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[]
     const userMap = new Map<string, ChartData>();
     activeUsersInCampaign.forEach(user => {
         const roleNode = roleMap.get(user.roleId);
-        if (roleNode?.children) {
+        if (roleNode) {
              const userNode: ChartData = {
                 name: `${user.firstName} ${user.lastName}`,
                 id: user.id,
@@ -58,6 +58,10 @@ const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[]
                 value: 0
             };
             userMap.set(user.id, userNode);
+            // This was the error, ensure children array exists before pushing
+            if (!roleNode.children) {
+                roleNode.children = [];
+            }
             roleNode.children.push(userNode);
         }
     });
