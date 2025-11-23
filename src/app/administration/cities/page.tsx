@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -103,15 +104,23 @@ export default function CitiesPage() {
     if (!firestore) return;
     
     let collectionRef;
-    if (formMode === 'country') collectionRef = countriesRef;
-    else if (formMode === 'department') collectionRef = departmentsRef;
-    else if (formMode === 'city') collectionRef = citiesRef;
+    let dataToSend = { ...data, status: data.status || 'activo' };
+
+    if (formMode === 'country') {
+      collectionRef = countriesRef;
+    } else if (formMode === 'department' && selectedCountryId) {
+      collectionRef = departmentsRef;
+      dataToSend.parentCountryId = selectedCountryId;
+    } else if (formMode === 'city' && selectedDepartmentId) {
+      collectionRef = citiesRef;
+      dataToSend.parentDepartmentId = selectedDepartmentId;
+    }
 
     if (collectionRef) {
       if (editingItem) {
-        setDocumentNonBlocking(doc(collectionRef, editingItem.id), data, { merge: true });
+        setDocumentNonBlocking(doc(collectionRef, editingItem.id), dataToSend, { merge: true });
       } else {
-        addDocumentNonBlocking(collectionRef, { ...data, status: data.status || 'activo' });
+        addDocumentNonBlocking(collectionRef, dataToSend);
       }
     }
     setFormMode(null);

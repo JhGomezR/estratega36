@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -19,6 +20,7 @@ import { Switch } from "@/components/ui/switch"
 const departmentFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
   status: z.enum(['activo', 'inactivo']),
+  parentCountryId: z.string().optional(),
 });
 
 type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
@@ -35,6 +37,7 @@ export function DepartmentForm({ department, onSubmit, onCancel }: DepartmentFor
     defaultValues: {
       name: department?.name ?? "",
       status: department?.status ?? 'activo',
+      parentCountryId: department?.parentCountryId,
     },
   });
 
@@ -43,6 +46,7 @@ export function DepartmentForm({ department, onSubmit, onCancel }: DepartmentFor
       form.reset({
         name: department.name,
         status: department.status ?? 'activo',
+        parentCountryId: department.parentCountryId,
       });
     } else {
         form.reset({

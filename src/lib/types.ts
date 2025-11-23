@@ -1,4 +1,5 @@
 
+
 export type WithId<T> = T & { id: string };
 
 export type Voter = WithId<{
@@ -88,6 +89,7 @@ export type Country = WithId<{
 export type Department = WithId<{
     name: string;
     status: 'activo' | 'inactivo';
+    parentCountryId: string;
 }>;
 
 export type City = WithId<{
@@ -95,6 +97,7 @@ export type City = WithId<{
   latitude: number;
   longitude: number;
   status: 'activo' | 'inactivo';
+  parentDepartmentId: string;
 }>;
 
 export type Role = WithId<{

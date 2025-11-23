@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -26,7 +27,8 @@ const cityFormSchema = z.object({
     (a) => parseFloat(z.string().parse(a)),
     z.number().min(-180, "La longitud debe estar entre -180 y 180.").max(180, "La longitud debe estar entre -180 y 180.")
   ),
-  status: z.enum(['activo', 'inactivo'])
+  status: z.enum(['activo', 'inactivo']),
+  parentDepartmentId: z.string().optional(), // No es requerido por el usuario pero sí por la lógica
 });
 
 type CityFormValues = z.infer<typeof cityFormSchema>;
@@ -45,6 +47,7 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
       latitude: city?.latitude ?? 0,
       longitude: city?.longitude ?? 0,
       status: city?.status ?? 'activo',
+      parentDepartmentId: city?.parentDepartmentId,
     },
   });
 
@@ -55,6 +58,7 @@ export function CityForm({ city, onSubmit, onCancel }: CityFormProps) {
             latitude: city.latitude,
             longitude: city.longitude,
             status: city.status ?? 'activo',
+            parentDepartmentId: city.parentDepartmentId,
         });
     } else {
        form.reset({

@@ -1,26 +1,26 @@
+
 "use client";
 import * as React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { VotersMap } from '@/components/voters-map';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import type { Voter, City } from '@/lib/types';
+import { collection, collectionGroup } from 'firebase/firestore';
+import type { Voter, City, Department } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 type VoterWithColor = Voter & { color?: string };
 
-function generateColorFromString(str: string): string {
+function generateColorFromString(str: string, saturation = 90, lightness = 55): string {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    let color = '#';
-    for (let i = 0; i < 3; i++) {
-        const value = (hash >> (i * 8)) & 0xFF;
-        color += ('00' + value.toString(16)).slice(-2);
-    }
-    return color;
+    // Ensure the hue is not in the green range (e.g., 80-160 degrees)
+    const hue = hash % 360;
+    const adjustedHue = hue > 80 && hue < 160 ? (hue + 180) % 360 : hue;
+    
+    return `hsl(${adjustedHue}, ${saturation}%, ${lightness}%)`;
 }
 
 
@@ -29,30 +29,38 @@ export default function MapPage() {
   const firestore = useFirestore();
 
   const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
-  const citiesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `cities`) : null, [firestore]);
+  const citiesCollectionGroup = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'cities') : null, [firestore]);
+  const departmentsCollectionGroup = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'departments') : null, [firestore]);
 
   const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
-  const { data: cities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionRef);
+  const { data: allCities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionGroup);
+  const { data: allDepartments, isLoading: departmentsLoading } = useCollection<Department>(departmentsCollectionGroup);
 
   const voterCountsByCity = React.useMemo(() => {
-    if (!voters || !cities) return [];
+    if (!voters || !allCities || !allDepartments) return [];
     
     const activeVoters = voters.filter(v => v.status === 'activo');
     const counts = new Map<string, number>();
     activeVoters.forEach(voter => {
       counts.set(voter.cityId, (counts.get(voter.cityId) || 0) + 1);
     });
+    
+    const departmentMap = new Map(allDepartments.map(d => [d.id, d.name]));
 
-    return cities
-      .map(city => ({
-        ...city,
-        voterCount: counts.get(city.id) || 0,
-        color: generateColorFromString(city.id),
-      }))
+    return allCities
+      .map(city => {
+        const departmentName = departmentMap.get(city.parentDepartmentId) || 'Desconocido';
+        return {
+            ...city,
+            voterCount: counts.get(city.id) || 0,
+            color: generateColorFromString(city.id),
+            department: departmentName,
+        }
+      })
       .filter(city => city.voterCount > 0)
       .sort((a, b) => b.voterCount - a.voterCount);
 
-  }, [voters, cities]);
+  }, [voters, allCities, allDepartments]);
   
   const votersWithLocation: VoterWithColor[] = React.useMemo(() => {
     if (!voters) return [];
@@ -66,7 +74,7 @@ export default function MapPage() {
       }));
   }, [voters, voterCountsByCity]);
 
-  const isLoading = votersLoading || citiesLoading;
+  const isLoading = votersLoading || citiesLoading || departmentsLoading;
 
   if (!apiKey || apiKey === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
     return (
