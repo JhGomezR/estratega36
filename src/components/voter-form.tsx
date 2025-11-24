@@ -115,15 +115,25 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
 
   React.useEffect(() => {
     if (debouncedIdNumber) {
-        form.trigger("idNumber");
+      const isDuplicate = allVoters.some(v => v.idNumber === debouncedIdNumber && v.id !== voter?.id);
+      if (isDuplicate) {
+        form.setError("idNumber", { type: "manual", message: "Este número de documento ya está registrado." });
+      } else {
+        form.clearErrors("idNumber");
+      }
     }
-  }, [debouncedIdNumber, form]);
+  }, [debouncedIdNumber, allVoters, voter?.id, form]);
 
   React.useEffect(() => {
-      if (debouncedPhone) {
-        form.trigger("phone");
+    if (debouncedPhone) {
+      const isDuplicate = allVoters.some(v => v.phone === debouncedPhone && v.id !== voter?.id);
+      if (isDuplicate) {
+        form.setError("phone", { type: "manual", message: "Este número de celular ya está registrado." });
+      } else {
+        form.clearErrors("phone");
       }
-  }, [debouncedPhone, form]);
+    }
+  }, [debouncedPhone, allVoters, voter?.id, form]);
 
 
   const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore]);
@@ -273,6 +283,102 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
                 )}
             />
         </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="countryId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>País</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={countriesLoading ? "Cargando..." : "Selecciona país"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {countries?.map(country => <SelectItem key={country.id} value={country.id}>{country.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="departmentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Departamento</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountryId || departmentsLoading}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={departmentsLoading ? "Cargando..." : "Selecciona dpto."} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {departments?.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+                control={form.control}
+                name="cityId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ciudad/Municipio</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDepartmentId || citiesLoading}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={citiesLoading ? "Cargando..." : "Selecciona ciudad"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {cities?.map(city => (
+                          <SelectItem key={city.id} value={city.id}>
+                            {city.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="vereda"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Vereda / Localidad</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Chapinero" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Dirección</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Ej: Calle 50 # 20-30" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
@@ -299,129 +405,31 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
                     </FormItem>
                 )}
             />
-        </div>
-
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="countryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>País</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={countriesLoading ? "Cargando..." : "Selecciona país"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {countries?.map(country => <SelectItem key={country.id} value={country.id}>{country.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="departmentId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Departamento</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountryId || departmentsLoading}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={departmentsLoading ? "Cargando..." : "Selecciona dpto."} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {departments?.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-              control={form.control}
-              name="cityId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ciudad/Municipio</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDepartmentId || citiesLoading}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={citiesLoading ? "Cargando..." : "Selecciona ciudad"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {cities?.map(city => (
-                        <SelectItem key={city.id} value={city.id}>
-                          {city.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-        </div>
-
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
-              control={form.control}
-              name="vereda"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Vereda / Localidad</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Chapinero" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
                 control={form.control}
-                name="address"
+                name="promoterId"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Dirección</FormLabel>
+                    <FormLabel>Promotor Asignado</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                    <Input placeholder="Ej: Calle 50 # 20-30" {...field} />
+                        <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un promotor" />
+                        </SelectTrigger>
                     </FormControl>
+                    <SelectContent>
+                        {promoters.map(promoter => (
+                        <SelectItem key={promoter.id} value={promoter.id}>
+                            {`${promoter.firstName} ${promoter.lastName}`}
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
                     <FormMessage />
                 </FormItem>
                 )}
             />
         </div>
-       
-        <FormField
-            control={form.control}
-            name="promoterId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Promotor Asignado</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un promotor" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {promoters.map(promoter => (
-                      <SelectItem key={promoter.id} value={promoter.id}>
-                        {`${promoter.firstName} ${promoter.lastName}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-        />
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
