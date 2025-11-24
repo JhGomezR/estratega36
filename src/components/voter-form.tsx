@@ -86,7 +86,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
 
   const form = useForm<VoterFormValues>({
     resolver: zodResolver(voterFormSchema),
-    mode: "onChange",
+    mode: "onTouched",
     defaultValues: {
       firstName: voter?.firstName ?? "",
       lastName: voter?.lastName ?? "",
@@ -112,13 +112,13 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   const [debouncedPhone] = useDebounce(phoneValue, 500);
 
   React.useEffect(() => {
-    if (debouncedIdNumber) {
+    if (debouncedIdNumber && form.formState.isDirty) {
         form.trigger("idNumber");
     }
   }, [debouncedIdNumber, form]);
 
   React.useEffect(() => {
-    if (debouncedPhone) {
+    if (debouncedPhone && form.formState.isDirty) {
         form.trigger("phone");
     }
   }, [debouncedPhone, form]);
@@ -405,5 +405,3 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     </Form>
   )
 }
-
-    
