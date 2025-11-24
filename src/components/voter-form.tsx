@@ -27,7 +27,7 @@ import { collection } from "firebase/firestore"
 import { useDebounce } from 'use-debounce';
 import { Loader2 } from "lucide-react"
 
-const voterFormSchema = z.object({
+const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
   lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres."),
   idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
@@ -40,9 +40,35 @@ const voterFormSchema = z.object({
   vereda: z.string().min(2, "La vereda o localidad es requerida."),
   address: z.string().min(5, "La dirección es requerida."),
   promoterId: z.string({ required_error: "Debe seleccionar un promotor." }),
+}).superRefine((data, ctx) => {
+    if (data.idNumber) {
+      const isDuplicate = allVoters.some(
+        (v) => v.idNumber === data.idNumber && v.id !== currentVoterId
+      );
+      if (isDuplicate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Este número de documento ya está registrado.",
+          path: ["idNumber"],
+        });
+      }
+    }
+    if (data.phone) {
+      const isDuplicate = allVoters.some(
+        (v) => v.phone === data.phone && v.id !== currentVoterId
+      );
+      if (isDuplicate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Este número de celular ya está registrado.",
+          path: ["phone"],
+        });
+      }
+    }
 });
 
-export type VoterFormValues = z.infer<typeof voterFormSchema>;
+
+export type VoterFormValues = z.infer<ReturnType<typeof getVoterFormSchema>>;
 
 interface VoterFormProps {
   voter?: Voter | null;
@@ -57,8 +83,11 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   const firestore = useFirestore();
   const [isSaving, setIsSaving] = React.useState(false);
 
+  const voterFormSchema = getVoterFormSchema(allVoters, voter?.id);
+
   const form = useForm<VoterFormValues>({
     resolver: zodResolver(voterFormSchema),
+    mode: "onChange",
     defaultValues: {
       firstName: voter?.firstName ?? "",
       lastName: voter?.lastName ?? "",
@@ -77,44 +106,6 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   
   const selectedCountryId = form.watch("countryId");
   const selectedDepartmentId = form.watch("departmentId");
-  const idNumberValue = form.watch("idNumber");
-  const phoneValue = form.watch("phone");
-
-  const [debouncedIdNumber] = useDebounce(idNumberValue, 500);
-  const [debouncedPhone] = useDebounce(phoneValue, 500);
-
-  React.useEffect(() => {
-    if (debouncedIdNumber) {
-      const isDuplicate = allVoters.some(
-        (v) => v.idNumber === debouncedIdNumber && v.id !== voter?.id
-      );
-      if (isDuplicate) {
-        form.setError("idNumber", {
-          type: "manual",
-          message: "Este número de documento ya está registrado.",
-        });
-      } else {
-        form.clearErrors("idNumber");
-      }
-    }
-  }, [debouncedIdNumber, allVoters, voter?.id, form]);
-
-  React.useEffect(() => {
-    if (debouncedPhone) {
-      const isDuplicate = allVoters.some(
-        (v) => v.phone === debouncedPhone && v.id !== voter?.id
-      );
-      if (isDuplicate) {
-        form.setError("phone", {
-          type: "manual",
-          message: "Este número de celular ya está registrado.",
-        });
-      } else {
-        form.clearErrors("phone");
-      }
-    }
-  }, [debouncedPhone, allVoters, voter?.id, form]);
-
 
   const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore]);
   const { data: countries, isLoading: countriesLoading } = useCollection<Country>(countriesRef);
@@ -388,7 +379,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSaving}>
+          <Button type="submit" disabled={isSaving || !form.formState.isValid}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSaving ? "Guardando..." : "Guardar Votante"}
           </Button>
