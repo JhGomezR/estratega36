@@ -15,8 +15,3 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  - variable: PROJECT_ID
-    value: ${firebase.projectId}
-    availability:
-      - BUILD
-      - RUNTIME

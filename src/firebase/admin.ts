@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Initializes the Firebase Admin SDK.
  * This module ensures that the Admin SDK is initialized as a singleton.
@@ -19,11 +18,8 @@ function getAdminServices() {
 
   try {
     // In a managed Google Cloud environment (like App Hosting or Cloud Run),
-    // initializing with explicit projectId is a robust way to ensure
-    // the correct project is targeted, while still using environment credentials.
-    admin.initializeApp({
-        projectId: process.env.PROJECT_ID,
-    });
+    // initializing without arguments uses the Application Default Credentials.
+    admin.initializeApp();
 
     console.log('Firebase Admin SDK initialized successfully.');
 
