@@ -52,8 +52,6 @@ export async function createUser(
       errorMessage = 'El correo electrónico ya está en uso por otra cuenta.'
     } else if (error.code === 'auth/weak-password') {
       errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres.'
-    } else if (error.code?.includes('PERMISSION_DENIED') || error.code?.includes('forbidden')) {
-        errorMessage = `Error de permisos en el servidor: La cuenta de servicio no tiene los permisos necesarios para crear usuarios de autenticación. Revisa la configuración IAM de tu proyecto en Google Cloud.`;
     } else if (error.message) {
       errorMessage = error.message;
     }

@@ -6,32 +6,37 @@
  */
 
 import * as admin from 'firebase-admin';
-import serviceAccount from './service-account.json';
 
-function getAdminApp() {
+function getAdminServices() {
   if (admin.apps.length > 0) {
-    return admin.apps[0]!;
+    return {
+      auth: admin.auth(),
+      db: admin.firestore(),
+    };
   }
 
   try {
-    const app = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-      projectId: serviceAccount.project_id, // Explicitly set project ID
-    });
+    // This logic relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable
+    // being set in the deployment environment. It reads the service account key
+    // from the file path specified in that variable.
+    admin.initializeApp();
+
     console.log('Firebase Admin SDK initialized successfully.');
-    return app;
+
+    return {
+      auth: admin.auth(),
+      db: admin.firestore(),
+    };
   } catch (error: any) {
     console.error('Failed to initialize Firebase Admin SDK:', error);
+    // In a real application, you might want to handle this more gracefully
+    // For this context, re-throwing makes the problem visible.
     throw new Error(
       `Failed to initialize Firebase Admin SDK. Error: ${error.message}`
     );
   }
 }
 
-const adminApp = getAdminApp();
-// The main admin instance, useful for accessing services like firestore()
-const adminAuth = admin.auth(adminApp);
-// A direct reference to the default Firestore database instance
-const adminDb = admin.firestore(adminApp);
+const { auth: adminAuth, db: adminDb } = getAdminServices();
 
-export { admin, adminAuth, adminDb };
+export { adminAuth, adminDb };
