@@ -112,16 +112,36 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   const [debouncedPhone] = useDebounce(phoneValue, 500);
 
   React.useEffect(() => {
-    if (debouncedIdNumber) {
-        form.trigger("idNumber");
+    if (debouncedIdNumber && debouncedIdNumber.length >= 5) {
+      const isDuplicate = allVoters.some(
+        (v) => v.idNumber === debouncedIdNumber && v.id !== voter?.id
+      );
+      if (isDuplicate) {
+        form.setError("idNumber", {
+          type: "manual",
+          message: "Este número de documento ya está registrado.",
+        });
+      } else {
+        form.clearErrors("idNumber");
+      }
     }
-  }, [debouncedIdNumber, form]);
+  }, [debouncedIdNumber, allVoters, voter?.id, form]);
 
   React.useEffect(() => {
-    if (debouncedPhone) {
-        form.trigger("phone");
+    if (debouncedPhone && debouncedPhone.length >= 7) {
+      const isDuplicate = allVoters.some(
+        (v) => v.phone === debouncedPhone && v.id !== voter?.id
+      );
+      if (isDuplicate) {
+        form.setError("phone", {
+          type: "manual",
+          message: "Este número de celular ya está registrado.",
+        });
+      } else {
+        form.clearErrors("phone");
+      }
     }
-  }, [debouncedPhone, form]);
+  }, [debouncedPhone, allVoters, voter?.id, form]);
 
 
   const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore]);
