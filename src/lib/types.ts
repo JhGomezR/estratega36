@@ -18,6 +18,7 @@ export type Voter = WithId<{
   registrationDate: string;
   latitude?: number;
   longitude?: number;
+  sector?: string;
   status: 'activo' | 'inactivo';
 }>;
 

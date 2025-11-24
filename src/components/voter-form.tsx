@@ -38,6 +38,7 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
   cityId: z.string({ required_error: "Debe seleccionar una ciudad." }),
   vereda: z.string().min(2, "La vereda o localidad es requerida."),
   address: z.string().min(5, "La dirección es requerida."),
+  sector: z.string().optional(),
   promoterId: z.string({ required_error: "Debe seleccionar un promotor." }),
 }).superRefine((data, ctx) => {
     if (data.idNumber) {
@@ -99,6 +100,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
       cityId: voter?.cityId ?? "",
       vereda: voter?.vereda ?? "",
       address: voter?.address ?? "",
+      sector: voter?.sector ?? "",
       promoterId: voter?.promoterId ?? undefined,
     },
   });
@@ -112,36 +114,16 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   const [debouncedPhone] = useDebounce(phoneValue, 500);
 
   React.useEffect(() => {
-    if (debouncedIdNumber && debouncedIdNumber.length >= 5) {
-      const isDuplicate = allVoters.some(
-        (v) => v.idNumber === debouncedIdNumber && v.id !== voter?.id
-      );
-      if (isDuplicate) {
-        form.setError("idNumber", {
-          type: "manual",
-          message: "Este número de documento ya está registrado.",
-        });
-      } else {
-        form.clearErrors("idNumber");
-      }
+    if (debouncedIdNumber) {
+        form.trigger("idNumber");
     }
-  }, [debouncedIdNumber, allVoters, voter?.id, form]);
+  }, [debouncedIdNumber, form]);
 
   React.useEffect(() => {
-    if (debouncedPhone && debouncedPhone.length >= 7) {
-      const isDuplicate = allVoters.some(
-        (v) => v.phone === debouncedPhone && v.id !== voter?.id
-      );
-      if (isDuplicate) {
-        form.setError("phone", {
-          type: "manual",
-          message: "Este número de celular ya está registrado.",
-        });
-      } else {
-        form.clearErrors("phone");
+      if (debouncedPhone) {
+        form.trigger("phone");
       }
-    }
-  }, [debouncedPhone, allVoters, voter?.id, form]);
+  }, [debouncedPhone, form]);
 
 
   const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore]);
@@ -160,6 +142,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
             countryId: voter.countryId || "",
             departmentId: voter.departmentId || "",
             cityId: voter.cityId || "",
+            sector: voter.sector || "",
         });
     }
   }, [voter, form]);
@@ -290,6 +273,34 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
                 )}
             />
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+                control={form.control}
+                name="sector"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Sector de Trabajo</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona un sector" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {lists.sectors?.items?.map(sector => (
+                                    <SelectItem key={sector} value={sector}>
+                                        {sector}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField

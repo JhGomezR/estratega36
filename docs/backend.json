@@ -48,6 +48,7 @@
         "departmentId": { "type": "string" },
         "cityId": { "type": "string" },
         "vereda": { "type": "string" },
+        "sector": { "type": "string" },
         "promoterId": { "type": "string" },
         "registrationDate": { "type": "string", "format": "date" },
         "latitude": { "type": "number" },
