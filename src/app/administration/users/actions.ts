@@ -1,3 +1,4 @@
+
 'use server'
 
 import { adminAuth, adminDb } from '@/firebase/admin'
@@ -48,12 +49,18 @@ export async function createUser(
     console.error('Error creating user in server action:', error);
     
     let errorMessage = 'Ocurrió un error desconocido durante la creación del usuario.'
-    if (error.code === 'auth/email-already-exists') {
+    
+    const errorCode = error.code || (error.errorInfo ? error.errorInfo.code : '');
+    const errorMessageText = error.message || '';
+
+    if (errorCode === 'auth/email-already-exists' || errorMessageText.includes('EMAIL_EXISTS')) {
       errorMessage = 'El correo electrónico ya está en uso por otra cuenta.'
-    } else if (error.code === 'auth/weak-password') {
+    } else if (errorCode === 'auth/weak-password' || errorMessageText.includes('WEAK_PASSWORD')) {
       errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres.'
-    } else if (error.message) {
-      errorMessage = error.message;
+    } else if (errorCode === 'auth/insufficient-permission' || errorMessageText.includes('insufficient permission') || errorMessageText.includes('PERMISSION_DENIED')) {
+      errorMessage = `Error de permisos del servidor: La cuenta de servicio no tiene los permisos necesarios en Google Cloud para crear usuarios. Revisa los roles IAM (ej. 'Firebase Authentication Admin', 'Service Usage Consumer') de la cuenta de servicio asociada a tu backend.`
+    } else if (errorMessageText) {
+      errorMessage = errorMessageText;
     }
 
 
