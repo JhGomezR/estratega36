@@ -123,6 +123,7 @@ const listTitles: Record<string, string> = {
     taskStatuses: "Estados de Tareas",
     campaignTypes: "Tipos de Campaña",
     campaignStatuses: "Estados de Campaña",
+    sectors: "Sectores",
 };
 
 const defaultLists: Record<string, string[]> = {
@@ -131,6 +132,7 @@ const defaultLists: Record<string, string[]> = {
     taskStatuses: ['pendiente', 'en_curso', 'finalizada', 'archivada'],
     identificationTypes: ['cedula_ciudadania', 'cedula_extranjeria', 'pasaporte'],
     campaignTypes: ['presidencia', 'alcaldia', 'gobernacion'],
+    sectors: ['Combustible', 'Agroindustria', 'Agropecuario', 'Ganadero'],
 }
 
 
@@ -417,5 +419,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-
-    
