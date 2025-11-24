@@ -19,9 +19,11 @@ function getAdminServices() {
 
   try {
     // In a managed Google Cloud environment (like App Hosting or Cloud Run),
-    // calling initializeApp() without arguments automatically uses the
-    // environment's service account credentials.
-    admin.initializeApp();
+    // initializing with explicit projectId is a robust way to ensure
+    // the correct project is targeted, while still using environment credentials.
+    admin.initializeApp({
+        projectId: process.env.PROJECT_ID,
+    });
 
     console.log('Firebase Admin SDK initialized successfully.');
 
