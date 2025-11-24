@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -406,3 +405,5 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     </Form>
   )
 }
+
+    
