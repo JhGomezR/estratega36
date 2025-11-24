@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
@@ -211,7 +211,7 @@ export default function VotersPage() {
             const newVoter = {
                 ...voterData,
                 status: 'activo' as const,
-                registrationDate: format(new Date(), "yyyy-MM-dd"),
+                registrationDate: new Date().toISOString(),
             };
             addDocumentNonBlocking(votersCollectionRef, newVoter);
         }
@@ -257,6 +257,7 @@ export default function VotersPage() {
             <VoterForm
               voter={selectedVoter}
               promoters={promoters}
+              allVoters={votersData || []}
               lists={lists}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
@@ -318,7 +319,7 @@ export default function VotersPage() {
                   <TableCell>{getCityName(voter.cityId)}</TableCell>
                   <TableCell>{voter.vereda}</TableCell>
                   <TableCell>{getPromoterName(voter.promoterId)}</TableCell>
-                  <TableCell>{voter.registrationDate}</TableCell>
+                  <TableCell>{format(parseISO(voter.registrationDate), 'yyyy-MM-dd')}</TableCell>
                   <TableCell className="text-right">
                      <Button variant="ghost" size="icon" onClick={() => handleEdit(voter)}>
                       <Edit className="h-4 w-4" />
@@ -377,5 +378,3 @@ export default function VotersPage() {
     </div>
   )
 }
-
-    

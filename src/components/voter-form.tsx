@@ -23,7 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { collection } from "firebase/firestore"
+import { useDebounce } from 'use-debounce';
+import { Loader2 } from "lucide-react"
 
 const voterFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -45,13 +47,15 @@ export type VoterFormValues = z.infer<typeof voterFormSchema>;
 interface VoterFormProps {
   voter?: Voter | null;
   promoters: User[];
+  allVoters: Voter[];
   lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: VoterFormValues, cityName: string, departmentName: string, countryName: string) => void;
   onCancel: () => void;
 }
 
-export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: VoterFormProps) {
+export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCancel }: VoterFormProps) {
   const firestore = useFirestore();
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const form = useForm<VoterFormValues>({
     resolver: zodResolver(voterFormSchema),
@@ -73,6 +77,44 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: Voter
   
   const selectedCountryId = form.watch("countryId");
   const selectedDepartmentId = form.watch("departmentId");
+  const idNumberValue = form.watch("idNumber");
+  const phoneValue = form.watch("phone");
+
+  const [debouncedIdNumber] = useDebounce(idNumberValue, 500);
+  const [debouncedPhone] = useDebounce(phoneValue, 500);
+
+  React.useEffect(() => {
+    if (debouncedIdNumber) {
+      const isDuplicate = allVoters.some(
+        (v) => v.idNumber === debouncedIdNumber && v.id !== voter?.id
+      );
+      if (isDuplicate) {
+        form.setError("idNumber", {
+          type: "manual",
+          message: "Este número de documento ya está registrado.",
+        });
+      } else {
+        form.clearErrors("idNumber");
+      }
+    }
+  }, [debouncedIdNumber, allVoters, voter?.id, form]);
+
+  React.useEffect(() => {
+    if (debouncedPhone) {
+      const isDuplicate = allVoters.some(
+        (v) => v.phone === debouncedPhone && v.id !== voter?.id
+      );
+      if (isDuplicate) {
+        form.setError("phone", {
+          type: "manual",
+          message: "Este número de celular ya está registrado.",
+        });
+      } else {
+        form.clearErrors("phone");
+      }
+    }
+  }, [debouncedPhone, allVoters, voter?.id, form]);
+
 
   const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore]);
   const { data: countries, isLoading: countriesLoading } = useCollection<Country>(countriesRef);
@@ -107,11 +149,17 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: Voter
     }
   }, [selectedDepartmentId, form]);
 
-  function handleFormSubmit(data: VoterFormValues) {
+  async function handleFormSubmit(data: VoterFormValues) {
+    setIsSaving(true);
     const countryName = countries?.find(c => c.id === data.countryId)?.name || '';
     const departmentName = departments?.find(d => d.id === data.departmentId)?.name || '';
     const cityName = cities?.find(c => c.id === data.cityId)?.name || '';
-    onSubmit(data, cityName, departmentName, countryName);
+    
+    try {
+        await onSubmit(data, cityName, departmentName, countryName);
+    } finally {
+        setIsSaving(false);
+    }
   }
 
   return (
@@ -337,10 +385,13 @@ export function VoterForm({ voter, promoters, lists, onSubmit, onCancel }: Voter
         />
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button type="submit">Guardar Votante</Button>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? "Guardando..." : "Guardar Votante"}
+          </Button>
         </div>
       </form>
     </Form>
