@@ -78,7 +78,7 @@ export default function Dashboard() {
     return { attended, total: activeCalls.length };
   }, [activeCalls]);
 
-  const topLeaders = React.useMemo(() => {
+  const topUsers = React.useMemo(() => {
     if (!activeVoters || !users) return [];
     
     const promoterCounts: Record<string, number> = {};
@@ -86,14 +86,12 @@ export default function Dashboard() {
         promoterCounts[voter.promoterId] = (promoterCounts[voter.promoterId] || 0) + 1;
     });
 
-    const leaders = users.filter(u => u.roleId === 'lider' || u.roleId === 'promotor' || u.roleId === 'admin');
-
-    return leaders
-        .map(leader => ({
-            ...leader,
-            voterCount: promoterCounts[leader.id] || 0,
+    return users
+        .map(user => ({
+            ...user,
+            voterCount: promoterCounts[user.id] || 0,
         }))
-        .filter(leader => leader.voterCount > 0)
+        .filter(user => user.voterCount > 0)
         .sort((a, b) => b.voterCount - a.voterCount)
         .slice(0, 5);
 
@@ -175,14 +173,14 @@ export default function Dashboard() {
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Top 5 Líderes con más Votantes</CardTitle>
-            <CardDescription>Conteo de los 5 líderes que han ingresado más votantes activos.</CardDescription>
+            <CardTitle>Top 5 Usuarios con más Votantes</CardTitle>
+            <CardDescription>Conteo de los 5 usuarios que han ingresado más votantes activos.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Líder</TableHead>
+                        <TableHead>Usuario</TableHead>
                         <TableHead className="text-right">Votantes</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -194,25 +192,25 @@ export default function Dashboard() {
                                 <TableCell></TableCell>
                             </TableRow>
                         ))
-                    ) : topLeaders.length === 0 ? (
+                    ) : topUsers.length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={2} className="h-24 text-center">
-                                No hay datos de líderes para mostrar.
+                                No hay datos de usuarios para mostrar.
                             </TableCell>
                         </TableRow>
                     ) : (
-                        topLeaders.map(leader => (
-                            <TableRow key={leader.id}>
+                        topUsers.map(user => (
+                            <TableRow key={user.id}>
                                 <TableCell>
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-8 w-8">
-                                            <AvatarImage src={leader.avatar} alt={`${leader.firstName} ${leader.lastName}`} data-ai-hint="person portrait"/>
-                                            <AvatarFallback>{leader.firstName.charAt(0)}{leader.lastName.charAt(0)}</AvatarFallback>
+                                            <AvatarImage src={user.avatar} alt={`${user.firstName} ${user.lastName}`} data-ai-hint="person portrait"/>
+                                            <AvatarFallback>{user.firstName.charAt(0)}{user.lastName.charAt(0)}</AvatarFallback>
                                         </Avatar>
-                                        <div className="font-medium">{leader.firstName} {leader.lastName}</div>
+                                        <div className="font-medium">{user.firstName} {user.lastName}</div>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right font-bold text-lg">{leader.voterCount}</TableCell>
+                                <TableCell className="text-right font-bold text-lg">{user.voterCount}</TableCell>
                             </TableRow>
                         ))
                     )}
