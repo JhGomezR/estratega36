@@ -112,13 +112,13 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   const [debouncedPhone] = useDebounce(phoneValue, 500);
 
   React.useEffect(() => {
-    if (debouncedIdNumber && form.formState.isDirty) {
+    if (debouncedIdNumber) {
         form.trigger("idNumber");
     }
   }, [debouncedIdNumber, form]);
 
   React.useEffect(() => {
-    if (debouncedPhone && form.formState.isDirty) {
+    if (debouncedPhone) {
         form.trigger("phone");
     }
   }, [debouncedPhone, form]);
