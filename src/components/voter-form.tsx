@@ -106,6 +106,24 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   
   const selectedCountryId = form.watch("countryId");
   const selectedDepartmentId = form.watch("departmentId");
+  const idNumberValue = form.watch("idNumber");
+  const phoneValue = form.watch("phone");
+
+  const [debouncedIdNumber] = useDebounce(idNumberValue, 500);
+  const [debouncedPhone] = useDebounce(phoneValue, 500);
+
+  React.useEffect(() => {
+    if (debouncedIdNumber) {
+        form.trigger("idNumber");
+    }
+  }, [debouncedIdNumber, form]);
+
+  React.useEffect(() => {
+    if (debouncedPhone) {
+        form.trigger("phone");
+    }
+  }, [debouncedPhone, form]);
+
 
   const countriesRef = useMemoFirebase(() => firestore ? collection(firestore, 'countries') : null, [firestore]);
   const { data: countries, isLoading: countriesLoading } = useCollection<Country>(countriesRef);
