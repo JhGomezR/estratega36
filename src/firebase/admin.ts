@@ -7,7 +7,9 @@
 
 import * as admin from 'firebase-admin';
 
+// This function ensures the Admin SDK is initialized only once.
 function getAdminServices() {
+  // If the app is already initialized, return the existing services.
   if (admin.apps.length > 0) {
     return {
       auth: admin.auth(),
@@ -16,9 +18,9 @@ function getAdminServices() {
   }
 
   try {
-    // This logic relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable
-    // being set in the deployment environment. It reads the service account key
-    // from the file path specified in that variable.
+    // In a managed Google Cloud environment (like App Hosting or Cloud Run),
+    // calling initializeApp() without arguments automatically uses the
+    // environment's service account credentials.
     admin.initializeApp();
 
     console.log('Firebase Admin SDK initialized successfully.');
@@ -29,8 +31,7 @@ function getAdminServices() {
     };
   } catch (error: any) {
     console.error('Failed to initialize Firebase Admin SDK:', error);
-    // In a real application, you might want to handle this more gracefully
-    // For this context, re-throwing makes the problem visible.
+    // Re-throwing the error makes it visible during development and in logs.
     throw new Error(
       `Failed to initialize Firebase Admin SDK. Error: ${error.message}`
     );
