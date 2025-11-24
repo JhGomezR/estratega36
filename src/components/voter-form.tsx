@@ -435,7 +435,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSaving || !form.formState.isValid}>
+          <Button type="submit" disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isSaving ? "Guardando..." : "Guardar Votante"}
           </Button>
