@@ -87,7 +87,7 @@ export default function UsersPage() {
     
     const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
     const adminRoleIds = roles
-        .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
+        .filter(r => r.name.toLowerCase().includes('admin'))
         .map(r => r.id);
 
     if (adminRoleIds.includes(currentUserData.roleId)) {
@@ -266,7 +266,9 @@ export default function UsersPage() {
                     <div className="flex items-center gap-3">
                        <Avatar className="h-8 w-8">
                           <AvatarImage src={user.avatar} alt={`${user.firstName} ${user.lastName}`} data-ai-hint="person portrait"/>
-                          <AvatarFallback>{user.firstName.charAt(0)}{user.lastName.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>
+                            {user.firstName && user.lastName ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` : '..'}
+                          </AvatarFallback>
                         </Avatar>
                         {`${user.firstName} ${user.lastName}`}
                     </div>

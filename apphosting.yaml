@@ -8,6 +8,8 @@ runConfig:
 # Defines environment variables that will be available to your application.
 # Learn more at https://firebase.google.com/docs/app-hosting/configure-backend#set-environment-variables
 env:
+  - variable: FIREBASE_SERVICE_ACCOUNT_KEY
+    value: ${file('.env:FIREBASE_SERVICE_ACCOUNT_KEY')}
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
     secret: API_KEY_GOOGLE_MAPS
     availability:
