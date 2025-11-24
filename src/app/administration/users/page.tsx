@@ -42,7 +42,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -52,9 +52,9 @@ import { usePermissions } from "@/hooks/usePermissions"
 
 export default function UsersPage() {
   const firestore = useFirestore();
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const auth = useAuth();
   const { toast } = useToast();
-  const { hasPermission, isLoading: permissionsLoading, user: currentUserData, role: currentUserRole } = usePermissions();
+  const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
   const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `users`) : null, [firestore]);
   const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
@@ -73,9 +73,37 @@ export default function UsersPage() {
   const [citiesToView, setCitiesToView] = React.useState<{ user: User, cities: City[] } | null>(null);
   
   const users = React.useMemo(() => {
-    if (!usersData) return [];
-    return usersData.filter(u => u.status !== 'inactivo');
-  }, [usersData]);
+    if (!usersData || !currentUser || !roles) return [];
+
+    const activeUsers = usersData.filter(u => u.status !== 'inactivo');
+
+    // Super admin can see everyone
+    if (auth.currentUser?.email === 'axdrcys@gmail.com') {
+      return activeUsers;
+    }
+    
+    const currentUserData = usersData.find(u => u.id === currentUser.uid);
+    if (!currentUserData) return [];
+    
+    const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
+    const adminRoleIds = roles
+        .filter(r => adminRoleNames.includes(r.name.toLowerCase()))
+        .map(r => r.id);
+
+    if (adminRoleIds.includes(currentUserData.roleId)) {
+        return activeUsers;
+    }
+
+    if (currentUserData.roleId === 'lider') {
+        const teamMemberIds = usersData.filter(u => u.parentId === currentUser.uid).map(u => u.id);
+        const allTeamIds = [currentUser.uid, ...teamMemberIds];
+        return activeUsers.filter(u => allTeamIds.includes(u.id));
+    }
+    
+    // Other roles can only see themselves
+    return activeUsers.filter(u => u.id === currentUser.uid);
+
+  }, [usersData, currentUser, roles, auth.currentUser]);
 
 
   const lists = React.useMemo(() => {
@@ -168,9 +196,10 @@ export default function UsersPage() {
     return roles?.find(r => r.id === roleId)?.name ?? 'N/A'
   }
   
-  const isLoading = permissionsLoading || usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
+  const isLoading = currentUserLoading || usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
 
-  const isAdmin = currentUserRole?.name.toLowerCase().includes('admin');
+  const isAdmin = roles?.find(r => r.id === users?.find(u => u.id === currentUser?.uid)?.roleId)?.name.toLowerCase().includes('admin');
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -316,5 +345,3 @@ export default function UsersPage() {
     </div>
   )
 }
-
-    
