@@ -6,7 +6,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
+  CardFooter,
 } from "@/components/ui/card"
 import {
   Table,
@@ -41,7 +42,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -51,7 +52,7 @@ import { usePermissions } from "@/hooks/usePermissions"
 
 export default function UsersPage() {
   const firestore = useFirestore();
-  const { user: authUser } = useAuth();
+  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const { toast } = useToast();
   const { hasPermission, isLoading: permissionsLoading, user: currentUserData, role: currentUserRole } = usePermissions();
 
@@ -315,3 +316,5 @@ export default function UsersPage() {
     </div>
   )
 }
+
+    
