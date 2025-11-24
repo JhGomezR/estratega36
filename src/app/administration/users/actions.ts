@@ -57,7 +57,7 @@ export async function createUser(
       errorMessage = 'El correo electrónico ya está en uso por otra cuenta.'
     } else if (errorCode === 'auth/weak-password' || errorMessageText.includes('WEAK_PASSWORD')) {
       errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres.'
-    } else if (errorCode === 'auth/insufficient-permission' || errorMessageText.includes('insufficient permission') || errorMessageText.includes('PERMISSION_DENIED')) {
+    } else if (errorMessageText.includes('insufficient permission') || errorMessageText.includes('PERMISSION_DENIED')) {
       errorMessage = `Error de permisos del servidor: La cuenta de servicio no tiene los permisos necesarios en Google Cloud para crear usuarios. Revisa los roles IAM (ej. 'Firebase Authentication Admin', 'Service Usage Consumer') de la cuenta de servicio asociada a tu backend.`
     } else if (errorMessageText) {
       errorMessage = errorMessageText;
