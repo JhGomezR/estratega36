@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { analyzeCampaignData, type AnalyzeCampaignDataOutput } from '@/ai/flows/analyze-campaign-data'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { BrainCircuit, Loader2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -134,7 +134,7 @@ export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: Analy
             </CardContent>
              <CardFooter>
                 <p className="text-xs text-muted-foreground text-center">La IA utilizará los datos de votantes (ciudades, sectores) y el estado actual de la campaña seleccionada.</p>
-            </CardFooter>
+             </CardFooter>
         </Card>
       
       <div className="space-y-4">
