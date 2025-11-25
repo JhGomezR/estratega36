@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useLayoutEffect, useRef } from 'react';
@@ -10,116 +9,96 @@ import type { User, Voter, Role, Campaign } from '@/lib/types';
 interface ChartData {
     name: string;
     id: string;
-    roleName?: string;
-    children?: ChartData[];
+    roleName: string;
+    children: ChartData[];
     value: number;
     isVoter?: boolean;
     isCampaign?: boolean;
-    isRole?: boolean;
 }
 
-const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
-
-// Helper function to generate a consistent color from a string
-function generateColorFromString(str: string): am5.Color {
+function stringToColor(str: string): am5.Color {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    const color = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-    return am5.color(parseInt("0x" + "00000".substring(0, 6 - color.length) + color, 16));
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+    }
+    return am5.color(color);
 }
 
+const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
+    const roleMap = new Map(allRoles.map(role => [role.id, role.name]));
 
-const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
-    // 1. Filter for active users in the current campaign and active voters
-    const activeUsersInCampaign = allUsers.filter(u => u.status === 'activo' && u.campaignIds.includes(campaign.id));
-    const activeVoters = allVoters.filter(v => v.status === 'activo');
-    
-    // Create a map of all valid roles (non-admin)
-    const roleMap = new Map<string, ChartData>();
-    allRoles
-        .filter(role => role.status === 'activo' && !role.trash && !ADMIN_ROLE_NAMES.includes(role.name.toLowerCase()))
-        .forEach(role => {
-            roleMap.set(role.id, {
-                id: role.id,
-                name: role.name,
-                roleName: 'Rol',
-                isRole: true,
-                children: [],
-                value: 0
-            });
-        });
+    const usersInCampaign = allUsers.filter(u => u.status === 'activo' && u.campaignIds.includes(campaign.id));
+    const userNodes = new Map<string, ChartData>();
 
-    // Create user nodes and group them under their roles in the roleMap
-    const userMap = new Map<string, ChartData>();
-    activeUsersInCampaign.forEach(user => {
-        const userNode: ChartData = {
-            name: `${user.firstName} ${user.lastName}`,
+    // 1. Create nodes for all users in the campaign
+    usersInCampaign.forEach(user => {
+        userNodes.set(user.id, {
             id: user.id,
-            roleName: allRoles.find(r => r.id === user.roleId)?.name || 'Sin Rol',
+            name: `${user.firstName} ${user.lastName}`,
+            roleName: roleMap.get(user.roleId) || 'Sin Rol',
             children: [],
-            value: 0
-        };
-        userMap.set(user.id, userNode);
-
-        const roleNode = roleMap.get(user.roleId);
-        if (roleNode) {
-            roleNode.children?.push(userNode);
-        }
+            value: 0 // Will be calculated later
+        });
     });
 
-    // Attach voters to their respective promoters (users)
-    activeVoters.forEach(voter => {
-        const promoterNode = userMap.get(voter.promoterId);
-        if (promoterNode?.children) {
-            const voterNode: ChartData = {
-                name: `${voter.firstName} ${voter.lastName}`,
+    // 2. Nest users based on parentId
+    const rootUsers: ChartData[] = [];
+    usersInCampaign.forEach(user => {
+        const userNode = userNodes.get(user.id);
+        if (user.parentId && userNodes.has(user.parentId)) {
+            const parentNode = userNodes.get(user.parentId);
+            parentNode?.children.push(userNode!);
+        } else {
+            rootUsers.push(userNode!);
+        }
+    });
+    
+    // 3. Attach voters to their promoters
+    allVoters.forEach(voter => {
+        if (voter.status === 'activo' && userNodes.has(voter.promoterId)) {
+            const promoterNode = userNodes.get(voter.promoterId);
+            promoterNode?.children.push({
                 id: voter.id,
-                value: 1, // Voters are the base value unit
+                name: `${voter.firstName} ${voter.lastName}`,
                 roleName: "Votante",
-                isVoter: true
-            };
-            promoterNode.children.push(voterNode);
+                children: [],
+                value: 1, // Voters are the base unit
+                isVoter: true,
+            });
         }
     });
 
-    // Function to calculate cumulative values (voter counts) upwards from voters
-    const calculateValues = (node: ChartData): number => {
+    // 4. Recursive function to calculate total voters (value) for each node
+    const calculateValue = (node: ChartData): number => {
         if (node.isVoter) {
             return 1;
         }
-        if (!node.children || node.children.length === 0) {
-            node.value = 0;
-            return 0;
-        }
-        const totalValue = node.children.reduce((sum, child) => sum + calculateValues(child), 0);
-        node.value = totalValue;
-        return totalValue;
+        const childValues = node.children.reduce((sum, child) => sum + calculateValue(child), 0);
+        node.value = childValues;
+        return node.value;
     };
     
-    // Calculate values for all roles
-    roleMap.forEach(calculateValues);
+    rootUsers.forEach(calculateValue);
 
-    // Filter out roles that have no users in this campaign
-    const campaignRoles = Array.from(roleMap.values()).filter(role => role.children && role.children.length > 0);
-
-    // Create the root campaign node
-    const campaignNode: ChartData = {
-        name: campaign.name,
-        roleName: campaign.campaignType,
+    // 5. Create the final campaign root node
+    const campaignRoot: ChartData = {
         id: campaign.id,
+        name: campaign.name,
+        roleName: "Campaña",
         isCampaign: true,
-        children: campaignRoles,
-        value: 0 // Will be calculated last
+        children: rootUsers,
+        value: 0
     };
     
-    // Final calculation for the root node
-    calculateValues(campaignNode);
+    calculateValue(campaignRoot);
 
-    return campaignNode;
+    return campaignRoot;
 };
-
 
 interface NetworkHierarchyChartProps {
     campaign: Campaign;
@@ -128,12 +107,12 @@ interface NetworkHierarchyChartProps {
     roles: Role[];
 }
 
-export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: NetworkHierarchyChartProps) => {
+export default function NetworkHierarchyChart({ campaign, users, voters, roles }: NetworkHierarchyChartProps) {
     const chartRef = useRef<HTMLDivElement>(null);
-    const data = React.useMemo(() => buildChartData(campaign, users, voters, roles), [campaign, users, voters, roles]);
+    const data = React.useMemo(() => buildHierarchyData(campaign, users, voters, roles), [campaign, users, voters, roles]);
 
     useLayoutEffect(() => {
-        if (!chartRef.current) return;
+        if (!chartRef.current || !data) return;
 
         let root = am5.Root.new(chartRef.current);
         
@@ -164,30 +143,20 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         
         series.nodes.template.setAll({
             toggleKey: "active",
-            tooltipText: "{name}\n{roleName}\nVotantes: {value}",
-            cursor: "pointer"
-        });
-        
-        series.nodes.template.states.create("active", {
-            // properties for the active state
+            tooltipText: "{name}\\n{roleName}\\nVotantes: {value}",
+            cursor: "pointer",
         });
 
-        series.circles.template.adapters.add("fill", function(fill, target) {
-            const dataContext = target.dataItem?.dataContext as Partial<ChartData>;
+        series.circles.template.adapters.add("fill", (fill, target) => {
+            const dataContext = target.dataItem?.dataContext as ChartData | undefined;
             if (dataContext?.isCampaign) return am5.color(0x1A237E);
-            if (dataContext?.isRole) return generateColorFromString(dataContext.name || "role");
             if (dataContext?.isVoter) return am5.color(0xFFC107);
-            
-            // Dynamically generate color for user nodes based on their role name
-            const roleName = dataContext?.roleName || '';
-            if (roleName) {
-                return generateColorFromString(roleName);
+            if (dataContext?.roleName) {
+                return stringToColor(dataContext.roleName);
             }
-            
-            return am5.color(0x9E9E9E); // Fallback color
+            return fill;
         });
 
-        
         series.circles.template.setAll({
           radius: 20,
         });

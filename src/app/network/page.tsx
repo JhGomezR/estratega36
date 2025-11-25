@@ -1,15 +1,15 @@
 "use client"
 import React from 'react';
 import dynamic from 'next/dynamic';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import type { User, Voter, Role, Campaign } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/usePermissions';
 
-const NetworkHierarchyChart = dynamic(() => import('@/components/network-hierarchy-chart').then(mod => mod.NetworkHierarchyChart), {
+const NetworkHierarchyChart = dynamic(() => import('@/components/network-hierarchy-chart'), {
     ssr: false,
     loading: () => (
         <div className="flex items-center justify-center h-full">
@@ -31,34 +31,34 @@ export default function NetworkPage() {
 
     const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
     const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
-    const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
-    const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollectionRef);
+    const { data: rolesData, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
+    const { data: campaignsData, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollectionRef);
     
-    const [selectedCampaignId, setSelectedCampaignId] = React.useState<string | null>(null);
+    const [selectedCampaignId, setSelectedCampaignId] = React.useState<string | undefined>(undefined);
 
     const activeCampaigns = React.useMemo(() => {
-        if (!campaigns || !authUser || !usersData || !hasPermission('campaign:read')) return [];
-        const currentUserData = usersData.find(u => u.id === authUser.id);
+        if (!campaignsData || !authUser || !usersData || !rolesData || !hasPermission('campaign:read')) return [];
         
-        const userRole = roles?.find(r => r.id === currentUserData?.roleId)?.name.toLowerCase();
+        const currentUserData = usersData.find(u => u.id === authUser.id);
+        const userRole = rolesData.find(r => r.id === currentUserData?.roleId)?.name?.toLowerCase();
         const isAdmin = userRole && ADMIN_ROLE_NAMES.includes(userRole);
 
-        const allActive = campaigns.filter(c => c.status === 'En Campaña');
+        const allActive = campaignsData.filter(c => c.status === 'En Campaña');
 
         if (isAdmin) {
             return allActive;
         }
 
         return allActive.filter(c => currentUserData?.campaignIds.includes(c.id));
-    }, [campaigns, authUser, usersData, roles, hasPermission]);
+    }, [campaignsData, authUser, usersData, rolesData, hasPermission]);
     
     React.useEffect(() => {
-        if (!selectedCampaignId && activeCampaigns.length > 0) {
+        if (selectedCampaignId === undefined && activeCampaigns.length > 0) {
             setSelectedCampaignId(activeCampaigns[0].id);
         }
     }, [activeCampaigns, selectedCampaignId]);
     
-    const selectedCampaign = campaigns?.find(c => c.id === selectedCampaignId);
+    const selectedCampaign = campaignsData?.find(c => c.id === selectedCampaignId);
     const isLoading = usersLoading || votersLoading || rolesLoading || campaignsLoading || permissionsLoading;
 
     return (
@@ -69,7 +69,7 @@ export default function NetworkPage() {
                     <p className="text-muted-foreground">Visualiza la estructura completa de tu equipo de campaña y sus resultados.</p>
                 </div>
                 {activeCampaigns.length > 0 && (
-                    <Select value={selectedCampaignId ?? ""} onValueChange={setSelectedCampaignId}>
+                    <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
                         <SelectTrigger className="w-[280px]">
                             <SelectValue placeholder="Selecciona una campaña" />
                         </SelectTrigger>
@@ -93,12 +93,12 @@ export default function NetworkPage() {
                         <div className="flex items-center justify-center h-full">
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
-                    ) : (selectedCampaign && usersData && votersData) ? (
+                    ) : (selectedCampaign && usersData && votersData && rolesData) ? (
                         <NetworkHierarchyChart 
                             campaign={selectedCampaign}
                             users={usersData}
                             voters={votersData}
-                            roles={roles || []}
+                            roles={rolesData}
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full">
