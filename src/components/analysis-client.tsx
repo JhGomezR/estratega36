@@ -5,18 +5,30 @@ import { analyzeCampaignData, type AnalyzeCampaignDataOutput } from '@/ai/flows/
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
-import { BrainCircuit, Loader2 } from 'lucide-react'
+import { BrainCircuit, Loader2, BarChart, AlertTriangle } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Campaign, Voter } from '@/lib/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
 import { collection } from 'firebase/firestore'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
+import { Progress } from './ui/progress'
+import { cn } from '@/lib/utils'
 
 interface AnalysisClientProps {
   campaigns: Campaign[];
   isLoading: boolean;
 }
+
+const topicColors = [
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-yellow-500",
+  "bg-red-500",
+  "bg-indigo-500",
+  "bg-pink-500",
+];
+
 
 export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: AnalysisClientProps) {
   const [result, setResult] = useState<AnalyzeCampaignDataOutput | null>(null)
@@ -63,15 +75,19 @@ export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: Analy
 
 
     // Prepare data for the AI
-    const campaignDataForAI = `
-        Nombre de la campaña: ${selectedCampaign.name}
-        Descripción: ${selectedCampaign.description}
-        Tipo: ${selectedCampaign.campaignType}
-        Progreso actual: ${selectedCampaign.progress}%
-        Total de votantes registrados: ${voters.length}
-        Distribución de votantes por ciudad: ${JSON.stringify(cityCounts)}
-        Distribución de votantes por sector laboral: ${JSON.stringify(sectorCounts)}
-    `;
+    const campaignDataForAI = JSON.stringify({
+        campaignDetails: {
+            name: selectedCampaign.name,
+            description: selectedCampaign.description,
+            type: selectedCampaign.campaignType,
+            progress: selectedCampaign.progress,
+        },
+        voterStats: {
+            total: voters.length,
+            cityDistribution: cityCounts,
+            sectorDistribution: sectorCounts,
+        }
+    });
     
     const campaignObjectivesForAI = selectedCampaign.goal;
 
@@ -96,101 +112,107 @@ export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: Analy
   const isLoading = campaignsLoading || votersLoading;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        <Card className="flex flex-col items-center justify-center p-8 min-h-[400px]">
-            <CardHeader className="text-center">
-                <CardTitle>Análisis Automatizado</CardTitle>
-                <CardDescription>Selecciona una campaña activa y la IA analizará sus datos de votantes y progreso para generar insights.</CardDescription>
-            </CardHeader>
-            <CardContent className="w-full max-w-sm space-y-6">
-                <div className="space-y-2">
-                    <Select onValueChange={setSelectedCampaignId} disabled={isLoading || isAnalyzing}>
-                        <SelectTrigger>
-                            <SelectValue placeholder={isLoading ? "Cargando campañas..." : "Selecciona una campaña"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {isLoading ? (
-                                <SelectItem value="loading" disabled>Cargando...</SelectItem>
-                            ) : campaigns.length > 0 ? (
-                                campaigns.map(campaign => (
-                                <SelectItem key={campaign.id} value={campaign.id}>
-                                    {campaign.name}
-                                </SelectItem>
-                                ))
-                            ) : (
-                                <SelectItem value="no-campaigns" disabled>No hay campañas activas</SelectItem>
-                            )}
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <Button onClick={handleAnalyze} disabled={isAnalyzing || isLoading || !selectedCampaignId} className="w-full">
-                    {isAnalyzing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+            <CardTitle>Análisis Automatizado</CardTitle>
+            <CardDescription>Selecciona una campaña activa y la IA analizará sus datos de votantes y progreso para generar insights.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row items-center gap-4">
+            <Select onValueChange={setSelectedCampaignId} disabled={isLoading || isAnalyzing}>
+                <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue placeholder={isLoading ? "Cargando campañas..." : "Selecciona una campaña"} />
+                </SelectTrigger>
+                <SelectContent>
+                    {isLoading ? (
+                        <SelectItem value="loading" disabled>Cargando...</SelectItem>
+                    ) : campaigns.length > 0 ? (
+                        campaigns.map(campaign => (
+                        <SelectItem key={campaign.id} value={campaign.id}>
+                            {campaign.name}
+                        </SelectItem>
+                        ))
                     ) : (
-                    <BrainCircuit className="mr-2 h-4 w-4" />
+                        <SelectItem value="no-campaigns" disabled>No hay campañas activas</SelectItem>
                     )}
-                    {isAnalyzing ? 'Analizando...' : 'Analizar Campaña con IA'}
-                </Button>
-            </CardContent>
-             <CardFooter>
-                <p className="text-xs text-muted-foreground text-center">La IA utilizará los datos de votantes (ciudades, sectores) y el estado actual de la campaña seleccionada.</p>
-             </CardFooter>
-        </Card>
+                </SelectContent>
+            </Select>
+            <Button onClick={handleAnalyze} disabled={isAnalyzing || isLoading || !selectedCampaignId} className="w-full sm:w-auto">
+                {isAnalyzing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                <BrainCircuit className="mr-2 h-4 w-4" />
+                )}
+                {isAnalyzing ? 'Analizando...' : 'Analizar Campaña con IA'}
+            </Button>
+        </CardContent>
+         <CardFooter>
+            <p className="text-xs text-muted-foreground text-center">La IA utilizará los datos de votantes (ciudades, sectores) y el estado actual de la campaña seleccionada.</p>
+         </CardFooter>
+      </Card>
       
-      <div className="space-y-4">
+      <div className="space-y-8">
         {isAnalyzing && (
-            <>
-                <Card>
-                    <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
-                    <CardContent><Skeleton className="h-20 w-full" /></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
-                    <CardContent><Skeleton className="h-20 w-full" /></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
-                    <CardContent><Skeleton className="h-20 w-full" /></CardContent>
-                </Card>
-            </>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card><CardHeader><Skeleton className="h-6 w-1/3 mb-4" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
+                <Card><CardHeader><Skeleton className="h-6 w-1/3 mb-4" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
+                <Card className="lg:col-span-2"><CardHeader><Skeleton className="h-6 w-1/3 mb-4" /></CardHeader><CardContent><Skeleton className="h-20 w-full" /></CardContent></Card>
+            </div>
         )}
         {result && (
-          <>
-            <Alert>
-                <BrainCircuit className="h-4 w-4" />
-                <AlertTitle>Análisis Completado</AlertTitle>
-                <AlertDescription>
-                    Resultados generados por la IA para la campaña seleccionada.
-                </AlertDescription>
-            </Alert>
-            <Card className="bg-card/80 border-primary/50 shadow-lg">
-              <CardHeader>
-                <CardTitle>Tendencias Clave</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{result.keyTrends}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border-primary/50 shadow-lg">
-              <CardHeader>
-                <CardTitle>Nuevas Oportunidades</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{result.newOpportunities}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border-accent/50 shadow-lg">
-              <CardHeader>
-                <CardTitle>Recomendaciones</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{result.recommendations}</p>
-              </CardContent>
-            </Card>
-          </>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5" /> Tendencias de Participación</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {result.participationTrends.map((trend, index) => (
+                        <div key={index} className="space-y-1">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className={cn("font-medium", trend.isProjection && "text-primary")}>{trend.label}</span>
+                                <span className={cn("font-semibold", trend.isProjection && "text-primary")}>{trend.value}%</span>
+                            </div>
+                            <Progress value={trend.value} className={cn(trend.isProjection && "[&>div]:bg-primary")} />
+                        </div>
+                    ))}
+                </CardContent>
+             </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Temas de Mayor Interés</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     {result.interestTopics.map((topic, index) => (
+                        <div key={index} className="space-y-1">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="font-medium">{topic.topic}</span>
+                                <span className="font-semibold">{topic.value}%</span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2.5">
+                                <div className={cn("h-2.5 rounded-full", topicColors[index % topicColors.length])} style={{ width: `${topic.value}%` }}></div>
+                            </div>
+                        </div>
+                    ))}
+                </CardContent>
+             </Card>
+             <Card className="lg:col-span-2">
+                <CardHeader>
+                    <CardTitle>Recomendaciones Clave</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Acciones Sugeridas</AlertTitle>
+                        <AlertDescription className="whitespace-pre-wrap">
+                            {result.recommendations}
+                        </AlertDescription>
+                    </Alert>
+                </CardContent>
+             </Card>
+          </div>
         )}
         {!isAnalyzing && !result && (
-             <Card className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[400px]">
+             <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[300px]">
                 <BrainCircuit className="h-16 w-16 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-semibold">Resultados del Análisis</h3>
                 <p className="text-muted-foreground text-sm">

@@ -12,15 +12,22 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AnalyzeCampaignDataInputSchema = z.object({
-  campaignData: z.string().describe('The campaign data to analyze.'),
-  campaignObjectives: z.string().describe('The objectives of the campaign.'),
+  campaignData: z.string().describe('Los datos de la campaña a analizar en formato JSON.'),
+  campaignObjectives: z.string().describe('Los objetivos de la campaña.'),
 });
 export type AnalyzeCampaignDataInput = z.infer<typeof AnalyzeCampaignDataInputSchema>;
 
 const AnalyzeCampaignDataOutputSchema = z.object({
-  keyTrends: z.string().describe('The key trends identified in the campaign data.'),
-  newOpportunities: z.string().describe('New opportunities discovered in the campaign data.'),
-  recommendations: z.string().describe('Recommendations for improving campaign effectiveness.'),
+  participationTrends: z.array(z.object({
+    label: z.string().describe("La etiqueta para la tendencia, ej. 'Semana 1', 'Proyección S4'."),
+    value: z.number().describe("El valor porcentual de la participación."),
+    isProjection: z.boolean().describe("Indica si este dato es una proyección futura."),
+  })).describe("Un análisis de las tendencias de participación semanal, incluyendo una proyección para la próxima semana."),
+  interestTopics: z.array(z.object({
+    topic: z.string().describe("El tema de interés, ej. 'Educación', 'Salud'."),
+    value: z.number().describe("El valor porcentual de interés en el tema."),
+  })).describe("Un análisis de los temas de mayor interés para los votantes, basado en sus datos demográficos y de sector."),
+  recommendations: z.string().describe('Recomendaciones concisas y accionables para mejorar la efectividad de la campaña basadas en los datos.'),
 });
 export type AnalyzeCampaignDataOutput = z.infer<typeof AnalyzeCampaignDataOutputSchema>;
 
@@ -32,14 +39,30 @@ const analyzeCampaignDataPrompt = ai.definePrompt({
   name: 'analyzeCampaignDataPrompt',
   input: {schema: AnalyzeCampaignDataInputSchema},
   output: {schema: AnalyzeCampaignDataOutputSchema},
-  prompt: `You are an AI assistant designed to analyze campaign data, identify trends, and discover new opportunities.
+  prompt: `Eres un experto analista de datos para campañas políticas. Tu idioma es el español.
 
-  Analyze the following campaign data and objectives, then identify key trends, new opportunities, and recommendations for improving campaign effectiveness.
+  Analiza los siguientes datos de campaña y los objetivos. La campaña ya lleva 3 semanas en curso.
 
-  Campaign Data: {{{campaignData}}}
-  Campaign Objectives: {{{campaignObjectives}}}
+  - Datos de Campaña (JSON): {{{campaignData}}}
+  - Objetivos: {{{campaignObjectives}}}
 
-  Respond in a structured format, clearly outlining the key trends, new opportunities, and recommendations.
+  Tu tarea es generar un análisis estructurado. Sigue estas instrucciones al pie de la letra:
+
+  1.  **Tendencias de Participación:**
+      *   Analiza los datos para inferir una tendencia de participación o crecimiento en las primeras 3 semanas.
+      *   Crea 3 entradas para las semanas pasadas ('Semana 1', 'Semana 2', 'Semana 3') con valores porcentuales crecientes que simulen un progreso lógico.
+      *   Crea 1 entrada para una proyección futura ('Proyección S4') con un valor porcentual que continúe la tendencia.
+      *   Asegúrate de que 'isProjection' sea 'true' solo para la proyección.
+
+  2.  **Temas de Mayor Interés:**
+      *   Basándote en los datos de los votantes (sectores, demografía), deduce 4 temas de interés principales para ellos.
+      *   Los temas deben ser relevantes para una campaña política en Latinoamérica (ej. 'Educación', 'Salud', 'Economía', 'Seguridad', 'Empleo', 'Medio Ambiente').
+      *   Asigna porcentajes a cada tema. La suma no necesita ser 100%.
+
+  3.  **Recomendaciones:**
+      *   Genera 2 o 3 recomendaciones breves, claras y muy accionables basadas en los datos y los temas de interés que identificaste.
+
+  Responde únicamente con el objeto JSON solicitado en el formato de salida. No incluyas explicaciones adicionales.
   `,
 });
 
