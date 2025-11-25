@@ -39,7 +39,13 @@ export type AnalyzeCampaignDataOutput = z.infer<typeof AnalyzeCampaignDataOutput
 
 const analyzeCampaignPrompt = ai.definePrompt({
     name: 'analyzeCampaignPrompt',
-    input: { schema: AnalyzeCampaignDataInputSchema },
+    input: { schema: z.object({
+        campaignName: z.string(),
+        campaignGoal: z.string(),
+        voterCount: z.number(),
+        votersByCityJSON: z.string(),
+        votersBySectorJSON: z.string(),
+    }) },
     output: { schema: AnalyzeCampaignDataOutputSchema },
     prompt: `
         Eres un analista experto en campañas políticas. Tu tarea es analizar los datos proporcionados sobre una campaña y generar un resumen estructurado en ESPAÑOL.
@@ -48,8 +54,8 @@ const analyzeCampaignPrompt = ai.definePrompt({
         - Nombre de la Campaña: {{{campaignName}}}
         - Objetivo de la Campaña: {{{campaignGoal}}}
         - Votantes Totales: {{{voterCount}}}
-        - Votantes por Ciudad: {{{JSONstringify votersByCity}}}
-        - Votantes por Sector: {{{JSONstringify votersBySector}}}
+        - Votantes por Ciudad: {{{votersByCityJSON}}}
+        - Votantes por Sector: {{{votersBySectorJSON}}}
 
         Basado en estos datos, debes generar la siguiente estructura de salida:
 
@@ -82,7 +88,11 @@ export const analyzeCampaignData = ai.defineFlow(
         outputSchema: AnalyzeCampaignDataOutputSchema,
     },
     async (input) => {
-        const { output } = await analyzeCampaignPrompt(input);
+        const { output } = await analyzeCampaignPrompt({
+            ...input,
+            votersByCityJSON: JSON.stringify(input.votersByCity),
+            votersBySectorJSON: JSON.stringify(input.votersBySector),
+        });
         return output!;
     }
 );
