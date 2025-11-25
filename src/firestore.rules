@@ -160,8 +160,8 @@ service cloud.firestore {
      * Allows public read for branding, but write is restricted.
      */
     match /settings/{document=**} {
-      allow read: if true;
-      allow write: if hasPermission('setting:update');
+      allow get: if true;
+      allow list, write: if hasPermission('setting:update');
     }
     
      /**
