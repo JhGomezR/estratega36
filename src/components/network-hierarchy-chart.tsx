@@ -32,51 +32,52 @@ function stringToColor(str: string): am5.Color {
 
 const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
     const roleMap = new Map(allRoles.map(role => [role.id, role.name]));
-    const rolesToExclude = ['admin', 'super']; // roles to exclude, in lowercase
+    const rolesToExclude = ['admin', 'super'];
 
-    // Filter users: active, in campaign, and NOT an excluded role.
     const usersInCampaign = allUsers.filter(u => {
         const roleName = roleMap.get(u.roleId)?.toLowerCase() || '';
         return u.status === 'activo' && u.campaignIds.includes(campaign.id) && !rolesToExclude.includes(roleName);
     });
 
-    const userNodes = new Map<string, ChartData>();
+    const userNodeMap = new Map<string, ChartData>();
 
-    // 1. Create nodes for all filtered users
+    // 1. Create nodes for all valid users
     usersInCampaign.forEach(user => {
-        userNodes.set(user.id, {
+        userNodeMap.set(user.id, {
             id: user.id,
             name: `${user.firstName} ${user.lastName}`,
             roleName: roleMap.get(user.roleId) || 'Sin Rol',
             children: [],
-            value: 0
+            value: 0,
         });
     });
 
-    // 2. Nest users based on parentId
-    const rootUsers: ChartData[] = [];
-    usersInCampaign.forEach(user => {
-        const userNode = userNodes.get(user.id);
-        if (user.parentId && userNodes.has(user.parentId)) {
-            const parentNode = userNodes.get(user.parentId);
-            parentNode?.children.push(userNode!);
-        } else {
-            rootUsers.push(userNode!);
+    // 2. Attach voters to their promoters first
+    allVoters.forEach(voter => {
+        if (voter.status === 'activo' && userNodeMap.has(voter.promoterId)) {
+            const promoterNode = userNodeMap.get(voter.promoterId);
+            if (promoterNode) {
+                promoterNode.children.push({
+                    id: voter.id,
+                    name: `${voter.firstName} ${voter.lastName}`,
+                    roleName: "Votante",
+                    children: [],
+                    value: 1,
+                    isVoter: true,
+                });
+            }
         }
     });
-
-    // 3. Attach voters to their promoters (who must be in the filtered user list)
-    allVoters.forEach(voter => {
-        if (voter.status === 'activo' && userNodes.has(voter.promoterId)) {
-            const promoterNode = userNodes.get(voter.promoterId);
-            promoterNode?.children.push({
-                id: voter.id,
-                name: `${voter.firstName} ${voter.lastName}`,
-                roleName: "Votante",
-                children: [],
-                value: 1,
-                isVoter: true,
-            });
+    
+    // 3. Nest user nodes based on parentId
+    const rootUserNodes: ChartData[] = [];
+    userNodeMap.forEach(userNode => {
+        const user = usersInCampaign.find(u => u.id === userNode.id);
+        if (user?.parentId && userNodeMap.has(user.parentId)) {
+            const parentNode = userNodeMap.get(user.parentId);
+            parentNode?.children.push(userNode);
+        } else {
+            rootUserNodes.push(userNode);
         }
     });
 
@@ -90,7 +91,8 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
         return node.value;
     };
     
-    rootUsers.forEach(calculateValue);
+    // Calculate values for all nodes starting from the roots
+    rootUserNodes.forEach(calculateValue);
 
     // 5. Create the final campaign root node
     const campaignRoot: ChartData = {
@@ -98,7 +100,7 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
         name: campaign.name,
         roleName: "Campaña",
         isCampaign: true,
-        children: rootUsers,
+        children: rootUserNodes,
         value: 0
     };
     
@@ -106,6 +108,7 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
 
     return campaignRoot;
 };
+
 
 interface NetworkHierarchyChartProps {
     campaign: Campaign;
