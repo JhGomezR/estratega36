@@ -42,17 +42,12 @@ service cloud.firestore {
      * @returns {boolean} True if the user has the permission.
      */
     function hasPermission(permission) {
-      // Ensure user is authenticated before checking permissions.
-      if (!isAuthenticated()) {
-        return false;
-      }
-      // Super admin bypass
-      if (request.auth.token.email == 'axdrcys@gmail.com') {
-        return true;
-      }
-      let userRole = getUserRole(request.auth.uid);
-      // The permission string must be present in the role's permissions list.
-      return permission in userRole.permissions;
+      // User must be authenticated to have any permission.
+      // A super admin can do anything.
+      // Otherwise, check if the permission exists in the user's role.
+      return isAuthenticated() &&
+             (request.auth.token.email == 'axdrcys@gmail.com' || 
+              permission in getUserRole(request.auth.uid).permissions);
     }
 
     // =====================================================================
