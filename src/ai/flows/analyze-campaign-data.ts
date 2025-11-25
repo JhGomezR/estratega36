@@ -27,7 +27,12 @@ const AnalyzeCampaignDataOutputSchema = z.object({
     topic: z.string().describe("El tema de interés, ej. 'Educación', 'Salud'."),
     value: z.number().describe("El valor porcentual de interés en el tema."),
   })).describe("Un análisis de los temas de mayor interés para los votantes, basado en sus datos demográficos y de sector."),
-  recommendations: z.string().describe('Recomendaciones concisas y accionables para mejorar la efectividad de la campaña basadas en los datos.'),
+  recommendations: z.array(z.object({
+    title: z.string().describe("El título conciso de la recomendación estratégica."),
+    description: z.string().describe("Una descripción breve de la recomendación."),
+    effort: z.enum(['Bajo', 'Medio', 'Alto']).describe("El nivel de esfuerzo requerido para implementar la recomendación."),
+    impact: z.enum(['Bajo', 'Medio', 'Alto']).describe("El impacto potencial de la recomendación en la campaña."),
+  })).describe("Una lista de recomendaciones estratégicas, cada una con su título, descripción, esfuerzo e impacto.")
 });
 export type AnalyzeCampaignDataOutput = z.infer<typeof AnalyzeCampaignDataOutputSchema>;
 
@@ -59,8 +64,9 @@ const analyzeCampaignDataPrompt = ai.definePrompt({
       *   Los temas deben ser relevantes para una campaña política en Latinoamérica (ej. 'Educación', 'Salud', 'Economía', 'Seguridad', 'Empleo', 'Medio Ambiente').
       *   Asigna porcentajes a cada tema. La suma no necesita ser 100%.
 
-  3.  **Recomendaciones:**
-      *   Genera 2 o 3 recomendaciones breves, claras y muy accionables basadas en los datos y los temas de interés que identificaste.
+  3.  **Recomendaciones Estratégicas:**
+      *   Genera 3 o 4 recomendaciones estratégicas accionables.
+      *   Para cada una, provee un 'title' claro, una 'description' concisa, un nivel de 'effort' (Bajo, Medio, o Alto) y un nivel de 'impact' (Bajo, Medio, o Alto).
 
   Responde únicamente con el objeto JSON solicitado en el formato de salida. No incluyas explicaciones adicionales.
   `,

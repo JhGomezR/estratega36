@@ -11,9 +11,9 @@ import type { Campaign, Voter } from '@/lib/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
 import { collection } from 'firebase/firestore'
-import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Progress } from './ui/progress'
 import { cn } from '@/lib/utils'
+import { Badge } from './ui/badge'
 
 interface AnalysisClientProps {
   campaigns: Campaign[];
@@ -29,6 +29,11 @@ const topicColors = [
   "bg-pink-500",
 ];
 
+const impactColors: Record<string, string> = {
+  'Alto': 'bg-red-500/20 text-red-700',
+  'Medio': 'bg-yellow-500/20 text-yellow-700',
+  'Bajo': 'bg-green-500/20 text-green-700',
+}
 
 export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: AnalysisClientProps) {
   const [result, setResult] = useState<AnalyzeCampaignDataOutput | null>(null)
@@ -197,16 +202,26 @@ export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: Analy
              </Card>
              <Card className="lg:col-span-2">
                 <CardHeader>
-                    <CardTitle>Recomendaciones Clave</CardTitle>
+                    <CardTitle>Recomendaciones Estratégicas</CardTitle>
                 </CardHeader>
-                <CardContent>
-                     <Alert>
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Acciones Sugeridas</AlertTitle>
-                        <AlertDescription className="whitespace-pre-wrap">
-                            {result.recommendations}
-                        </AlertDescription>
-                    </Alert>
+                <CardContent className="space-y-4">
+                    {result.recommendations.map((rec, index) => (
+                      <div key={index} className="p-4 border rounded-lg flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div className="flex-1">
+                            <h4 className="font-semibold">{rec.title}</h4>
+                            <p className="text-sm text-muted-foreground mt-1">{rec.description}</p>
+                            <p className="text-xs text-muted-foreground mt-2">Esfuerzo: {rec.effort}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 mt-2 sm:mt-0">
+                           <Badge className={cn("text-xs font-bold", impactColors[rec.impact])}>
+                            Impacto: {rec.impact}
+                           </Badge>
+                           <Button variant="link" className="h-auto p-0 text-sm">
+                             Aplicar recomendación →
+                           </Button>
+                        </div>
+                      </div>
+                    ))}
                 </CardContent>
              </Card>
           </div>
