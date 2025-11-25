@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useLayoutEffect, useRef } from 'react';
@@ -31,18 +32,24 @@ function stringToColor(str: string): am5.Color {
 
 const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
     const roleMap = new Map(allRoles.map(role => [role.id, role.name]));
+    const rolesToExclude = ['admin', 'super']; // roles to exclude, in lowercase
 
-    const usersInCampaign = allUsers.filter(u => u.status === 'activo' && u.campaignIds.includes(campaign.id));
+    // Filter users: active, in campaign, and NOT an excluded role.
+    const usersInCampaign = allUsers.filter(u => {
+        const roleName = roleMap.get(u.roleId)?.toLowerCase() || '';
+        return u.status === 'activo' && u.campaignIds.includes(campaign.id) && !rolesToExclude.includes(roleName);
+    });
+
     const userNodes = new Map<string, ChartData>();
 
-    // 1. Create nodes for all users in the campaign
+    // 1. Create nodes for all filtered users
     usersInCampaign.forEach(user => {
         userNodes.set(user.id, {
             id: user.id,
             name: `${user.firstName} ${user.lastName}`,
             roleName: roleMap.get(user.roleId) || 'Sin Rol',
             children: [],
-            value: 0 // Will be calculated later
+            value: 0
         });
     });
 
@@ -57,8 +64,8 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
             rootUsers.push(userNode!);
         }
     });
-    
-    // 3. Attach voters to their promoters
+
+    // 3. Attach voters to their promoters (who must be in the filtered user list)
     allVoters.forEach(voter => {
         if (voter.status === 'activo' && userNodes.has(voter.promoterId)) {
             const promoterNode = userNodes.get(voter.promoterId);
@@ -67,7 +74,7 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
                 name: `${voter.firstName} ${voter.lastName}`,
                 roleName: "Votante",
                 children: [],
-                value: 1, // Voters are the base unit
+                value: 1,
                 isVoter: true,
             });
         }
@@ -143,7 +150,7 @@ export default function NetworkHierarchyChart({ campaign, users, voters, roles }
         
         series.nodes.template.setAll({
             toggleKey: "active",
-            tooltipText: "{name}\\n{roleName}\\nVotantes: {value}",
+            tooltipText: "{name}\\nRol: {roleName}\\nVotantes: {value}",
             cursor: "pointer",
         });
 
