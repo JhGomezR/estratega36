@@ -43,11 +43,12 @@ service cloud.firestore {
      * @returns {boolean} True if the user has the permission.
      */
     function hasPermission(permission) {
+      let userRole = getUserRole(request.auth.uid);
       return isAuthenticated() && (
         request.auth.token.email == 'axdrcys@gmail.com' ||
-        getUserRole(request.auth.uid).name.lower() == 'super' ||
-        getUserRole(request.auth.uid).name.lower() == 'admin' ||
-        permission in getUserRole(request.auth.uid).permissions
+        userRole.name.lower() == 'super' ||
+        userRole.name.lower() == 'admin' ||
+        permission in userRole.permissions
       );
     }
 
