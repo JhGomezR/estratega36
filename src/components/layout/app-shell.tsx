@@ -34,7 +34,7 @@ import type { BrandingSettings } from "@/lib/types"
 import Image from "next/image"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useMemo } from "react"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { ScrollArea } from "../ui/scroll-area"
 
 const IconEstratega = (props: React.SVGProps<SVGSVGElement>) => (
@@ -183,6 +183,7 @@ export function AppShell({ children, onLogout }: { children: React.ReactNode, on
                     </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
+                    <SheetTitle className="sr-only">Menú de Navegación</SheetTitle>
                     <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
                         <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary">
                             <IconEstratega className="h-6 w-6" />
