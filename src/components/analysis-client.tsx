@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { analyzeCampaignData, type AnalyzeCampaignDataOutput } from '@/ai/flows/analyze-campaign-data'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
-import { BrainCircuit, Loader2, BarChart, AlertTriangle } from 'lucide-react'
+import { BrainCircuit, Loader2, BarChart, AlertTriangle, TrendingUp, Users, Target, Smile, type LucideProps } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Campaign, Voter } from '@/lib/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
@@ -34,6 +34,46 @@ const impactColors: Record<string, string> = {
   'Medio': 'bg-yellow-500/20 text-yellow-700',
   'Bajo': 'bg-green-500/20 text-green-700',
 }
+
+const iconComponents: Record<string, React.FC<LucideProps>> = {
+  TrendingUp,
+  Users,
+  Target,
+  Smile,
+};
+
+const iconColors: Record<string, string> = {
+  TrendingUp: "text-blue-500 bg-blue-100",
+  Users: "text-purple-500 bg-purple-100",
+  Target: "text-green-500 bg-green-100",
+  Smile: "text-yellow-500 bg-yellow-100",
+};
+
+
+const InsightCard = ({ insight }: { insight: AnalyzeCampaignDataOutput['principalInsights'][0] }) => {
+    const Icon = iconComponents[insight.icon];
+    const iconColor = iconColors[insight.icon] || "text-gray-500 bg-gray-100";
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                <CardTitle className="text-base font-semibold">{insight.title}</CardTitle>
+                {Icon && <div className={cn("p-2 rounded-lg", iconColor)}><Icon className="h-5 w-5"/></div>}
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">{insight.description}</p>
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-muted-foreground">Nivel de confianza</span>
+                        <span className="text-sm font-bold">{insight.confidence}%</span>
+                    </div>
+                    <Progress value={insight.confidence} />
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: AnalysisClientProps) {
   const [result, setResult] = useState<AnalyzeCampaignDataOutput | null>(null)
@@ -158,72 +198,84 @@ export function AnalysisClient({ campaigns, isLoading: campaignsLoading }: Analy
       
       <div className="space-y-8">
         {isAnalyzing && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card><CardHeader><Skeleton className="h-6 w-1/3 mb-4" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
-                <Card><CardHeader><Skeleton className="h-6 w-1/3 mb-4" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
-                <Card className="lg:col-span-2"><CardHeader><Skeleton className="h-6 w-1/3 mb-4" /></CardHeader><CardContent><Skeleton className="h-20 w-full" /></CardContent></Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
             </div>
         )}
         {result && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5" /> Tendencias de Participación</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {result.participationTrends.map((trend, index) => (
-                        <div key={index} className="space-y-1">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className={cn("font-medium", trend.isProjection && "text-primary")}>{trend.label}</span>
-                                <span className={cn("font-semibold", trend.isProjection && "text-primary")}>{trend.value}%</span>
-                            </div>
-                            <Progress value={trend.value} className={cn(trend.isProjection && "[&>div]:bg-primary")} />
-                        </div>
+          <div className="space-y-8">
+             <div>
+                <h2 className="text-2xl font-bold tracking-tight mb-4">Insights Principales</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {result.principalInsights.map((insight, index) => (
+                        <InsightCard key={index} insight={insight} />
                     ))}
-                </CardContent>
-             </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Temas de Mayor Interés</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     {result.interestTopics.map((topic, index) => (
-                        <div key={index} className="space-y-1">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="font-medium">{topic.topic}</span>
-                                <span className="font-semibold">{topic.value}%</span>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5" /> Tendencias de Participación</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {result.participationTrends.map((trend, index) => (
+                            <div key={index} className="space-y-1">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className={cn("font-medium", trend.isProjection && "text-primary")}>{trend.label}</span>
+                                    <span className={cn("font-semibold", trend.isProjection && "text-primary")}>{trend.value}%</span>
+                                </div>
+                                <Progress value={trend.value} className={cn(trend.isProjection && "[&>div]:bg-primary")} />
                             </div>
-                            <div className="w-full bg-muted rounded-full h-2.5">
-                                <div className={cn("h-2.5 rounded-full", topicColors[index % topicColors.length])} style={{ width: `${topic.value}%` }}></div>
+                        ))}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Temas de Mayor Interés</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {result.interestTopics.map((topic, index) => (
+                            <div key={index} className="space-y-1">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="font-medium">{topic.topic}</span>
+                                    <span className="font-semibold">{topic.value}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2.5">
+                                    <div className={cn("h-2.5 rounded-full", topicColors[index % topicColors.length])} style={{ width: `${topic.value}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Recomendaciones Estratégicas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {result.recommendations.map((rec, index) => (
+                        <div key={index} className="p-4 border rounded-lg flex flex-col sm:flex-row justify-between items-start gap-4">
+                            <div className="flex-1">
+                                <h4 className="font-semibold">{rec.title}</h4>
+                                <p className="text-sm text-muted-foreground mt-1">{rec.description}</p>
+                                <p className="text-xs text-muted-foreground mt-2">Esfuerzo: {rec.effort}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2 mt-2 sm:mt-0">
+                            <Badge className={cn("text-xs font-bold", impactColors[rec.impact])}>
+                                Impacto: {rec.impact}
+                            </Badge>
+                            <Button variant="link" className="h-auto p-0 text-sm">
+                                Aplicar recomendación →
+                            </Button>
                             </div>
                         </div>
-                    ))}
-                </CardContent>
-             </Card>
-             <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Recomendaciones Estratégicas</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {result.recommendations.map((rec, index) => (
-                      <div key={index} className="p-4 border rounded-lg flex flex-col sm:flex-row justify-between items-start gap-4">
-                        <div className="flex-1">
-                            <h4 className="font-semibold">{rec.title}</h4>
-                            <p className="text-sm text-muted-foreground mt-1">{rec.description}</p>
-                            <p className="text-xs text-muted-foreground mt-2">Esfuerzo: {rec.effort}</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-2 mt-2 sm:mt-0">
-                           <Badge className={cn("text-xs font-bold", impactColors[rec.impact])}>
-                            Impacto: {rec.impact}
-                           </Badge>
-                           <Button variant="link" className="h-auto p-0 text-sm">
-                             Aplicar recomendación →
-                           </Button>
-                        </div>
-                      </div>
-                    ))}
-                </CardContent>
-             </Card>
+                        ))}
+                    </CardContent>
+                </Card>
+            </div>
           </div>
         )}
         {!isAnalyzing && !result && (

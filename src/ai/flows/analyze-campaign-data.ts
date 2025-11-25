@@ -18,6 +18,12 @@ const AnalyzeCampaignDataInputSchema = z.object({
 export type AnalyzeCampaignDataInput = z.infer<typeof AnalyzeCampaignDataInputSchema>;
 
 const AnalyzeCampaignDataOutputSchema = z.object({
+  principalInsights: z.array(z.object({
+    title: z.string().describe("El título del insight principal."),
+    description: z.string().describe("Una descripción concisa del hallazgo."),
+    confidence: z.number().min(0).max(100).describe("Un valor de 0 a 100 que representa el nivel de confianza en el insight."),
+    icon: z.enum(['TrendingUp', 'Users', 'Target', 'Smile']).describe("El nombre de un ícono de lucide-react para representar el insight (ej: TrendingUp, Users, Target, Smile).")
+  })).describe("Una lista de 4 insights principales y accionables derivados de los datos."),
   participationTrends: z.array(z.object({
     label: z.string().describe("La etiqueta para la tendencia, ej. 'Semana 1', 'Proyección S4'."),
     value: z.number().describe("El valor porcentual de la participación."),
@@ -53,18 +59,23 @@ const analyzeCampaignDataPrompt = ai.definePrompt({
 
   Tu tarea es generar un análisis estructurado. Sigue estas instrucciones al pie de la letra:
 
-  1.  **Tendencias de Participación:**
+  1.  **Insights Principales:**
+      *   Genera 4 "insights" o hallazgos clave.
+      *   Cada insight debe tener un 'title' (ej: "Perfil de Votante Objetivo"), una 'description' breve, un 'confidence' (nivel de confianza numérico entre 70 y 95), y un 'icon' (uno de estos: 'TrendingUp', 'Users', 'Target', 'Smile').
+      *   Los insights deben ser variados y relevantes (ej: Mejor horario de contacto, Perfil del votante, Predicción de participación, Análisis de sentimiento).
+
+  2.  **Tendencias de Participación:**
       *   Analiza los datos para inferir una tendencia de participación o crecimiento en las primeras 3 semanas.
       *   Crea 3 entradas para las semanas pasadas ('Semana 1', 'Semana 2', 'Semana 3') con valores porcentuales crecientes que simulen un progreso lógico.
       *   Crea 1 entrada para una proyección futura ('Proyección S4') con un valor porcentual que continúe la tendencia.
       *   Asegúrate de que 'isProjection' sea 'true' solo para la proyección.
 
-  2.  **Temas de Mayor Interés:**
+  3.  **Temas de Mayor Interés:**
       *   Basándote en los datos de los votantes (sectores, demografía), deduce 4 temas de interés principales para ellos.
       *   Los temas deben ser relevantes para una campaña política en Latinoamérica (ej. 'Educación', 'Salud', 'Economía', 'Seguridad', 'Empleo', 'Medio Ambiente').
       *   Asigna porcentajes a cada tema. La suma no necesita ser 100%.
 
-  3.  **Recomendaciones Estratégicas:**
+  4.  **Recomendaciones Estratégicas:**
       *   Genera 3 o 4 recomendaciones estratégicas accionables.
       *   Para cada una, provee un 'title' claro, una 'description' concisa, un nivel de 'effort' (Bajo, Medio, o Alto) y un nivel de 'impact' (Bajo, Medio, o Alto).
 
