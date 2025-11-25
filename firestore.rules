@@ -1,165 +1,187 @@
 
-/**
- * @fileoverview Firestore Security Rules for the political campaign management application.
- *
- * Core Philosophy:
- * This ruleset provides open read and write access to all documents in the database.
- *
- * Data Structure:
- * The database is organized into top-level collections for various entities.
- *
- * Key Security Decisions:
- * - All `get`, `list`, `create`, `update`, and `delete` operations are allowed for everyone.
- * - This is for rapid prototyping and MUST be secured before production use.
- */
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // =====================================================================
+    // Helper Functions
+    // =====================================================================
+
     /**
-     * @description Generic rule to allow open access to any document.
-     * This is a fallback and specific rules below are preferred for clarity.
+     * Checks if the user is authenticated.
+     * @returns {boolean} True if the user is signed in.
      */
-    match /{document=**} {
-      allow read, write: if true;
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
     /**
-     * @description Allows read and write access to user profiles.
-     * @path /users/{userId}
+     * Gets the user's own data document from the /users collection.
+     * @param userId The UID of the user.
+     * @returns {Resource} The user's document data.
+     */
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    /**
+     * Gets the role document associated with a user.
+     * @param userId The UID of the user.
+     * @returns {Resource} The role document data.
+     */
+    function getUserRole(userId) {
+      let userData = getUserData(userId);
+      let roleId = userData.roleId;
+      return get(/databases/$(database)/documents/roles/$(roleId)).data;
+    }
+
+    /**
+     * Checks if the currently authenticated user's role has a specific permission.
+     * @param permission The permission string to check (e.g., 'campaign:read').
+     * @returns {boolean} True if the user has the permission.
+     */
+    function hasPermission(permission) {
+      // Ensure user is authenticated before checking permissions.
+      if (!isAuthenticated()) {
+        return false;
+      }
+      let userRole = getUserRole(request.auth.uid);
+      // The permission string must be present in the role's permissions list.
+      return permission in userRole.permissions;
+    }
+
+    // =====================================================================
+    // Collection Rules
+    // =====================================================================
+
+    /**
+     * @description Rules for the 'users' collection.
+     * - Admins can manage all users.
+     * - Users can read their own profile.
+     * - Users can update their own profile.
      */
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if hasPermission('user:read') || (isAuthenticated() && request.auth.uid == userId);
+      allow create: if hasPermission('user:create');
+      allow update: if hasPermission('user:update') || (isAuthenticated() && request.auth.uid == userId);
+      allow delete: if hasPermission('user:delete');
     }
 
     /**
-     * @description Allows read and write access to role definitions.
-     * @path /roles/{roleId}
+     * @description Rules for the 'roles' collection.
+     * Only users with 'role' permissions can manage roles.
      */
     match /roles/{roleId} {
-      allow read, write: if true;
+      allow read: if hasPermission('role:read');
+      allow create: if hasPermission('role:create');
+      allow update: if hasPermission('role:update');
+      allow delete: if hasPermission('role:delete');
     }
 
     /**
-     * @description Allows read and write access to campaign information.
-     * @path /campaigns/{campaignId}
+     * @description Rules for the 'campaigns' collection.
      */
     match /campaigns/{campaignId} {
-      allow read, write: if true;
+      allow read: if hasPermission('campaign:read');
+      allow create: if hasPermission('campaign:create');
+      allow update: if hasPermission('campaign:update');
+      allow delete: if hasPermission('campaign:delete');
     }
-
+    
     /**
-     * @description Allows read and write access to AI-generated campaign strategies.
-     * @path /strategies/{strategyId}
+     * @description Rules for the 'strategies' collection.
+     * Linked to campaign permissions.
      */
     match /strategies/{strategyId} {
-      allow read, write: if true;
+      allow read, create, update, delete: if hasPermission('campaign:read'); // Reuse campaign read perm
     }
 
     /**
-     * @description Allows read and write access to voter information.
-     * @path /voters/{voterId}
+     * @description Rules for the 'voters' collection.
      */
     match /voters/{voterId} {
-      allow read, write: if true;
+      allow read: if hasPermission('voter:read');
+      allow create: if hasPermission('voter:create');
+      allow update: if hasPermission('voter:update');
+      allow delete: if hasPermission('voter:delete');
     }
-
+    
     /**
-     * @description Allows read and write access to the entire geographical hierarchy.
-     * @path /countries/{countryId}
+     * @description Rules for geographical data.
      */
     match /countries/{countryId} {
-        allow read, write: if true;
+        allow read: if hasPermission('city:read');
+        allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
         
-        /**
-        * @description Allows access to departments within a country.
-        * @path /countries/{countryId}/departments/{departmentId}
-        */
         match /departments/{departmentId} {
-            allow read, write: if true;
+            allow read: if hasPermission('city:read');
+            allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
 
-             /**
-             * @description Allows access to cities within a department.
-             * @path /countries/{countryId}/departments/{departmentId}/cities/{cityId}
-             */
             match /cities/{cityId} {
-                allow read, write: if true;
+                allow read: if hasPermission('city:read');
+                allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
             }
         }
     }
     
     /**
-     * @description Allows collection group queries on 'departments'.
-     * This is necessary for querying all departments across all countries.
+     * @description Allows collection group queries needed for forms.
      */
     match /{path=**}/departments/{departmentId} {
-      allow get, list: if true;
+      allow get, list: if hasPermission('city:read');
     }
-
-    /**
-     * @description Allows collection group queries on 'cities'.
-     * This is necessary for querying all cities across all departments/countries.
-     */
     match /{path=**}/cities/{cityId} {
-      allow get, list: if true;
+      allow get, list: if hasPermission('city:read');
     }
 
+
     /**
-     * @description Allows read and write access to campaign tasks.
-     * @path /tasks/{taskId}
+     * @description Rules for the 'tasks' collection.
      */
     match /tasks/{taskId} {
-      allow read, write: if true;
+      allow read: if hasPermission('task:read');
+      allow create: if hasPermission('task:create');
+      allow update: if hasPermission('task:update');
+      allow delete: if hasPermission('task:delete');
     }
 
     /**
-     * @description Allows read and write access to call records for voters.
-     * @path /calls/{callId}
+     * @description Rules for the 'calls' collection.
      */
     match /calls/{callId} {
-      allow read, write: if true;
+      allow read: if hasPermission('call:read');
+      allow create: if hasPermission('call:create');
+      allow update: if hasPermission('call:update');
+      allow delete: if hasPermission('call:delete');
     }
 
     /**
-     * @description Allows read and write access to application branding settings.
-     * @path /settings/branding
+     * @description Rules for application settings.
      */
-    match /settings/branding {
-      allow read, write: if true;
+    match /settings/{document=**} {
+      allow read: if hasPermission('setting:update'); // Allow read if can update
+      allow write: if hasPermission('setting:update');
     }
-
+    
      /**
-     * @description Allows read and write access to social media API settings.
-     * @path /settings/socialApi
-     */
-    match /settings/socialApi {
-        allow read, write: if true;
-    }
-
-    /**
-     * @description Allows read and write access to user-managed lists.
-     * @path /lists/{listId}
+     * @description Rules for managed lists.
+     * Reuses 'setting:update' as this is an administrative task.
      */
     match /lists/{listId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated(); // All authenticated users can read lists
+      allow write: if hasPermission('setting:update');
     }
 
     /**
-     * @description Allows read and write access to social listening keywords.
-     * @path /keywords/{keywordId}
+     * @description Rules for social listening.
+     * Reuses 'report:read' as it's a data analysis feature.
      */
     match /keywords/{keywordId} {
-      allow read, write: if true;
+        allow read, write: if hasPermission('report:read');
     }
-
-    /**
-     * @description Allows read and write access to captured social media mentions.
-     * @path /socialMentions/{mentionId}
-     */
     match /socialMentions/{mentionId} {
-      allow read, write: if true;
+        allow read, write: if hasPermission('report:read');
     }
   }
 }
-
-    
