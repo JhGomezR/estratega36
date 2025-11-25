@@ -43,25 +43,12 @@ service cloud.firestore {
      * @returns {boolean} True if the user has the permission.
      */
     function hasPermission(permission) {
-      if (!isAuthenticated()) {
-        return false;
-      }
-
-      // Super admin email has universal access
-      if (request.auth.token.email == 'axdrcys@gmail.com') {
-        return true;
-      }
-
-      let userRole = getUserRole(request.auth.uid);
-      let roleName = userRole.name.lower();
-
-      // Roles named 'super' or 'admin' have universal access
-      if (roleName == 'super' || roleName == 'admin') {
-        return true;
-      }
-      
-      // Otherwise, check for the specific permission in the role's permissions list
-      return permission in userRole.permissions;
+      return isAuthenticated() && (
+        request.auth.token.email == 'axdrcys@gmail.com' ||
+        getUserRole(request.auth.uid).name.lower() == 'super' ||
+        getUserRole(request.auth.uid).name.lower() == 'admin' ||
+        permission in getUserRole(request.auth.uid).permissions
+      );
     }
 
     // =====================================================================
