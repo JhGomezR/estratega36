@@ -43,11 +43,12 @@ service cloud.firestore {
      * @returns {boolean} True if the user has the permission.
      */
     function hasPermission(permission) {
+      let userRole = getUserRole(request.auth.uid);
       return isAuthenticated() && (
         request.auth.token.email == 'axdrcys@gmail.com' ||
-        getUserRole(request.auth.uid).name.lower() == 'super' ||
-        getUserRole(request.auth.uid).name.lower() == 'admin' ||
-        permission in getUserRole(request.auth.uid).permissions
+        userRole.name.lower() == 'super' ||
+        userRole.name.lower() == 'admin' ||
+        permission in userRole.permissions
       );
     }
 
@@ -157,10 +158,11 @@ service cloud.firestore {
 
     /**
      * @description Rules for application settings.
+     * Allows public read for branding, but write is restricted.
      */
     match /settings/{document=**} {
-      allow read: if hasPermission('setting:update'); // Allow read if can update
-      allow write: if hasPermission('setting:update');
+      allow get: if true;
+      allow list, write: if hasPermission('setting:update');
     }
     
      /**
