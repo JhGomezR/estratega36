@@ -1,146 +1,283 @@
 'use client'
 
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Phone, Users, ListChecks, UserCheck, Target } from 'lucide-react'
-import { Skeleton } from '@/components/ui/skeleton'
-import type { Campaign, Voter, Call, Task, User } from '@/lib/types'
+import React, { useState, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Lightbulb, Loader2, BarChart, TrendingUp, Target, Users, Bot, Award } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import type { Campaign, Voter, City } from '@/lib/types'
+import { analyzeCampaignData, type AnalyzeCampaignDataOutput } from '@/ai/flows/analyze-campaign-data'
+import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts'
 import { Progress } from './ui/progress'
+import { Badge } from './ui/badge'
+
+const formSchema = z.object({
+  campaignId: z.string({ required_error: 'Debes seleccionar una campaña.' }),
+})
 
 interface AnalysisClientProps {
   campaigns: Campaign[];
   voters: Voter[];
-  calls: Call[];
-  tasks: Task[];
-  users: User[];
+  cities: City[];
   isLoading: boolean;
 }
 
-const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
-    <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-muted-foreground" />
+const InsightCard = ({ icon: Icon, title, description, confidence }: { icon: React.ElementType, title: string, description: string, confidence: number }) => (
+    <Card className="flex-1">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <div className="space-y-1">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    {title}
+                </CardTitle>
+            </div>
+             <div className="text-xs text-muted-foreground">{confidence}%</div>
         </CardHeader>
         <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
+            <p className="text-xs text-muted-foreground mb-2">{description}</p>
+            <Progress value={confidence} className="h-2"/>
         </CardContent>
     </Card>
 );
 
-const CampaignPerformanceCard = ({ campaign, voters, calls, tasks }: { campaign: Campaign, voters: Voter[], calls: Call[], tasks: Task[] }) => {
-    const campaignVoters = voters.filter(v => v.promoterId && campaign.id);
-    const campaignCalls = calls.filter(c => c.status === 'atendida');
-    const campaignTasks = tasks.filter(t => t.status === 'finalizada');
-    
+
+const RecommendationCard = ({ title, description, effort, impact }: { title: string; description: string; effort: string; impact: string }) => {
+    const impactColors: Record<string, string> = {
+        'Bajo': 'bg-yellow-500',
+        'Medio': 'bg-orange-500',
+        'Alto': 'bg-green-500',
+    };
     return (
         <Card>
             <CardHeader>
-                <div className="flex justify-between items-start">
-                    <CardTitle>{campaign.name}</CardTitle>
-                    <a href="#" className="text-sm font-medium text-primary hover:underline">{campaign.progress}% conversión</a>
+                 <div className="flex justify-between items-start">
+                    <CardTitle className="text-base">{title}</CardTitle>
+                    <Badge className={impactColors[impact] || 'bg-gray-500'}>Impacto {impact}</Badge>
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4"/>
-                        <div>
-                            <p>Llamadas</p>
-                            <p className="font-bold text-foreground">{campaignCalls.length}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4"/>
-                        <div>
-                            <p>Votantes</p>
-                            <p className="font-bold text-foreground">{campaignVoters.length}</p>
-                        </div>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <ListChecks className="h-4 w-4"/>
-                        <div>
-                            <p>Tareas</p>
-                            <p className="font-bold text-foreground">{campaignTasks.length}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Target className="h-4 w-4"/>
-                        <div>
-                            <p>Objetivo</p>
-                            <p className="font-bold text-foreground">{campaign.goal}</p>
-                        </div>
-                    </div>
+                <p className="text-sm text-muted-foreground mb-4">{description}</p>
+                <div className="text-xs text-muted-foreground">
+                    <span className="font-semibold">Esfuerzo estimado:</span> {effort}
                 </div>
-                <Progress value={campaign.progress} />
             </CardContent>
         </Card>
     );
-}
+};
 
-export function AnalysisClient({ campaigns, voters, calls, tasks, users, isLoading }: AnalysisClientProps) {
 
-  const globalStats = React.useMemo(() => {
-    const activeUsers = users.filter(u => u.status === 'activo').length;
-    const totalVoters = voters.filter(v => v.status === 'activo').length;
-    const attendedCalls = calls.filter(c => c.status === 'atendida').length;
-    const completedTasks = tasks.filter(t => t.status === 'finalizada').length;
+export function AnalysisClient({ campaigns, voters, cities, isLoading }: AnalysisClientProps) {
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeCampaignDataOutput | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
 
-    return { activeUsers, totalVoters, attendedCalls, completedTasks };
-  }, [users, voters, calls, tasks]);
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+  });
 
-  if (isLoading) {
-      return (
-          <div className="space-y-8">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Skeleton className="h-28" />
-                  <Skeleton className="h-28" />
-                  <Skeleton className="h-28" />
-                  <Skeleton className="h-28" />
-              </div>
-              <Card>
-                  <CardHeader>
-                      <Skeleton className="h-6 w-1/4" />
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                      <Skeleton className="h-32" />
-                      <Skeleton className="h-32" />
-                  </CardContent>
-              </Card>
-          </div>
-      )
+  const cityMap = useMemo(() => {
+    return new Map(cities.map(city => [city.id, city.name]));
+  }, [cities]);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsGenerating(true);
+    setAnalysisResult(null);
+
+    try {
+        const selectedCampaign = campaigns.find(c => c.id === values.campaignId);
+        if (!selectedCampaign) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Campaña no encontrada.' });
+            return;
+        }
+
+        const campaignVoters = voters.filter(voter => {
+            const userCampaigns = selectedCampaign.id;
+            return userCampaigns && voter.promoterId;
+        });
+        
+        const votersByCity = campaignVoters.reduce((acc, voter) => {
+            const cityName = cityMap.get(voter.cityId) || 'Desconocida';
+            acc[cityName] = (acc[cityName] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const votersBySector = campaignVoters.reduce((acc, voter) => {
+            const sector = voter.sector || 'No especificado';
+            acc[sector] = (acc[sector] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+
+        const inputData = {
+            campaignName: selectedCampaign.name,
+            campaignGoal: selectedCampaign.goal,
+            voterCount: campaignVoters.length,
+            votersByCity,
+            votersBySector,
+        };
+
+      const result = await analyzeCampaignData(inputData);
+      setAnalysisResult(result);
+      toast({
+        title: 'Análisis Completo',
+        description: 'La IA ha generado el análisis para la campaña seleccionada.',
+      });
+
+    } catch (error) {
+      console.error("Error generating analysis:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error en el Análisis',
+        description: 'No se pudo generar el análisis. Revisa la consola para más detalles.',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   }
-
 
   return (
     <div className="space-y-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Votantes Totales" value={globalStats.totalVoters} icon={Users} />
-            <StatCard title="Llamadas Realizadas" value={globalStats.attendedCalls} icon={Phone} />
-            <StatCard title="Tareas Completadas" value={globalStats.completedTasks} icon={ListChecks} />
-            <StatCard title="Usuarios Activos" value={globalStats.activeUsers} icon={UserCheck} />
-        </div>
+        <Card>
+            <CardHeader>
+                <CardTitle>Panel de Control</CardTitle>
+                <CardDescription>Selecciona una campaña activa para analizarla con IA.</CardDescription>
+            </CardHeader>
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent>
+                 <FormField
+                    control={form.control}
+                    name="campaignId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Campaña</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || isGenerating}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder={isLoading ? "Cargando campañas..." : "Selecciona una campaña"} />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {campaigns.map(campaign => (
+                                        <SelectItem key={campaign.id} value={campaign.id}>
+                                            {campaign.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                 />
+            </CardContent>
+            <CardFooter className="flex flex-col items-start gap-4">
+                 <Button type="submit" disabled={isGenerating}>
+                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
+                    {isGenerating ? 'Analizando...' : 'Analizar Campaña con IA'}
+                </Button>
+                <p className="text-xs text-muted-foreground">La IA utilizará los datos de votantes (ciudades, sectores) y el estado actual de la campaña seleccionada.</p>
+            </CardFooter>
+            </form>
+            </Form>
+        </Card>
+        
+        {isGenerating && (
+            <div className="text-center p-8 border rounded-lg animate-pulse">
+                <Loader2 className="mx-auto h-12 w-12 text-primary animate-spin mb-4" />
+                <p className="text-lg font-semibold">Generando análisis con IA...</p>
+                <p className="text-muted-foreground">Este proceso puede tardar unos momentos.</p>
+            </div>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Rendimiento por Campaña</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-            {campaigns.length > 0 ? campaigns.map(campaign => (
-                <CampaignPerformanceCard 
-                    key={campaign.id} 
-                    campaign={campaign} 
-                    voters={voters}
-                    calls={calls}
-                    tasks={tasks}
-                />
-            )) : (
-                <div className="text-center py-10">
-                    <p className="text-muted-foreground">No hay campañas activas para analizar.</p>
+        {analysisResult && (
+            <div className="space-y-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-primary"/>Insights Principales</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                       {analysisResult.principalInsights.map(insight => {
+                           const Icon = {
+                               'Target': Target,
+                               'Users': Users,
+                               'TrendingUp': TrendingUp,
+                           }[insight.icon] || Target;
+                           return <InsightCard key={insight.title} icon={Icon} title={insight.title} description={insight.description} confidence={insight.confidence} />
+                       })}
+                    </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary"/>Tendencias de Participación (por Ciudad)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             <ResponsiveContainer width="100%" height={300}>
+                                <RechartsBarChart data={analysisResult.participationTrends} layout="vertical" margin={{ left: 20 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="city" type="category" width={80} tickLine={false} axisLine={false} />
+                                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                                    <Bar dataKey="voters" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                                </RechartsBarChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary"/>Temas de Mayor Interés (por Sector)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             <ResponsiveContainer width="100%" height={300}>
+                                <RechartsBarChart data={analysisResult.keyTopics}>
+                                    <XAxis dataKey="topic" tickLine={false} axisLine={false} />
+                                    <YAxis hide />
+                                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                                    <Bar dataKey="interest" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                                </RechartsBarChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
                 </div>
-            )}
-        </CardContent>
-      </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Lightbulb className="h-5 w-5 text-primary"/>Recomendaciones Estratégicas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {analysisResult.strategicRecommendations.map(rec => (
+                            <RecommendationCard key={rec.title} {...rec} />
+                        ))}
+                    </CardContent>
+                </Card>
+            </div>
+        )}
     </div>
   )
 }

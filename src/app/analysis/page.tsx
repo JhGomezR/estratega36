@@ -1,42 +1,66 @@
 "use client"
 import { AnalysisClient } from "@/components/analysis-client";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Campaign, Voter, Call, Task, User } from "@/lib/types";
+import { useUser, useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import type { Campaign, Role, User, Voter } from "@/lib/types";
+import { collection, collectionGroup, doc } from "firebase/firestore";
+import React from "react";
+
+export const maxDuration = 120; 
 
 export default function AnalysisPage() {
   const firestore = useFirestore();
-  const campaignsRef = useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore]);
-  const votersRef = useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore]);
-  const callsRef = useMemoFirebase(() => firestore ? collection(firestore, 'calls') : null, [firestore]);
-  const tasksRef = useMemoFirebase(() => firestore ? collection(firestore, 'tasks') : null, [firestore]);
-  const usersRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const { user } = useUser();
 
-  const { data: campaigns, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsRef);
-  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersRef);
-  const { data: calls, isLoading: callsLoading } = useCollection<Call>(callsRef);
-  const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksRef);
-  const { data: users, isLoading: usersLoading } = useCollection<User>(usersRef);
+  const { data: campaignsData, isLoading: campaignsLoading } = useCollection<Campaign>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'campaigns') : null, [firestore])
+  );
+  
+  const userRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: currentUserData, isLoading: userLoading } = useDoc<User>(userRef);
+
+  const { data: roles, isLoading: rolesLoading } = useCollection<Role>(
+    useMemoFirebase(() => firestore ? collection(firestore, 'roles') : null, [firestore])
+  );
+
+  const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'voters') : null, [firestore]);
+  const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
+  
+  const citiesCollectionGroup = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'cities') : null, [firestore]);
+  const { data: allCities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionGroup);
 
 
-  const isLoading = campaignsLoading || votersLoading || callsLoading || tasksLoading || usersLoading;
-  const activeCampaigns = campaigns?.filter(c => c.status === 'En Campaña') || [];
+  const activeCampaigns = React.useMemo(() => {
+    if (!campaignsData || !user || !currentUserData || !roles) return [];
+    
+    const allActiveCampaigns = campaignsData.filter(c => c.status === 'En Campaña');
+
+    const adminRoleNames = ['admin', 'super_admin', 'super', 'administrador'];
+    const userRole = roles.find(r => r.id === currentUserData.roleId)?.name?.toLowerCase();
+
+    if (userRole && adminRoleNames.includes(userRole)) {
+        return allActiveCampaigns;
+    }
+    
+    return allActiveCampaigns.filter(c => 
+      currentUserData.campaignIds.includes(c.id)
+    );
+  }, [campaignsData, currentUserData, roles, user]);
+
+  const isLoading = campaignsLoading || userLoading || rolesLoading || votersLoading || citiesLoading;
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Análisis de Campaña</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Análisis de Campaña con IA</h1>
         <p className="text-muted-foreground">
-          Métricas y rendimiento de campañas activas.
+          Selecciona una campaña para obtener un análisis detallado y recomendaciones estratégicas generadas por IA.
         </p>
       </div>
       <AnalysisClient 
-        campaigns={activeCampaigns} 
+        campaigns={activeCampaigns}
         voters={voters || []}
-        calls={calls || []}
-        tasks={tasks || []}
-        users={users || []}
-        isLoading={isLoading} 
+        cities={allCities || []}
+        isLoading={isLoading}
       />
     </div>
   )
