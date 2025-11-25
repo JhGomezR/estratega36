@@ -18,7 +18,7 @@ interface ChartData {
     isRole?: boolean;
 }
 
-const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super'];
+const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
 
 const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
     // 1. Filter for active, non-trashed, and non-admin roles
@@ -159,7 +159,8 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
         
         series.nodes.template.setAll({
             toggleKey: "active",
-            tooltipText: "{name}\n{roleName}\nVotantes: {value}"
+            tooltipText: "{name}\n{roleName}\nVotantes: {value}",
+            cursor: "pointer"
         });
         
         // This is the corrected way to access the circle
@@ -180,14 +181,6 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             return am5.color(0x9E9E9E);
         });
 
-        series.nodes.template.setup = function(target) {
-            target.events.on("pointerover", function(ev) {
-                target.set("cursor", "pointer");
-            });
-            target.events.on("pointerout", function(ev) {
-                target.set("cursor", "default");
-            });
-        };
         
         series.circles.template.setAll({
           radius: 20,
