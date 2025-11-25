@@ -5,6 +5,7 @@ export type WithId<T> = T & { id: string };
 export type Voter = WithId<{
   firstName: string;
   lastName: string;
+  birthDate?: string;
   idType: string;
   idNumber: string;
   email?: string;

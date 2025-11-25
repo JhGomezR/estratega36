@@ -29,6 +29,7 @@ import { Loader2 } from "lucide-react"
 const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
   lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres."),
+  birthDate: z.string().optional(),
   idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
   idNumber: z.string().min(5, "El número de documento es requerido."),
   email: z.string().email("El correo electrónico no es válido.").optional().or(z.literal('')),
@@ -91,6 +92,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     defaultValues: {
       firstName: voter?.firstName ?? "",
       lastName: voter?.lastName ?? "",
+      birthDate: voter?.birthDate ?? "",
       idType: voter?.idType,
       idNumber: voter?.idNumber ?? "",
       email: voter?.email ?? "",
@@ -153,6 +155,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
             departmentId: voter.departmentId || "",
             cityId: voter.cityId || "",
             sector: voter.sector || "",
+            birthDate: voter.birthDate || "",
         });
     }
   }, [voter, form]);
@@ -214,8 +217,21 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
             )}
           />
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="birthDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fecha de Nacimiento</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="idType"
