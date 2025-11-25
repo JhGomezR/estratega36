@@ -51,7 +51,7 @@ export default function AnalysisPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Análisis de Campaña con IA</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Análisis de Campaña</h1>
         <p className="text-muted-foreground">
           Selecciona una campaña para obtener un análisis detallado y recomendaciones estratégicas generadas por IA.
         </p>

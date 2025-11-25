@@ -58,7 +58,7 @@ const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[]
                 value: 0
             };
             userMap.set(user.id, userNode);
-            // This was the error, ensure children array exists before pushing
+            // Ensure children array exists before pushing
             if (!roleNode.children) {
                 roleNode.children = [];
             }
@@ -162,19 +162,12 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             tooltipText: "{name}\n{roleName}\nVotantes: {value}"
         });
         
-        series.nodes.template.get("circle")?.setAll({
-          radius: 40,
+        // This is the corrected way to access the circle
+        series.nodes.template.states.create("active", {
+            // properties for the active state
         });
 
-        series.labels.template.setAll({
-            fontSize: 12,
-            text: "{name}",
-            oversizedBehavior: "wrap",
-            textAlign: "center",
-            width: 70
-        });
-
-        series.nodes.template.get("circle")?.adapters.add("fill", function(fill, target) {
+        series.nodes.template.adapters.add("fill", function(fill, target) {
             const dataContext = target.dataItem?.dataContext as Partial<ChartData>;
             if (dataContext.isCampaign) return am5.color(0x1A237E);
             if (dataContext.isRole) return am5.color(0x00897B);
@@ -183,6 +176,27 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             if (roleName.includes('lider')) return am5.color(0x4CAF50);
             if (roleName.includes('promotor')) return am5.color(0x2196F3);
             return am5.color(0x9E9E9E);
+        });
+
+        series.nodes.template.setup = function(target) {
+            target.events.on("pointerover", function(ev) {
+                target.set("cursor", "pointer");
+            });
+            target.events.on("pointerout", function(ev) {
+                target.set("cursor", "default");
+            });
+        };
+        
+        series.circles.template.setAll({
+          radius: 20,
+        });
+
+        series.labels.template.setAll({
+            fontSize: 10,
+            text: "{name}",
+            oversizedBehavior: "wrap",
+            textAlign: "center",
+            width: 70
         });
         
         series.links.template.setAll({

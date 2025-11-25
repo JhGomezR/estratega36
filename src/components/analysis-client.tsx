@@ -52,7 +52,7 @@ const InsightCard = ({ icon: Icon, title, description, confidence }: { icon: Rea
     <Card className="flex-1">
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
             <div className="space-y-1">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <CardTitle className="text-md font-medium flex items-center gap-2">
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     {title}
                 </CardTitle>
@@ -60,7 +60,7 @@ const InsightCard = ({ icon: Icon, title, description, confidence }: { icon: Rea
              <div className="text-xs text-muted-foreground">{confidence}%</div>
         </CardHeader>
         <CardContent>
-            <p className="text-xs text-muted-foreground mb-2">{description}</p>
+            <p className="text-sm text-muted-foreground mb-2">{description}</p>
             <Progress value={confidence} className="h-2"/>
         </CardContent>
     </Card>
