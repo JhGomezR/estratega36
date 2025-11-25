@@ -336,6 +336,7 @@ export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, on
                         <Separator />
                         <ScrollArea className="h-40 rounded-md border p-4 mt-2">
                           <div className="space-y-2">
+                            {citiesLoading && <p>Cargando ciudades...</p>}
                             {allCities?.map((city) => (
                                 <FormField
                                     key={city.id}
