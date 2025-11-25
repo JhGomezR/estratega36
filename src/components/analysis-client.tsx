@@ -32,9 +32,9 @@ import { Lightbulb, Loader2, BarChart, TrendingUp, Target, Users, Bot, Award } f
 import { useToast } from '@/hooks/use-toast'
 import type { Campaign, Voter, City } from '@/lib/types'
 import { analyzeCampaignData, type AnalyzeCampaignDataOutput } from '@/ai/flows/analyze-campaign-data'
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts'
 import { Progress } from './ui/progress'
 import { Badge } from './ui/badge'
+import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
   campaignId: z.string({ required_error: 'Debes seleccionar una campaña.' }),
@@ -65,7 +65,6 @@ const InsightCard = ({ icon: Icon, title, description, confidence }: { icon: Rea
     </Card>
 );
 
-
 const RecommendationCard = ({ title, description, effort, impact }: { title: string; description: string; effort: string; impact: string }) => {
     const impactColors: Record<string, string> = {
         'Bajo': 'bg-yellow-500',
@@ -77,7 +76,7 @@ const RecommendationCard = ({ title, description, effort, impact }: { title: str
             <CardHeader>
                  <div className="flex justify-between items-start">
                     <CardTitle className="text-base">{title}</CardTitle>
-                    <Badge className={impactColors[impact] || 'bg-gray-500'}>Impacto {impact}</Badge>
+                    <Badge className={cn("hover:bg-none", impactColors[impact] || 'bg-gray-500')}>Impacto {impact}</Badge>
                 </div>
             </CardHeader>
             <CardContent>
@@ -89,6 +88,16 @@ const RecommendationCard = ({ title, description, effort, impact }: { title: str
         </Card>
     );
 };
+
+const ProgressBar = ({ label, value, colorClass }: { label: string; value: number, colorClass: string }) => (
+    <div className="space-y-1">
+        <div className="flex justify-between text-sm">
+            <span className="font-medium text-muted-foreground">{label}</span>
+            <span className="font-semibold" style={{color: colorClass.startsWith('#') ? colorClass : undefined}}>{value}%</span>
+        </div>
+        <Progress value={value} indicatorClassName={colorClass} />
+    </div>
+);
 
 
 export function AnalysisClient({ campaigns, voters, cities, isLoading }: AnalysisClientProps) {
@@ -103,6 +112,13 @@ export function AnalysisClient({ campaigns, voters, cities, isLoading }: Analysi
   const cityMap = useMemo(() => {
     return new Map(cities.map(city => [city.id, city.name]));
   }, [cities]);
+  
+  const topicColors: Record<string, string> = {
+    primary: "bg-primary",
+    green: "bg-green-500",
+    orange: "bg-orange-500",
+    red: "bg-red-500",
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsGenerating(true);
@@ -116,8 +132,9 @@ export function AnalysisClient({ campaigns, voters, cities, isLoading }: Analysi
         }
 
         const campaignVoters = voters.filter(voter => {
-            const userCampaigns = selectedCampaign.id;
-            return userCampaigns && voter.promoterId;
+            // Simplified logic: consider all voters for the analysis for now
+            // This can be refined to filter by users associated with the campaign
+            return true;
         });
         
         const votersByCity = campaignVoters.reduce((acc, voter) => {
@@ -235,33 +252,33 @@ export function AnalysisClient({ campaigns, voters, cities, isLoading }: Analysi
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                      <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary"/>Tendencias de Participación (por Ciudad)</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-primary"/>Tendencias de Participación</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                             <ResponsiveContainer width="100%" height={300}>
-                                <RechartsBarChart data={analysisResult.participationTrends} layout="vertical" margin={{ left: 20 }}>
-                                    <XAxis type="number" hide />
-                                    <YAxis dataKey="city" type="category" width={80} tickLine={false} axisLine={false} />
-                                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
-                                    <Bar dataKey="voters" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                                </RechartsBarChart>
-                            </ResponsiveContainer>
+                        <CardContent className="space-y-4">
+                             {analysisResult.participationTrends.map(trend => (
+                                 <ProgressBar 
+                                    key={trend.week}
+                                    label={trend.week}
+                                    value={trend.value}
+                                    colorClass={trend.isProjection ? 'bg-purple-500' : 'bg-primary'}
+                                 />
+                             ))}
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary"/>Temas de Mayor Interés (por Sector)</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary"/>Temas de Mayor Interés</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                             <ResponsiveContainer width="100%" height={300}>
-                                <RechartsBarChart data={analysisResult.keyTopics}>
-                                    <XAxis dataKey="topic" tickLine={false} axisLine={false} />
-                                    <YAxis hide />
-                                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
-                                    <Bar dataKey="interest" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-                                </RechartsBarChart>
-                            </ResponsiveContainer>
+                        <CardContent className="space-y-4">
+                           {analysisResult.keyTopics.map(topic => (
+                                 <ProgressBar 
+                                    key={topic.topic}
+                                    label={topic.topic}
+                                    value={topic.value}
+                                    colorClass={topicColors[topic.color] || 'bg-primary'}
+                                 />
+                             ))}
                         </CardContent>
                     </Card>
                 </div>

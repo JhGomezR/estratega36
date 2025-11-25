@@ -20,13 +20,15 @@ const AnalyzeCampaignDataOutputSchema = z.object({
     icon: z.enum(['Target', 'Users', 'TrendingUp']).describe('El nombre de un ícono de lucide-react para representar el insight.'),
   })).length(3).describe('Una lista de exactamente 3 insights clave derivados de los datos.'),
   participationTrends: z.array(z.object({
-    city: z.string().describe('El nombre de la ciudad.'),
-    voters: z.number().describe('El número de votantes en esa ciudad.'),
-  })).describe('Una lista de las 5 ciudades con más votantes.'),
+    week: z.string().describe('El nombre de la semana o proyección. Ej: "Semana 1", "Proyección S4"'),
+    value: z.number().describe('El valor porcentual de la participación (0-100).'),
+    isProjection: z.boolean().describe('Indica si este dato es una proyección futura.')
+  })).describe('Una lista de tendencias de participación semanales, incluyendo una proyección.'),
   keyTopics: z.array(z.object({
-    topic: z.string().describe('El sector o tema de interés.'),
-    interest: z.number().describe('El número de votantes en ese sector.'),
-  })).describe('Una lista de los 5 sectores con más votantes.'),
+    topic: z.string().describe('El tema de interés. Ej: "Educación", "Salud"'),
+    value: z.number().describe('El valor porcentual del interés en el tema (0-100).'),
+    color: z.enum(['primary', 'green', 'orange', 'red']).describe('Un color para la barra de progreso del tema.')
+  })).describe('Una lista de los 4 temas de mayor interés.'),
   strategicRecommendations: z.array(z.object({
     title: z.string().describe('Un título corto y accionable para la recomendación.'),
     description: z.string().describe('Una descripción detallada de la recomendación y su justificación.'),
@@ -48,7 +50,7 @@ const analyzeCampaignPrompt = ai.definePrompt({
     }) },
     output: { schema: AnalyzeCampaignDataOutputSchema },
     prompt: `
-        Eres un analista experto en campañas políticas. Tu tarea es analizar los datos proporcionados sobre una campaña y generar un resumen estructurado en ESPAÑOL.
+        Eres un analista experto en campañas políticas. Tu tarea es analizar los datos proporcionados sobre una campaña y generar un resumen estructurado y visual en ESPAÑOL.
 
         Datos de Entrada:
         - Nombre de la Campaña: {{{campaignName}}}
@@ -62,20 +64,21 @@ const analyzeCampaignPrompt = ai.definePrompt({
         1.  **Principal Insights (3 insights):**
             -   Identifica los 3 hallazgos más importantes de los datos.
             -   Para cada insight, provee un título, una descripción, un ícono ('Target', 'Users', o 'TrendingUp') y un nivel de confianza del 0 al 100.
-            -   Ejemplo de insight: Si una ciudad domina, un insight podría ser "Fuerte Concentración Geográfica" con el ícono 'Target'.
+            -   Ejemplo: Si una ciudad domina, un insight podría ser "Fuerte Concentración Geográfica".
 
-        2.  **Participation Trends (Top 5 ciudades):**
-            -   Extrae las 5 ciudades con mayor número de votantes del objeto 'votersByCity'.
-            -   Formatea la salida como un array de objetos, donde cada objeto tiene 'city' y 'voters'.
+        2.  **Participation Trends (3 semanas + 1 proyección):**
+            -   Genera 3 valores de participación para las semanas pasadas y 1 valor proyectado para la siguiente.
+            -   Los valores deben ser porcentajes entre 0 y 100.
+            -   La proyección (isProjection: true) debe tener un valor ligeramente superior a la última semana.
 
-        3.  **Key Topics (Top 5 sectores):**
-            -   Extrae los 5 sectores con mayor número de votantes del objeto 'votersBySector'.
-            -   Formatea la salida como un array de objetos, donde cada objeto tiene 'topic' e 'interest'.
+        3.  **Key Topics (4 temas):**
+            -   Genera los 4 temas de mayor interés basados en los datos de los votantes.
+            -   Asigna un porcentaje a cada uno. La suma no tiene que ser 100.
+            -   Asigna un color a cada tema: 'primary', 'green', 'orange', 'red'.
 
         4.  **Strategic Recommendations (2 recomendaciones):**
-            -   Basado en TODO el análisis, genera 2 recomendaciones estratégicas, concisas y accionables.
+            -   Genera 2 recomendaciones estratégicas, concisas y accionables.
             -   Para cada una, incluye título, descripción, y una estimación de 'effort' (Bajo, Medio, Alto) e 'impact' (Bajo, Medio, Alto).
-            -   Ejemplo: Si el sector 'Agroindustria' es grande, una recomendación podría ser "Lanzar Iniciativa para el Agro".
 
         IMPORTANTE: Toda la salida de texto (títulos, descripciones, etc.) debe estar en ESPAÑOL.
     `,
