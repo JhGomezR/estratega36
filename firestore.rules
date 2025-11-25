@@ -38,16 +38,30 @@ service cloud.firestore {
 
     /**
      * Checks if the currently authenticated user's role has a specific permission.
+     * Grants full access to super admins.
      * @param permission The permission string to check (e.g., 'campaign:read').
      * @returns {boolean} True if the user has the permission.
      */
     function hasPermission(permission) {
-      // User must be authenticated to have any permission.
-      // A super admin can do anything.
-      // Otherwise, check if the permission exists in the user's role.
-      return isAuthenticated() &&
-             (request.auth.token.email == 'axdrcys@gmail.com' || 
-              permission in getUserRole(request.auth.uid).permissions);
+      if (!isAuthenticated()) {
+        return false;
+      }
+
+      // Super admin email has universal access
+      if (request.auth.token.email == 'axdrcys@gmail.com') {
+        return true;
+      }
+
+      let userRole = getUserRole(request.auth.uid);
+      let roleName = userRole.name.lower();
+
+      // Roles named 'super' or 'admin' have universal access
+      if (roleName == 'super' || roleName == 'admin') {
+        return true;
+      }
+      
+      // Otherwise, check for the specific permission in the role's permissions list
+      return permission in userRole.permissions;
     }
 
     // =====================================================================
