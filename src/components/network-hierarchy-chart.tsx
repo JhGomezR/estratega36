@@ -30,29 +30,31 @@ function stringToColor(str: string): am5.Color {
     return am5.color(color);
 }
 
+
 const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
     const roleMap = new Map(allRoles.map(role => [role.id, role.name]));
-    const rolesToExclude = ['admin', 'super'];
+    const adminRolesToExclude = ['admin', 'super'];
 
+    // 1. Filter for valid users: in the campaign and not an admin role
     const usersInCampaign = allUsers.filter(u => {
         const roleName = roleMap.get(u.roleId)?.toLowerCase() || '';
-        return u.status === 'activo' && u.campaignIds.includes(campaign.id) && !rolesToExclude.includes(roleName);
+        return u.status === 'activo' && u.campaignIds.includes(campaign.id) && !adminRolesToExclude.includes(roleName);
     });
 
     const userNodeMap = new Map<string, ChartData>();
 
-    // 1. Create nodes for all valid users
+    // 2. Create nodes for all valid users
     usersInCampaign.forEach(user => {
         userNodeMap.set(user.id, {
             id: user.id,
             name: `${user.firstName} ${user.lastName}`,
             roleName: roleMap.get(user.roleId) || 'Sin Rol',
             children: [],
-            value: 0,
+            value: 0, // Value will be calculated later
         });
     });
 
-    // 2. Attach voters to their promoters first
+    // 3. Attach voters to their promoters
     allVoters.forEach(voter => {
         if (voter.status === 'activo' && userNodeMap.has(voter.promoterId)) {
             const promoterNode = userNodeMap.get(voter.promoterId);
@@ -62,26 +64,29 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
                     name: `${voter.firstName} ${voter.lastName}`,
                     roleName: "Votante",
                     children: [],
-                    value: 1,
+                    value: 1, // Voters are the base value
                     isVoter: true,
                 });
             }
         }
     });
-    
-    // 3. Nest user nodes based on parentId
+
+    // 4. Build the user hierarchy based on parentId
     const rootUserNodes: ChartData[] = [];
-    userNodeMap.forEach(userNode => {
-        const user = usersInCampaign.find(u => u.id === userNode.id);
-        if (user?.parentId && userNodeMap.has(user.parentId)) {
-            const parentNode = userNodeMap.get(user.parentId);
+    userNodeMap.forEach((userNode, userId) => {
+        const user = usersInCampaign.find(u => u.id === userId);
+        const parentId = user?.parentId;
+
+        if (parentId && userNodeMap.has(parentId)) {
+            const parentNode = userNodeMap.get(parentId);
             parentNode?.children.push(userNode);
         } else {
+            // This is a top-level user (or parent is not in the campaign/is an admin)
             rootUserNodes.push(userNode);
         }
     });
 
-    // 4. Recursive function to calculate total voters (value) for each node
+    // 5. Recursive function to calculate total voters (value) for each node
     const calculateValue = (node: ChartData): number => {
         if (node.isVoter) {
             return 1;
@@ -90,11 +95,11 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
         node.value = childValues;
         return node.value;
     };
-    
+
     // Calculate values for all nodes starting from the roots
     rootUserNodes.forEach(calculateValue);
 
-    // 5. Create the final campaign root node
+    // 6. Create the final campaign root node
     const campaignRoot: ChartData = {
         id: campaign.id,
         name: campaign.name,
@@ -104,6 +109,7 @@ const buildHierarchyData = (campaign: Campaign, allUsers: User[], allVoters: Vot
         value: 0
     };
     
+    // Calculate the total value for the campaign root
     calculateValue(campaignRoot);
 
     return campaignRoot;
