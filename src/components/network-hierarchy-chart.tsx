@@ -20,6 +20,17 @@ interface ChartData {
 
 const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
 
+// Helper function to generate a consistent color from a string
+function generateColorFromString(str: string): am5.Color {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const color = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return am5.color(parseInt("0x" + "00000".substring(0, 6 - color.length) + color, 16));
+}
+
+
 const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
     // 1. Filter for active, non-trashed, and non-admin roles
     const activeRoles = allRoles.filter(role => 
@@ -163,7 +174,6 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             cursor: "pointer"
         });
         
-        // This is the corrected way to access the circle
         series.nodes.template.states.create("active", {
             // properties for the active state
         });
@@ -174,11 +184,13 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             if (dataContext?.isRole) return am5.color(0x00897B);
             if (dataContext?.isVoter) return am5.color(0xFFC107);
             
-            const roleName = dataContext?.roleName?.toLowerCase() || '';
-            if (roleName.includes('lider')) return am5.color(0x4CAF50);
-            if (roleName.includes('promotor')) return am5.color(0x2196F3);
+            // Dynamically generate color for user nodes based on their role name
+            const roleName = dataContext?.roleName || '';
+            if (roleName) {
+                return generateColorFromString(roleName);
+            }
             
-            return am5.color(0x9E9E9E);
+            return am5.color(0x9E9E9E); // Fallback color
         });
 
         
