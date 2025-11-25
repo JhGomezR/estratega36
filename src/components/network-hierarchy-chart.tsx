@@ -18,7 +18,7 @@ interface ChartData {
     isRole?: boolean;
 }
 
-const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super', 'administrador'];
+const ADMIN_ROLE_NAMES = ['admin', 'super_admin', 'super'];
 
 const buildChartData = (campaign: Campaign, allUsers: User[], allVoters: Voter[], allRoles: Role[]): ChartData => {
     // 1. Filter for active, non-trashed, and non-admin roles
@@ -167,14 +167,16 @@ export const NetworkHierarchyChart = ({ campaign, users, voters, roles }: Networ
             // properties for the active state
         });
 
-        series.nodes.template.adapters.add("fill", function(fill, target) {
+        series.circles.template.adapters.add("fill", function(fill, target) {
             const dataContext = target.dataItem?.dataContext as Partial<ChartData>;
-            if (dataContext.isCampaign) return am5.color(0x1A237E);
-            if (dataContext.isRole) return am5.color(0x00897B);
-            if (dataContext.isVoter) return am5.color(0xFFC107);
-            const roleName = dataContext.roleName?.toLowerCase() || '';
+            if (dataContext?.isCampaign) return am5.color(0x1A237E);
+            if (dataContext?.isRole) return am5.color(0x00897B);
+            if (dataContext?.isVoter) return am5.color(0xFFC107);
+            
+            const roleName = dataContext?.roleName?.toLowerCase() || '';
             if (roleName.includes('lider')) return am5.color(0x4CAF50);
             if (roleName.includes('promotor')) return am5.color(0x2196F3);
+            
             return am5.color(0x9E9E9E);
         });
 
