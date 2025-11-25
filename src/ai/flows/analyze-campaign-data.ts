@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -18,7 +19,7 @@ const AnalyzeCampaignDataOutputSchema = z.object({
     description: z.string().describe('Una descripción detallada del insight (2-3 frases).'),
     confidence: z.number().min(0).max(100).describe('Un nivel de confianza (0-100) en la validez del insight basado en los datos.'),
     icon: z.enum(['Target', 'Users', 'TrendingUp']).describe('El nombre de un ícono de lucide-react para representar el insight.'),
-  })).length(3).describe('Una lista de exactamente 3 insights clave derivados de los datos.'),
+  })).min(4).max(6).describe('Una lista de entre 4 y 6 insights clave derivados de los datos.'),
   participationTrends: z.array(z.object({
     week: z.string().describe('El nombre de la semana o proyección. Ej: "Semana 1", "Proyección S4"'),
     value: z.number().describe('El valor porcentual de la participación (0-100).'),
@@ -61,8 +62,8 @@ const analyzeCampaignPrompt = ai.definePrompt({
 
         Basado en estos datos, debes generar la siguiente estructura de salida:
 
-        1.  **Principal Insights (3 insights):**
-            -   Identifica los 3 hallazgos más importantes de los datos.
+        1.  **Principal Insights (entre 4 y 6 insights):**
+            -   Identifica entre 4 y 6 hallazgos importantes de los datos.
             -   Para cada insight, provee un título, una descripción, un ícono ('Target', 'Users', o 'TrendingUp') y un nivel de confianza del 0 al 100.
             -   Ejemplo: Si una ciudad domina, un insight podría ser "Fuerte Concentración Geográfica".
 

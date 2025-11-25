@@ -1,3 +1,4 @@
+
 'use client'
 
 import React, { useState, useMemo } from 'react'
@@ -237,7 +238,7 @@ export function AnalysisClient({ campaigns, voters, cities, isLoading }: Analysi
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-primary"/>Insights Principales</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        {analysisResult.principalInsights.map(insight => {
                            const Icon = {
                                'Target': Target,
