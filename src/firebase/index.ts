@@ -27,8 +27,10 @@ export function getSdks(firebaseApp: FirebaseApp) {
           console.warn('Firestore persistence is not supported in this browser.');
         }
       });
-  } catch (error) {
-    console.error("Error enabling Firestore persistence:", error);
+  } catch (error: any) {
+     if (error.code !== 'failed-precondition') {
+      console.error("Error enabling Firestore persistence:", error);
+    }
   }
 
   return {
