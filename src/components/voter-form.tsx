@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { useDebounce } from 'use-debounce';
 import { Loader2 } from "lucide-react"
@@ -90,6 +90,7 @@ interface VoterFormProps {
 
 export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCancel }: VoterFormProps) {
   const firestore = useFirestore();
+  const { user: currentUser } = useAuth();
   const [isSaving, setIsSaving] = React.useState(false);
 
   const voterFormSchema = getVoterFormSchema(allVoters, voter?.id);
@@ -111,7 +112,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
       vereda: voter?.vereda ?? "",
       address: voter?.address ?? "",
       sector: voter?.sector ?? "",
-      promoterId: voter?.promoterId ?? undefined,
+      promoterId: voter?.promoterId ?? currentUser?.uid,
     },
   });
   
@@ -468,5 +469,6 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     </Form>
   )
 }
+    
 
     
