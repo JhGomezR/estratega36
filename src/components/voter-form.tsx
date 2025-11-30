@@ -48,7 +48,7 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
   vereda: z.string().min(2, "La vereda o localidad es requerida."),
   address: z.string().min(5, "La dirección es requerida."),
   sector: z.string({ required_error: "El sector de trabajo es obligatorio." }),
-  promoterId: z.string({ required_error: "Debe seleccionar un promotor." }),
+  promoterId: z.string().optional(),
 }).superRefine((data, ctx) => {
     if (data.idNumber) {
       const isDuplicate = allVoters.some(
