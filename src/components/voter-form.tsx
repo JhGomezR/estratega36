@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -27,19 +28,26 @@ import { useDebounce } from 'use-debounce';
 import { Loader2 } from "lucide-react"
 
 const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.object({
-  firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
-  lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres."),
-  birthDate: z.string().optional(),
+  firstName: z.string()
+    .min(2, "El nombre debe tener al menos 2 caracteres.")
+    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+)*$/, "El nombre solo puede contener letras y un espacio entre palabras."),
+  lastName: z.string()
+    .min(2, "El apellido debe tener al menos 2 caracteres.")
+    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+)*$/, "El apellido solo puede contener letras y un espacio entre palabras."),
+  birthDate: z.string({ required_error: "La fecha de nacimiento es obligatoria." }),
   idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
-  idNumber: z.string().min(5, "El número de documento es requerido."),
+  idNumber: z.string()
+    .min(5, "El número de documento es requerido.")
+    .regex(/^[a-zA-Z0-9]+$/, "El número de documento solo puede contener letras y números."),
   email: z.string().email("El correo electrónico no es válido.").optional().or(z.literal('')),
-  phone: z.string().min(7, "El celular no es válido.").optional().or(z.literal('')),
+  phone: z.string()
+    .regex(/^\d{10}$/, "El celular debe contener exactamente 10 números."),
   countryId: z.string({ required_error: "Debe seleccionar un país." }),
   departmentId: z.string({ required_error: "Debe seleccionar un departamento." }),
   cityId: z.string({ required_error: "Debe seleccionar una ciudad." }),
   vereda: z.string().min(2, "La vereda o localidad es requerida."),
   address: z.string().min(5, "La dirección es requerida."),
-  sector: z.string().optional(),
+  sector: z.string({ required_error: "El sector de trabajo es obligatorio." }),
   promoterId: z.string({ required_error: "Debe seleccionar un promotor." }),
 }).superRefine((data, ctx) => {
     if (data.idNumber) {
@@ -277,7 +285,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
                 name="email"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Correo Electrónico</FormLabel>
+                    <FormLabel>Correo Electrónico (Opcional)</FormLabel>
                     <FormControl>
                     <Input type="email" placeholder="ejemplo@correo.com" {...field} />
                     </FormControl>
@@ -460,3 +468,5 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     </Form>
   )
 }
+
+    
