@@ -41,12 +41,12 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
   email: z.string().email("El correo electrónico no es válido.").optional().or(z.literal('')),
   phone: z.string()
     .regex(/^\d{10}$/, "El celular debe contener exactamente 10 números."),
-  countryId: z.string({ required_error: "Debe seleccionar un país." }),
-  departmentId: z.string({ required_error: "Debe seleccionar un departamento." }),
-  cityId: z.string({ required_error: "Debe seleccionar una ciudad." }),
+  countryId: z.string().min(1, "Debe seleccionar un país."),
+  departmentId: z.string().min(1, "Debe seleccionar un departamento."),
+  cityId: z.string().min(1, "Debe seleccionar una ciudad."),
   vereda: z.string().min(2, "La vereda o localidad es requerida."),
   address: z.string().min(5, "La dirección es requerida."),
-  sector: z.string({ required_error: "El sector de trabajo es obligatorio." }),
+  sector: z.string().min(1, "El sector de trabajo es obligatorio."),
   promoterId: z.string().optional(),
 }).superRefine((data, ctx) => {
     if (data.idNumber) {
