@@ -103,7 +103,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
       firstName: voter?.firstName ?? "",
       lastName: voter?.lastName ?? "",
       birthDate: voter?.birthDate ?? "",
-      idType: voter?.idType,
+      idType: voter?.idType ?? "",
       idNumber: voter?.idNumber ?? "",
       email: voter?.email ?? "",
       phone: voter?.phone ?? "",
@@ -198,9 +198,9 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)}>
-        <ScrollArea className="max-h-[75vh] p-1">
-          <div className="space-y-6 p-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
+        <ScrollArea className="flex-1 max-h-[70vh] p-6 pr-4">
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -460,7 +460,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
             </div>
           </div>
         </ScrollArea>
-        <div className="flex justify-end gap-2 p-6 pt-4 border-t">
+        <div className="flex justify-end gap-2 p-6 pt-4 border-t mt-auto">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancelar
           </Button>
