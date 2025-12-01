@@ -26,7 +26,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -37,7 +36,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format, parseISO } from "date-fns"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
@@ -238,7 +236,7 @@ export default function VotersPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Registro de Votantes</h1>
           <p className="text-muted-foreground">Administra la información de los votantes.</p>
@@ -250,7 +248,7 @@ export default function VotersPage() {
               Registrar Votante
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-4xl">
+          <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
             <DialogHeader>
               <DialogTitle>{selectedVoter ? "Editar Votante" : "Registrar Votante"}</DialogTitle>
             </DialogHeader>
@@ -267,14 +265,14 @@ export default function VotersPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex-1">
                 <CardTitle>Lista de Votantes</CardTitle>
                 <CardDescription>
                     Un listado de todos los votantes registrados en el sistema.
                 </CardDescription>
             </div>
-            <div className="relative">
+            <div className="relative w-full md:w-auto md:min-w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar votante..."
@@ -288,68 +286,70 @@ export default function VotersPage() {
             </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Documento</TableHead>
-                <TableHead>Ciudad</TableHead>
-                <TableHead>Vereda/Localidad</TableHead>
-                <TableHead>Promotor</TableHead>
-                <TableHead>Fecha Registro</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={7} className="text-center h-24">Cargando...</TableCell></TableRow>}
-              {!isLoading && paginatedVoters.length === 0 && (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">
-                    <p className="font-medium">No hay votantes para mostrar.</p>
-                    <p className="text-sm text-muted-foreground">
-                        {searchQuery ? "Intenta con otra búsqueda." : "Comienza registrando un nuevo votante."}
-                    </p>
-                  </TableCell>
+                  <TableHead className="min-w-[150px]">Nombre</TableHead>
+                  <TableHead className="min-w-[150px]">Documento</TableHead>
+                  <TableHead className="min-w-[120px]">Ciudad</TableHead>
+                  <TableHead className="min-w-[120px]">Vereda/Localidad</TableHead>
+                  <TableHead className="min-w-[150px]">Promotor</TableHead>
+                  <TableHead className="min-w-[120px]">Fecha Registro</TableHead>
+                  <TableHead className="text-right min-w-[100px]">Acciones</TableHead>
                 </TableRow>
-              )}
-              {paginatedVoters.map((voter) => (
-                <TableRow key={voter.id}>
-                  <TableCell className="font-medium">{`${voter.firstName} ${voter.lastName}`}</TableCell>
-                  <TableCell>{`${voter.idType}: ${voter.idNumber}`}</TableCell>
-                  <TableCell>{getCityName(voter.cityId)}</TableCell>
-                  <TableCell>{voter.vereda}</TableCell>
-                  <TableCell>{getPromoterName(voter.promoterId)}</TableCell>
-                  <TableCell>{format(parseISO(voter.registrationDate), 'yyyy-MM-dd')}</TableCell>
-                  <TableCell className="text-right">
-                     <Button variant="ghost" size="icon" onClick={() => handleEdit(voter)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog open={!!voterToDelete && voterToDelete.id === voter.id} onOpenChange={(open) => !open && setVoterToDelete(null)}>
-                      <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={() => confirmDelete(voter)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                             Esta acción no se puede deshacer. Esto marcará al votante como inactivo y no se mostrará en las listas.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setVoterToDelete(null)}>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDelete}>Archivar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={7} className="text-center h-24">Cargando...</TableCell></TableRow>}
+                {!isLoading && paginatedVoters.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10">
+                      <p className="font-medium">No hay votantes para mostrar.</p>
+                      <p className="text-sm text-muted-foreground">
+                          {searchQuery ? "Intenta con otra búsqueda." : "Comienza registrando un nuevo votante."}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {paginatedVoters.map((voter) => (
+                  <TableRow key={voter.id}>
+                    <TableCell className="font-medium">{`${voter.firstName} ${voter.lastName}`}</TableCell>
+                    <TableCell>{`${voter.idType}: ${voter.idNumber}`}</TableCell>
+                    <TableCell>{getCityName(voter.cityId)}</TableCell>
+                    <TableCell>{voter.vereda}</TableCell>
+                    <TableCell>{getPromoterName(voter.promoterId)}</TableCell>
+                    <TableCell>{format(parseISO(voter.registrationDate), 'yyyy-MM-dd')}</TableCell>
+                    <TableCell className="text-right">
+                       <Button variant="ghost" size="icon" onClick={() => handleEdit(voter)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog open={!!voterToDelete && voterToDelete.id === voter.id} onOpenChange={(open) => !open && setVoterToDelete(null)}>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={() => confirmDelete(voter)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                               Esta acción no se puede deshacer. Esto marcará al votante como inactivo y no se mostrará en las listas.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setVoterToDelete(null)}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete}>Archivar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
-        <CardFooter className="flex items-center justify-between pt-4">
+        <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
           <div className="text-sm text-muted-foreground">
             Página {currentPage} de {totalPages > 0 ? totalPages : 1}
           </div>
@@ -378,3 +378,5 @@ export default function VotersPage() {
     </div>
   )
 }
+
+    

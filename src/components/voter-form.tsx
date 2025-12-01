@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -25,6 +26,7 @@ import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebas
 import { collection } from "firebase/firestore"
 import { useDebounce } from 'use-debounce';
 import { Loader2 } from "lucide-react"
+import { ScrollArea } from "./ui/scroll-area"
 
 const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.object({
   firstName: z.string()
@@ -41,12 +43,12 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
   email: z.string().email("El correo electrónico no es válido.").optional().or(z.literal('')),
   phone: z.string()
     .regex(/^\d{10}$/, "El celular debe contener exactamente 10 números."),
-  countryId: z.string().min(1, "Debe seleccionar un país."),
-  departmentId: z.string().min(1, "Debe seleccionar un departamento."),
-  cityId: z.string().min(1, "Debe seleccionar una ciudad."),
+  countryId: z.string({ required_error: "Debe seleccionar un país." }).min(1, "Debe seleccionar un país."),
+  departmentId: z.string({ required_error: "Debe seleccionar un departamento." }).min(1, "Debe seleccionar un departamento."),
+  cityId: z.string({ required_error: "Debe seleccionar una ciudad." }).min(1, "Debe seleccionar una ciudad."),
   vereda: z.string().min(2, "La vereda o localidad es requerida."),
   address: z.string().min(5, "La dirección es requerida."),
-  sector: z.string().min(1, "El sector de trabajo es obligatorio."),
+  sector: z.string({ required_error: "El sector de trabajo es obligatorio." }).min(1, "El sector de trabajo es obligatorio."),
   promoterId: z.string().optional(),
 }).superRefine((data, ctx) => {
     if (data.idNumber) {
@@ -196,175 +198,68 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="firstName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombres</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ej: Ana" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="lastName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Apellidos</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ej: García" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="birthDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Fecha de Nacimiento</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="idType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo de Documento</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un tipo" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {lists.identificationTypes?.items?.map(type => (
-                      <SelectItem key={type} value={type} className="capitalize">
-                        {type.replace(/_/g, ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="idNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Número de Documento</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ej: 123456789" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
+      <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+        <ScrollArea className="max-h-[75vh] p-1">
+          <div className="space-y-6 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
                 control={form.control}
-                name="email"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Correo Electrónico (Opcional)</FormLabel>
-                    <FormControl>
-                    <Input type="email" placeholder="ejemplo@correo.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Celular</FormLabel>
-                    <FormControl>
-                    <Input placeholder="Ej: 3001234567" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormField
-              control={form.control}
-              name="countryId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>País</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={countriesLoading ? "Cargando..." : "Selecciona país"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {countries?.map(country => <SelectItem key={country.id} value={country.id}>{country.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="departmentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Departamento</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountryId || departmentsLoading}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={departmentsLoading ? "Cargando..." : "Selecciona dpto."} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {departments?.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-                control={form.control}
-                name="cityId"
+                name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ciudad/Municipio</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDepartmentId || citiesLoading}>
+                    <FormLabel>Nombres</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Ana" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apellidos</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: García" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="birthDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha de Nacimiento</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="idType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Documento</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={citiesLoading ? "Cargando..." : "Selecciona ciudad"} />
+                          <SelectValue placeholder="Selecciona un tipo" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {cities?.map(city => (
-                          <SelectItem key={city.id} value={city.id}>
-                            {city.name}
+                        {lists.identificationTypes?.items?.map(type => (
+                          <SelectItem key={type} value={type} className="capitalize">
+                            {type.replace(/_/g, ' ')}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -373,89 +268,199 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
                   </FormItem>
                 )}
               />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="vereda"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Vereda / Localidad</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Chapinero" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
+              <FormField
                 control={form.control}
-                name="address"
+                name="idNumber"
                 render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Dirección</FormLabel>
+                  <FormItem>
+                    <FormLabel>Número de Documento</FormLabel>
                     <FormControl>
-                    <Input placeholder="Ej: Calle 50 # 20-30" {...field} />
+                      <Input placeholder="Ej: 123456789" {...field} />
                     </FormControl>
                     <FormMessage />
-                </FormItem>
+                  </FormItem>
                 )}
-            />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-                control={form.control}
-                name="sector"
-                render={({ field }) => (
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Sector de Trabajo</FormLabel>
+                        <FormLabel>Correo Electrónico (Opcional)</FormLabel>
+                        <FormControl>
+                        <Input type="email" placeholder="ejemplo@correo.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Celular</FormLabel>
+                        <FormControl>
+                        <Input placeholder="Ej: 3001234567" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="countryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>País</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={countriesLoading ? "Cargando..." : "Selecciona país"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {countries?.map(country => <SelectItem key={country.id} value={country.id}>{country.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="departmentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Departamento</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountryId || departmentsLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={departmentsLoading ? "Cargando..." : "Selecciona dpto."} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {departments?.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                    control={form.control}
+                    name="cityId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ciudad/Municipio</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDepartmentId || citiesLoading}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={citiesLoading ? "Cargando..." : "Selecciona ciudad"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {cities?.map(city => (
+                              <SelectItem key={city.id} value={city.id}>
+                                {city.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="vereda"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vereda / Localidad</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: Chapinero" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Dirección</FormLabel>
+                        <FormControl>
+                        <Input placeholder="Ej: Calle 50 # 20-30" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="sector"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Sector de Trabajo</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona un sector" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {lists.sectors?.items?.map(sector => (
+                                        <SelectItem key={sector} value={sector}>
+                                            {sector}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="promoterId"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Promotor Asignado</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona un sector" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {lists.sectors?.items?.map(sector => (
-                                    <SelectItem key={sector} value={sector}>
-                                        {sector}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un promotor" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {promoters.map(promoter => (
+                            <SelectItem key={promoter.id} value={promoter.id}>
+                                {`${promoter.firstName} ${promoter.lastName}`}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
                         </Select>
                         <FormMessage />
                     </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="promoterId"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Promotor Asignado</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un promotor" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {promoters.map(promoter => (
-                        <SelectItem key={promoter.id} value={promoter.id}>
-                            {`${promoter.firstName} ${promoter.lastName}`}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-4">
+                    )}
+                />
+            </div>
+          </div>
+        </ScrollArea>
+        <div className="flex justify-end gap-2 p-6 pt-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancelar
           </Button>
@@ -468,6 +473,5 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     </Form>
   )
 }
-    
 
     
