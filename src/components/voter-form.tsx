@@ -36,7 +36,7 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
     .min(2, "El apellido debe tener al menos 2 caracteres.")
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+)*$/, "El apellido solo puede contener letras y un espacio entre palabras."),
   birthDate: z.string({ required_error: "La fecha de nacimiento es obligatoria." }).min(1, "La fecha de nacimiento es obligatoria."),
-  idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
+  idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }).min(1, "Debe seleccionar un tipo de documento."),
   idNumber: z.string()
     .min(5, "El número de documento es requerido.")
     .regex(/^[a-zA-Z0-9]+$/, "El número de documento solo puede contener letras y números."),
@@ -199,8 +199,8 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
-        <ScrollArea className="flex-1 max-h-[70vh] p-6 pr-4">
-          <div className="space-y-6">
+        <ScrollArea className="flex-1 max-h-[75vh] p-1 pr-4">
+          <div className="space-y-6 p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
