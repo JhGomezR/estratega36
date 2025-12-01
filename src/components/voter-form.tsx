@@ -1,4 +1,3 @@
-
 "use client"
 import * as React from "react"
 import { useForm } from "react-hook-form"
@@ -34,7 +33,7 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
   lastName: z.string()
     .min(2, "El apellido debe tener al menos 2 caracteres.")
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+)*$/, "El apellido solo puede contener letras y un espacio entre palabras."),
-  birthDate: z.string({ required_error: "La fecha de nacimiento es obligatoria." }),
+  birthDate: z.string({ required_error: "La fecha de nacimiento es obligatoria." }).min(1, "La fecha de nacimiento es obligatoria."),
   idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }),
   idNumber: z.string()
     .min(5, "El número de documento es requerido.")
