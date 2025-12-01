@@ -473,5 +473,3 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     </Form>
   )
 }
-
-    
