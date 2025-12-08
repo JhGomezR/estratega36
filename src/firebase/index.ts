@@ -4,6 +4,7 @@ import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAnalytics, Analytics } from 'firebase/analytics';
 
 export function initializeFirebase() {
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -12,6 +13,10 @@ export function initializeFirebase() {
 
 export function getSdks(firebaseApp: FirebaseApp) {
   const firestore = getFirestore(firebaseApp);
+  let analytics: Analytics | null = null;
+  if (typeof window !== 'undefined') {
+    analytics = getAnalytics(firebaseApp);
+  }
   
   // Enable offline persistence
   try {
@@ -37,6 +42,7 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: firestore,
+    analytics
   };
 }
 

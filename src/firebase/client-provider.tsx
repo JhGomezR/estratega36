@@ -12,11 +12,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { AppShell } from '@/components/layout/app-shell';
 import { useToast } from '@/hooks/use-toast';
+import { Analytics } from 'firebase/analytics';
 
 interface FirebaseServices {
   firebaseApp: FirebaseApp;
   auth: Auth;
   firestore: Firestore;
+  analytics: Analytics | null;
 }
 
 const PUBLIC_PAGES = ['/login', '/signup'];
@@ -122,6 +124,7 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
       firebaseApp={services.firebaseApp}
       auth={services.auth}
       firestore={services.firestore}
+      analytics={services.analytics}
     >
       <AuthGate onLogout={() => handleLogout()}>
         {children}
