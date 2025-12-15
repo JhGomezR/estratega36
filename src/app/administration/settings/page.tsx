@@ -12,7 +12,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useFirestore, useMemoFirebase, useDoc, useCollection } from "@/firebase"
+import { useFirestore, useMemoFirebase, useDoc, useCollection, useUser } from "@/firebase"
 import { doc, collection } from "firebase/firestore"
 import type { BrandingSettings, ManagedList } from "@/lib/types"
 import { Loader2, PlusCircle, Trash2, Upload } from "lucide-react"
@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import Image from "next/image"
 import { Separator } from "@/components/ui/separator"
+import { logAudit } from "@/lib/audit-log"
 
 function hexToHsl(hex: string): string | null {
     if (!hex) return null;
@@ -138,6 +139,7 @@ const defaultLists: Record<string, string[]> = {
 
 export default function SettingsPage() {
   const firestore = useFirestore();
+  const { user: currentUser } = useUser();
   const { toast } = useToast();
   
   const brandingSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, `settings/branding`) : null, [firestore]);
@@ -198,10 +200,11 @@ export default function SettingsPage() {
   }
   
   const handleListUpdate = (listKey: string, newItems: string[]) => {
-      if (!firestore) return;
+      if (!firestore || !currentUser) return;
       try {
           const listRef = doc(firestore, `lists`, listKey);
           setDocumentNonBlocking(listRef, { items: newItems }, { merge: true });
+          logAudit(currentUser.uid, 'settings:list_update', { list: listKey, items: newItems });
       } catch(error) {
            toast({
               variant: "destructive",
@@ -236,7 +239,7 @@ export default function SettingsPage() {
   };
 
   const handleSaveBranding = async () => {
-    if (!brandingSettingsRef) return;
+    if (!brandingSettingsRef || !currentUser) return;
     setIsSaving(true);
     try {
         let logoUrl = brandingSettings?.logoUrl;
@@ -258,6 +261,7 @@ export default function SettingsPage() {
         };
         
         setDocumentNonBlocking(brandingSettingsRef, newBrandingSettings, { merge: true });
+        logAudit(currentUser.uid, 'settings:branding_update', { colors, hasLogo: !!logoUrl, hasLoginImage: !!loginImageUrl });
 
         updateCssVariables(newBrandingSettings.primaryColor, newBrandingSettings.accentColor, newBrandingSettings.sidebarColor);
         toast({

@@ -35,7 +35,10 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
   lastName: z.string()
     .min(2, "El apellido debe tener al menos 2 caracteres.")
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+)*$/, "El apellido solo puede contener letras y un espacio entre palabras."),
-  birthDate: z.string({ required_error: "La fecha de nacimiento es obligatoria." }).min(1, "La fecha de nacimiento es obligatoria."),
+  age: z.preprocess(
+    (a) => parseInt(z.string().parse(a), 10),
+    z.number().int().min(18, "El votante debe ser mayor de edad.").max(120, "La edad no es válida.")
+  ),
   idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }).min(1, "Debe seleccionar un tipo de documento."),
   idNumber: z.string()
     .min(5, "El número de documento es requerido.")
@@ -102,7 +105,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
     defaultValues: {
       firstName: voter?.firstName ?? "",
       lastName: voter?.lastName ?? "",
-      birthDate: voter?.birthDate ?? "",
+      age: voter?.age ?? 18,
       idType: voter?.idType ?? "",
       idNumber: voter?.idNumber ?? "",
       email: voter?.email ?? "",
@@ -165,7 +168,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
             departmentId: voter.departmentId || "",
             cityId: voter.cityId || "",
             sector: voter.sector || "",
-            birthDate: voter.birthDate || "",
+            age: voter.age || 18,
         });
     }
   }, [voter, form]);
@@ -231,14 +234,14 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
+               <FormField
                 control={form.control}
-                name="birthDate"
+                name="age"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fecha de Nacimiento</FormLabel>
+                    <FormLabel>Edad</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -20,9 +20,10 @@ import { initializeFirebase, useDoc, useFirestore, useMemoFirebase } from "@/fir
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, type Auth } from "firebase/auth";
+import { signInWithEmailAndPassword, type Auth, type User } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import type { BrandingSettings } from "@/lib/types";
+import { logAudit } from "@/lib/audit-log";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -72,7 +73,11 @@ export default function LoginPage() {
     }
     setIsSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      
+      // Log the audit event after successful login
+      await logAudit(userCredential.user.uid, 'user:login');
+
       toast({
         title: "Inicio de Sesión Exitoso",
         description: "Bienvenido de nuevo.",

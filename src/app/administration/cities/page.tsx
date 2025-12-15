@@ -30,17 +30,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as AlertDialogTitleElement,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
+import { logAudit } from "@/lib/audit-log"
+import { useToast } from "@/hooks/use-toast"
 
 type FormMode = 'country' | 'department' | 'city';
 
 export default function CitiesPage() {
   const firestore = useFirestore();
+  const { user: currentUser } = useUser();
+  const { toast } = useToast();
 
   const [selectedCountryId, setSelectedCountryId] = React.useState<string | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = React.useState<string | null>(null);
@@ -95,16 +99,23 @@ export default function CitiesPage() {
   }
 
   const handleDelete = () => {
-    if (!itemToDelete || !firestore) return;
+    if (!itemToDelete || !firestore || !currentUser) return;
     deleteDocumentNonBlocking(doc(firestore, itemToDelete.path));
+    logAudit(currentUser.uid, 'geo:delete', { type: itemToDelete.type, path: itemToDelete.path, name: itemToDelete.name });
     setItemToDelete(null);
+    toast({
+      title: "Elemento eliminado",
+      description: `Se ha eliminado "${itemToDelete.name}".`,
+      variant: "destructive"
+    });
   }
   
   const handleFormSubmit = (data: any) => {
-    if (!firestore) return;
+    if (!firestore || !currentUser) return;
     
     let collectionRef;
     let dataToSend = { ...data, status: data.status || 'activo' };
+    let actionType: 'create' | 'update' = 'update';
 
     if (formMode === 'country') {
       collectionRef = countriesRef;
@@ -119,9 +130,16 @@ export default function CitiesPage() {
     if (collectionRef) {
       if (editingItem) {
         setDocumentNonBlocking(doc(collectionRef, editingItem.id), dataToSend, { merge: true });
+        actionType = 'update';
       } else {
         addDocumentNonBlocking(collectionRef, dataToSend);
+        actionType = 'create';
       }
+      logAudit(currentUser.uid, `geo:${actionType}`, { type: formMode, name: data.name });
+      toast({
+        title: `Elemento ${editingItem ? 'actualizado' : 'creado'}`,
+        description: `Se ha guardado "${data.name}" correctamente.`,
+      });
     }
     setFormMode(null);
     setEditingItem(null);

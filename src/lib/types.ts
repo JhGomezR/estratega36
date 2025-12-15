@@ -4,7 +4,7 @@ export type WithId<T> = T & { id: string };
 export type Voter = WithId<{
   firstName: string;
   lastName: string;
-  birthDate?: string;
+  age: number;
   idType: string;
   idNumber: string;
   email?: string;
@@ -118,6 +118,7 @@ export const permissionGroups: Record<string, readonly string[]> = {
   call: ["read", "create", "update", "delete"],
   report: ["read"],
   setting: ["update"],
+  log: ["read"],
 };
 
 const generatePermissions = (): readonly string[] => {
@@ -201,3 +202,19 @@ export type Tenant = WithId<{
     createdAt: string;
     status: 'active' | 'inactive';
 }>;
+
+export type AuditLog = {
+    userId: string;
+    action: string;
+    timestamp: string;
+    details?: Record<string, any>;
+    ipAddress?: string;
+    userAgent?: string;
+    geo?: {
+        city?: string;
+        country?: string;
+        region?: string;
+        latitude?: number;
+        longitude?: number;
+    };
+};

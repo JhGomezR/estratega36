@@ -37,15 +37,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format, parseISO } from "date-fns"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { collection, doc, collectionGroup } from "firebase/firestore"
-import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { collection, doc, collectionGroup, addDoc } from "firebase/firestore"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { geocodeAddress } from "@/ai/flows/geocode-address"
 import { Input } from "@/components/ui/input"
+import { logAudit } from "@/lib/audit-log"
 
 const VOTERS_PER_PAGE = 15;
 
@@ -174,8 +174,9 @@ export default function VotersPage() {
   }
 
   const handleDelete = () => {
-    if (voterToDelete && votersCollectionRef) {
+    if (voterToDelete && votersCollectionRef && currentUser) {
       setDocumentNonBlocking(doc(votersCollectionRef, voterToDelete.id), { status: 'inactivo' }, { merge: true });
+      logAudit(currentUser.uid, 'voter:archive', { voterId: voterToDelete.id, name: `${voterToDelete.firstName} ${voterToDelete.lastName}` });
       setVoterToDelete(null)
       toast({
           title: "Votante Archivado",
@@ -185,13 +186,11 @@ export default function VotersPage() {
   }
 
   const handleFormSubmit = async (data: VoterFormValues, cityName: string, departmentName: string, countryName: string) => {
-    if (!firestore || !votersCollectionRef) return;
+    if (!firestore || !votersCollectionRef || !currentUser) return;
 
     try {
         const fullAddress = [data.address, data.vereda, cityName, departmentName, countryName].filter(Boolean).join(', ');
-
         const geocodeResult = await geocodeAddress({ address: fullAddress });
-
         let voterData: Partial<Voter> = { ...data };
 
         if (geocodeResult && geocodeResult.latitude && geocodeResult.longitude) {
@@ -201,19 +200,21 @@ export default function VotersPage() {
             toast({
                 variant: "destructive",
                 title: "Error de Geocodificación",
-                description: "No se pudo obtener la ubicación para la dirección proporcionada. El votante se guardará sin coordenadas.",
+                description: "No se pudo obtener la ubicación. El votante se guardará sin coordenadas.",
             });
         }
         
         if (selectedVoter) {
             setDocumentNonBlocking(doc(votersCollectionRef, selectedVoter.id), voterData, { merge: true });
+            logAudit(currentUser.uid, 'voter:update', { voterId: selectedVoter.id, name: `${data.firstName} ${data.lastName}` });
         } else {
-            const newVoter = {
+            const newVoterData = {
                 ...voterData,
                 status: 'activo' as const,
                 registrationDate: new Date().toISOString(),
             };
-            addDocumentNonBlocking(votersCollectionRef, newVoter);
+            const docRef = await addDoc(votersCollectionRef, newVoterData);
+            logAudit(currentUser.uid, 'voter:create', { voterId: docRef.id, name: `${data.firstName} ${data.lastName}` });
         }
 
         toast({
@@ -226,7 +227,7 @@ export default function VotersPage() {
         toast({
             variant: "destructive",
             title: "Error al Guardar",
-            description: "No se pudo guardar la información del votante. Por favor, intenta de nuevo.",
+            description: "No se pudo guardar la información del votante.",
         });
     } finally {
         setIsFormOpen(false);
@@ -250,7 +251,7 @@ export default function VotersPage() {
               Registrar Votante
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
+          <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{selectedVoter ? "Editar Votante" : "Registrar Votante"}</DialogTitle>
             </DialogHeader>

@@ -55,6 +55,8 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import type { Campaign } from '@/lib/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Skeleton } from './ui/skeleton'
+import { logAudit } from '@/lib/audit-log'
+import { useUser } from '@/firebase'
 
 const formSchema = z.object({
   campaignData: z.string().min(50, {
@@ -125,6 +127,7 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
   const [isOverallGenerating, setIsOverallGenerating] = useState(false)
   const [sectionStatus, setSectionStatus] = useState<SectionStatus>(initialSectionStatus)
   const [isSaving, setIsSaving] = useState(false);
+  const { user: currentUser } = useUser();
 
   const { toast } = useToast()
 
@@ -140,12 +143,14 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!currentUser) return;
     setIsOverallGenerating(true);
     setStrategy({});
     setSectionStatus(initialSectionStatus);
     setFormValues(values);
     
     const generatedOutputs: StrategyResult = {};
+    logAudit(currentUser.uid, 'strategy:generate_start', { campaignId: values.campaignId });
 
     for (const key of sectionKeys) {
         setSectionStatus(prev => ({ ...prev, [key]: 'loading' }));
@@ -159,6 +164,7 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
             const errorMessage = `Error al generar esta sección. Por favor, revisa la consola para más detalles.`;
             setStrategy(prev => ({ ...prev, [key]: errorMessage }));
             setSectionStatus(prev => ({ ...prev, [key]: 'error' }));
+            logAudit(currentUser.uid, 'strategy:generate_error', { campaignId: values.campaignId, section: key, error: e.message });
             toast({
                 variant: 'destructive',
                 title: `Error en Sección: ${sectionTitles[key]}`,
@@ -170,10 +176,11 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
     }
     
     setIsOverallGenerating(false);
+    logAudit(currentUser.uid, 'strategy:generate_success', { campaignId: values.campaignId });
   }
 
   const handleSaveStrategy = async () => {
-    if (!formValues || Object.keys(strategy).length !== sectionKeys.length) {
+    if (!formValues || Object.keys(strategy).length !== sectionKeys.length || !currentUser) {
       toast({
         variant: "destructive",
         title: "Estrategia Incompleta",
@@ -191,7 +198,8 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
         outputs: strategy as Record<SectionKey, string>,
       });
 
-      if (result.success) {
+      if (result.success && result.id) {
+        logAudit(currentUser.uid, 'strategy:save', { strategyId: result.id, campaignId: campaignId });
         toast({
           title: "Estrategia Guardada",
           description: "La estrategia completa ha sido guardada en la base de datos.",
@@ -202,6 +210,7 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
       }
     } catch (e) {
       console.error("Error saving strategy:", e);
+      logAudit(currentUser.uid, 'strategy:save_error', { campaignId: formValues.campaignId, error: (e as Error).message });
       toast({
         variant: "destructive",
         title: "Error al Guardar",

@@ -1,3 +1,4 @@
+
 "use client"
 import { StrategiesClient } from "@/components/strategies-client";
 import { useUser, useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";

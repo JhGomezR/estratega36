@@ -53,6 +53,7 @@ import { CallStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { logAudit } from "@/lib/audit-log"
 
 const statusLabels: Record<Call['status'], string> = {
   pendiente: "Pendiente",
@@ -108,7 +109,7 @@ export default function CallsPage() {
 
   React.useEffect(() => {
     const syncCallList = async () => {
-      if (!firestore || !voters || !callsData || !callsCollectionRef) return;
+      if (!firestore || !voters || !callsData || !callsCollectionRef || !currentUser) return;
 
       setIsSyncing(true);
       try {
@@ -125,6 +126,7 @@ export default function CallsPage() {
               status_call: "activo",
               attempts: 0,
             });
+            logAudit(currentUser.uid, 'call:sync_create', { voterId: voter.id, callId: newCallRef.id });
           });
 
           await batch.commit();
@@ -146,7 +148,7 @@ export default function CallsPage() {
     };
 
     syncCallList();
-  }, [voters, callsData, firestore, toast, callsCollectionRef]);
+  }, [voters, callsData, firestore, toast, callsCollectionRef, currentUser]);
 
   const getVoterInfo = React.useCallback((voterId: string) => {
     return voters?.find(v => v.id === voterId);
@@ -214,21 +216,23 @@ export default function CallsPage() {
   }
 
   const handleFormSubmit = (data: Omit<Call, 'id' | 'voterId' | 'callDate' | 'status_call'>) => {
-    if (callsCollectionRef && selectedCall) {
+    if (callsCollectionRef && selectedCall && currentUser) {
       let callData: Partial<Call> = { ...data };
       if (data.status === 'atendida' && selectedCall.status !== 'atendida') {
         callData.callDate = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'");
       }
       setDocumentNonBlocking(doc(callsCollectionRef, selectedCall.id), callData, { merge: true });
+      logAudit(currentUser.uid, 'call:update', { callId: selectedCall.id, ...callData });
     }
     setIsFormOpen(false);
   };
 
   const handleAttemptsBlur = (callId: string) => {
-    if (callsCollectionRef && localAttempts[callId] !== undefined) {
+    if (callsCollectionRef && localAttempts[callId] !== undefined && currentUser) {
       const originalCall = calls?.find(c => c.id === callId);
       if (originalCall && originalCall.attempts !== localAttempts[callId]) {
         setDocumentNonBlocking(doc(callsCollectionRef, callId), { attempts: localAttempts[callId] }, { merge: true });
+        logAudit(currentUser.uid, 'call:update_attempts', { callId: callId, attempts: localAttempts[callId] });
       }
     }
   }
@@ -246,13 +250,14 @@ export default function CallsPage() {
       setSelectedCall(call);
       setCallDetails("");
       setIsDetailsOpen(true);
-    } else if (callsCollectionRef) {
+    } else if (callsCollectionRef && currentUser) {
       setDocumentNonBlocking(doc(callsCollectionRef, call.id), { status: newStatus }, { merge: true });
+      logAudit(currentUser.uid, 'call:status_change', { callId: call.id, newStatus: newStatus });
     }
   };
 
   const handleSaveDetails = () => {
-    if (callsCollectionRef && selectedCall) {
+    if (callsCollectionRef && selectedCall && currentUser) {
       const callData: Partial<Call> = {
         status: 'atendida',
         details: callDetails,
@@ -260,6 +265,7 @@ export default function CallsPage() {
         userId: selectedCall.userId || currentUser?.uid,
       };
       setDocumentNonBlocking(doc(callsCollectionRef, selectedCall.id), callData, { merge: true });
+      logAudit(currentUser.uid, 'call:attended', { callId: selectedCall.id, details: callDetails });
       toast({
         title: "Detalles guardados",
         description: "La información de la llamada ha sido registrada.",
@@ -274,8 +280,9 @@ export default function CallsPage() {
   };
 
   const handleDelete = () => {
-    if (callToDelete && callsCollectionRef) {
+    if (callToDelete && callsCollectionRef && currentUser) {
         setDocumentNonBlocking(doc(callsCollectionRef, callToDelete.id), { status_call: 'inactivo' }, { merge: true });
+        logAudit(currentUser.uid, 'call:archive', { callId: callToDelete.id });
         setCallToDelete(null);
         toast({
             title: "Llamada archivada",
@@ -582,5 +589,3 @@ export default function CallsPage() {
     </div>
   )
 }
-
-    

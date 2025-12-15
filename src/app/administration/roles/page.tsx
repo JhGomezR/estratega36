@@ -39,11 +39,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
+import { logAudit } from "@/lib/audit-log"
 
 const actionIcons: Record<string, LucideIcon> = {
   read: Eye,
@@ -61,8 +63,10 @@ const actionLabels: Record<string, string> = {
 
 export default function RolesPage() {
   const firestore = useFirestore();
-  const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
+  const { user: currentUser } = useUser();
+  const { toast } = useToast();
   
+  const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
   const { data: rolesData, isLoading } = useCollection<Role>(rolesCollectionRef);
 
   const [selectedRole, setSelectedRole] = React.useState<Role | null>(null)
@@ -88,19 +92,25 @@ export default function RolesPage() {
   }
 
   const handleDelete = () => {
-    if (roleToDelete && rolesCollectionRef) {
+    if (roleToDelete && rolesCollectionRef && currentUser) {
       setDocumentNonBlocking(doc(rolesCollectionRef, roleToDelete.id), { trash: true }, { merge: true });
-      setRoleToDelete(null)
+      logAudit(currentUser.uid, 'role:delete', { roleId: roleToDelete.id, name: roleToDelete.name });
+      setRoleToDelete(null);
+      toast({ title: "Rol Eliminado", description: "El rol ha sido movido a la papelera." });
     }
   }
 
   const handleFormSubmit = (data: Omit<Role, 'id'>) => {
-    if (rolesCollectionRef) {
+    if (rolesCollectionRef && currentUser) {
       if (selectedRole) {
         setDocumentNonBlocking(doc(rolesCollectionRef, selectedRole.id), data, { merge: true });
+        logAudit(currentUser.uid, 'role:update', { roleId: selectedRole.id, name: data.name });
+        toast({ title: "Rol Actualizado", description: "Los cambios han sido guardados." });
       } else {
         const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
         setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), {...data, trash: false }, {});
+        logAudit(currentUser.uid, 'role:create', { roleId: newRoleId, name: data.name });
+        toast({ title: "Rol Creado", description: "El nuevo rol ha sido creado." });
       }
     }
     setIsFormOpen(false)

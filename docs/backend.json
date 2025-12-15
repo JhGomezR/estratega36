@@ -39,7 +39,7 @@
       "properties": {
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
-        "birthDate": { "type": "string", "format": "date", "description": "The voter's date of birth." },
+        "age": { "type": "number", "description": "The voter's age." },
         "idType": { "type": "string" },
         "idNumber": { "type": "string" },
         "email": { "type": "string", "format": "email" },
@@ -56,7 +56,7 @@
         "longitude": { "type": "number" },
         "status": { "type": "string", "description": "The status of the voter, e.g., 'activo', 'inactivo'.", "default": "activo" }
       },
-      "required": ["firstName", "lastName", "idType", "idNumber", "address", "countryId", "departmentId", "cityId", "vereda", "promoterId", "registrationDate", "status"]
+      "required": ["firstName", "lastName", "age", "idType", "idNumber", "address", "countryId", "departmentId", "cityId", "vereda", "promoterId", "registrationDate", "status"]
     },
     "Task": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -117,7 +117,8 @@
               "task:create", "task:read", "task:update", "task:delete",
               "call:create", "call:read", "call:update", "call:delete",
               "report:read",
-              "setting:update"
+              "setting:update",
+              "log:read"
             ]
           }
         },
@@ -272,6 +273,31 @@
             "facebookGraphApiToken": { "type": "string", "description": "Access token for the Facebook Graph API." },
             "facebookAppId": { "type": "string", "description": "The App ID for the Facebook application used for social login and API access." }
         }
+    },
+    "AuditLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AuditLog",
+      "type": "object",
+      "description": "Represents an audit trail entry for a user action.",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user performing the action." },
+        "action": { "type": "string", "description": "A string identifying the action, e.g., 'login', 'voter:create'." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "The time the action occurred." },
+        "details": { "type": "object", "description": "A map of contextual details, e.g., { voterId: '...' }." },
+        "ipAddress": { "type": "string", "description": "The IP address of the user." },
+        "userAgent": { "type": "string", "description": "The user agent string of the client." },
+        "geo": { 
+            "type": "object", 
+            "properties": {
+                "city": { "type": "string" },
+                "country": { "type": "string" },
+                "region": { "type": "string" },
+                "latitude": { "type": "number" },
+                "longitude": { "type": "number" }
+            }
+        }
+      },
+      "required": ["userId", "action", "timestamp"]
     }
   },
   "auth": {
@@ -339,6 +365,10 @@
     "/socialMentions/{mentionId}": {
         "schema": { "$ref": "#/entities/SocialMention" },
         "description": "Stores mentions captured from social media."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Stores audit trail records for user actions."
     }
   }
 }

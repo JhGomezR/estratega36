@@ -184,5 +184,16 @@ service cloud.firestore {
     match /socialMentions/{mentionId} {
         allow read, write: if hasPermission('report:read');
     }
+
+    /**
+     * @description Rules for the 'auditLogs' collection.
+     * - Any authenticated user can create a log entry for themselves.
+     * - Only users with 'log:read' permission can read logs.
+     */
+    match /auditLogs/{logId} {
+      allow read: if hasPermission('log:read');
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false; // Logs are immutable
+    }
   }
 }

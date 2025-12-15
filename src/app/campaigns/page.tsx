@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import Link from "next/link"
@@ -30,7 +31,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import {
@@ -49,6 +50,8 @@ import { cn } from "@/lib/utils"
 import { CampaignGrid } from "@/components/campaign-grid"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
+import { logAudit } from "@/lib/audit-log"
+import { useToast } from "@/hooks/use-toast"
 
 const statusColors: Record<string, string> = {
   'En Campaña': 'bg-blue-500 hover:bg-blue-600 text-white',
@@ -62,6 +65,9 @@ const CAMPAIGNS_PER_PAGE = 15;
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
+  const { user: currentUser } = useUser();
+  const { toast } = useToast();
+
   const campaignsCollection = useMemoFirebase(() => firestore ? collection(firestore, `campaigns`) : null, [firestore]);
   const { data: campaignsData, isLoading: campaignsLoading } = useCollection<Campaign>(campaignsCollection);
 
@@ -80,13 +86,14 @@ export default function CampaignsPage() {
   }, [campaignsData]);
   
   React.useEffect(() => {
-    if (campaigns && campaignsCollection) {
+    if (campaigns && campaignsCollection && currentUser) {
       campaigns.forEach(campaign => {
         if (campaign.status !== 'Finalizada' && campaign.status !== 'Archivada') {
           try {
             const endDate = parseISO(campaign.endDate);
             if (isPast(endDate) && !isToday(endDate)) {
               setDocumentNonBlocking(doc(campaignsCollection, campaign.id), { status: 'Finalizada', progress: 100 }, { merge: true });
+              logAudit(currentUser.uid, 'campaign:auto_finalize', { campaignId: campaign.id, name: campaign.name });
             }
           } catch (e) {
             console.error(`Invalid date for campaign ${campaign.id}: ${campaign.endDate}`);
@@ -94,7 +101,7 @@ export default function CampaignsPage() {
         }
       });
     }
-  }, [campaigns, campaignsCollection]);
+  }, [campaigns, campaignsCollection, currentUser]);
 
   const processedCampaigns = React.useMemo(() => {
     if (!campaigns) return [];
@@ -172,14 +179,16 @@ export default function CampaignsPage() {
   }
 
   const handleDelete = () => {
-    if (campaignsCollection && campaignToDelete) {
+    if (campaignsCollection && campaignToDelete && currentUser) {
       setDocumentNonBlocking(doc(campaignsCollection, campaignToDelete.id), { status: 'Archivada' }, { merge: true });
+      logAudit(currentUser.uid, 'campaign:archive', { campaignId: campaignToDelete.id, name: campaignToDelete.name });
       setCampaignToDelete(null);
+      toast({ title: "Campaña Archivada", description: `La campaña "${campaignToDelete.name}" ha sido archivada.` });
     }
   }
 
   const handleFormSubmit = (data: Omit<Campaign, 'id' | 'progress'>) => {
-    if (campaignsCollection) {
+    if (campaignsCollection && currentUser) {
       const campaignData: Partial<Campaign> = { ...data };
       if (campaignData.status === 'Finalizada') {
           campaignData.progress = 100;
@@ -187,11 +196,16 @@ export default function CampaignsPage() {
       
       if (selectedCampaign) {
         setDocumentNonBlocking(doc(campaignsCollection, selectedCampaign.id), campaignData, { merge: true });
+        logAudit(currentUser.uid, 'campaign:update', { campaignId: selectedCampaign.id, name: data.name });
+        toast({ title: "Campaña Actualizada", description: "Los cambios han sido guardados." });
       } else {
         addDocumentNonBlocking(campaignsCollection, {
           ...campaignData,
           progress: campaignData.status === 'Finalizada' ? 100 : 0,
+        }).then(docRef => {
+            if(docRef) logAudit(currentUser.uid, 'campaign:create', { campaignId: docRef.id, name: data.name });
         });
+        toast({ title: "Campaña Creada", description: "La nueva campaña ha sido creada exitosamente." });
       }
     }
     setIsFormOpen(false);
