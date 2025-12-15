@@ -36,8 +36,11 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
     .min(2, "El apellido debe tener al menos 2 caracteres.")
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]+)*$/, "El apellido solo puede contener letras y un espacio entre palabras."),
   age: z.preprocess(
-    (a) => parseInt(z.string().parse(a), 10),
-    z.number().int().min(18, "El votante debe ser mayor de edad.").max(120, "La edad no es válida.")
+    (val) => (val === '' ? NaN : parseInt(String(val), 10)),
+    z.number({ required_error: "La edad es requerida.", invalid_type_error: "La edad debe ser un número."})
+      .int()
+      .min(18, "El votante debe ser mayor de edad (18 años).")
+      .max(120, "La edad no es válida.")
   ),
   idType: z.string({ required_error: "Debe seleccionar un tipo de documento." }).min(1, "Debe seleccionar un tipo de documento."),
   idNumber: z.string()
@@ -241,7 +244,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
                   <FormItem>
                     <FormLabel>Edad</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
+                      <Input type="number" {...field} onChange={e => field.onChange(e.target.value)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
