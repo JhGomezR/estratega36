@@ -96,6 +96,16 @@ service cloud.firestore {
     match /strategies/{strategyId} {
       allow read, create, update, delete: if hasPermission('campaign:read'); // Reuse campaign read perm
     }
+    
+    /**
+     * @description Rules for the 'forms' collection.
+     */
+    match /forms/{formId} {
+        allow read: if hasPermission('form:read');
+        allow create: if hasPermission('form:create');
+        allow update: if hasPermission('form:update');
+        allow delete: if hasPermission('form:delete');
+    }
 
     /**
      * @description Rules for the 'voters' collection.

@@ -116,6 +116,7 @@ export const permissionGroups: Record<string, readonly string[]> = {
   city: ["read", "create", "update", "delete"],
   task: ["read", "create", "update", "delete"],
   call: ["read", "create", "update", "delete"],
+  form: ["read", "create", "update", "delete"],
   report: ["read"],
   setting: ["update"],
   log: ["read"],
@@ -218,3 +219,28 @@ export type AuditLog = {
         longitude?: number;
     };
 };
+
+export const FieldTypes = ["text", "number", "email", "tel", "textarea", "select", "checkbox", "date"] as const;
+
+export type FormField = {
+  id: string;
+  name: string;
+  label: string;
+  type: (typeof FieldTypes)[number];
+  placeholder?: string;
+  required: boolean;
+  minLength?: number;
+  maxLength?: number;
+  minValue?: number;
+  maxValue?: number;
+  options?: string[];
+};
+
+export type Form = WithId<{
+  name: string;
+  description: string;
+  targetEntity: 'voter' | 'user' | 'campaign';
+  fields: FormField[];
+  status: 'activo' | 'inactivo';
+  trash?: boolean;
+}>;

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -23,7 +24,8 @@ import {
   Loader2,
   GitFork,
   Radio,
-  Menu
+  Menu,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -130,6 +132,7 @@ function MainNav() {
                     {hasPermission("role:read") && <NavItem href="/administration/roles" icon={<Shield className="h-4 w-4" />} label="Roles" />}
                     {hasPermission("user:read") && <NavItem href="/administration/users" icon={<UserCog className="h-4 w-4" />} label="Usuarios" />}
                     {hasPermission("city:read") && <NavItem href="/administration/cities" icon={<Building className="h-4 w-4" />} label="Ciudades" />}
+                    {hasPermission("form:read") && <NavItem href="/administration/forms" icon={<FileText className="h-4 w-4" />} label="Formularios" />}
                     {hasPermission("setting:update") && <NavItem href="/administration/settings" icon={<Palette className="h-4 w-4" />} label="Configuración" />}
                 </CollapsibleNavGroup>
             </div>

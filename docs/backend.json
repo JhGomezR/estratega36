@@ -116,6 +116,7 @@
               "city:create", "city:read", "city:update", "city:delete",
               "task:create", "task:read", "task:update", "task:delete",
               "call:create", "call:read", "call:update", "call:delete",
+              "form:create", "form:read", "form:update", "form:delete",
               "report:read",
               "setting:update",
               "log:read"
@@ -298,6 +299,39 @@
         }
       },
       "required": ["userId", "action", "timestamp"]
+    },
+    "FormField": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FormField",
+      "type": "object",
+      "description": "Defines a single field within a dynamic form.",
+      "properties": {
+        "name": { "type": "string", "description": "The unique identifier for the field within the form (e.g., 'first_name')." },
+        "label": { "type": "string", "description": "The human-readable label for the field." },
+        "type": { "type": "string", "enum": ["text", "number", "email", "tel", "textarea", "select", "checkbox", "date"], "description": "The input type for the field." },
+        "placeholder": { "type": "string", "description": "Placeholder text for the input field." },
+        "required": { "type": "boolean", "default": false, "description": "Whether the field is mandatory." },
+        "minLength": { "type": "number", "description": "Minimum length for text-based fields." },
+        "maxLength": { "type": "number", "description": "Maximum length for text-based fields." },
+        "minValue": { "type": "number", "description": "Minimum value for number fields." },
+        "maxValue": { "type": "number", "description": "Maximum value for number fields." },
+        "options": { "type": "array", "items": { "type": "string" }, "description": "List of options for 'select' type fields." }
+      },
+      "required": ["name", "label", "type"]
+    },
+    "Form": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Form",
+      "type": "object",
+      "description": "Represents a dynamic form template.",
+      "properties": {
+        "name": { "type": "string", "description": "The internal name or title of the form." },
+        "description": { "type": "string", "description": "A brief description of the form's purpose." },
+        "targetEntity": { "type": "string", "enum": ["voter", "user", "campaign"], "description": "The entity this form is designed to create or edit." },
+        "fields": { "type": "array", "items": { "$ref": "#/entities/FormField" }, "description": "The array of fields that make up the form." },
+        "status": { "type": "string", "enum": ["activo", "inactivo"], "default": "activo", "description": "The status of the form." }
+      },
+      "required": ["name", "targetEntity", "fields", "status"]
     }
   },
   "auth": {
@@ -325,6 +359,10 @@
     "/voters/{voterId}": {
       "schema": { "$ref": "#/entities/Voter" },
       "description": "Stores voter information."
+    },
+     "/forms/{formId}": {
+      "schema": { "$ref": "#/entities/Form" },
+      "description": "Stores dynamic form templates."
     },
     "/countries/{countryId}": {
         "schema": { "$ref": "#/entities/Country" },
