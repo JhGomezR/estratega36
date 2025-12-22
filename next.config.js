@@ -1,6 +1,4 @@
 /** @type {import('next').NextConfig} */
-const { withGenkit } = require('@genkit-ai/next');
-
 const nextConfig = {
   /* config options here */
   typescript: {
@@ -43,9 +41,6 @@ const nextConfig = {
       },
     ],
   },
-  serverActions: {
-    bodySizeLimit: '2mb',
-  },
 };
 
-module.exports = withGenkit(nextConfig);
+module.exports = nextConfig;

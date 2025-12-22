@@ -1,11 +1,10 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
-import {next} from '@genkit-ai/next';
+import { configureGenkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
-export const ai = genkit({
+export const ai = configureGenkit({
   plugins: [googleAI({
     apiVersion: "v1beta"
-  }), next()],
+  })],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
