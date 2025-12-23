@@ -194,7 +194,7 @@ service cloud.firestore {
     match /socialMentions/{mentionId} {
         allow read, write: if hasPermission('report:read');
     }
-
+    
     /**
      * @description Rules for the 'auditLogs' collection.
      * - Any authenticated user can create a log entry for themselves.
@@ -205,5 +205,6 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
       allow update, delete: if false; // Logs are immutable
     }
+
   }
 }
