@@ -19,10 +19,10 @@
 
 services:
   app:
-    # Imagen PRE-CONSTRUIDA publicada por GitHub Actions en GHCR.
-    # (Hostinger no compila imágenes locales; solo descarga imágenes públicas.)
-    # La imagen debe ser PÚBLICA en GHCR. Sobrescribe con APP_IMAGE si usas otro registro.
-    image: ${APP_IMAGE:-ghcr.io/jhgomezr/estratega360:latest}
+    # Imagen PRE-CONSTRUIDA en un registro (Hostinger no compila imágenes locales;
+    # solo descarga imágenes ya publicadas). Define APP_IMAGE con tu imagen, p. ej.
+    # un repositorio en Docker Hub o GHCR. Debe ser accesible (pública o con login).
+    image: ${APP_IMAGE:?Define APP_IMAGE con la imagen publicada, ej. usuario/estratega360:latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
