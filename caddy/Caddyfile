@@ -6,7 +6,6 @@
 	encode gzip zstd
 	reverse_proxy app:3000
 
-	# Cabeceras de seguridad a nivel de proxy (refuerzan las del app).
 	header {
 		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 		X-Content-Type-Options "nosniff"

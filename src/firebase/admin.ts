@@ -13,9 +13,16 @@ function getAdminApp(): admin.app.App {
     return admin.app();
   }
   try {
-    // In a managed Google Cloud environment (like App Hosting or Cloud Run),
-    // initializing without arguments uses the Application Default Credentials.
-    const app = admin.initializeApp();
+    // Two supported credential modes:
+    //  1) FIREBASE_SERVICE_ACCOUNT_KEY = the service-account JSON (as a string).
+    //     Used for self-hosted/containerized deploys (Docker, Hostinger, etc.)
+    //     where mounting a key file is awkward.
+    //  2) No env var → Application Default Credentials (GCP App Hosting/Cloud Run,
+    //     or a GOOGLE_APPLICATION_CREDENTIALS file path).
+    const saKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const app = saKey
+      ? admin.initializeApp({ credential: admin.credential.cert(JSON.parse(saKey)) })
+      : admin.initializeApp();
     console.log('Firebase Admin SDK initialized successfully.');
     return app;
   } catch (error: any) {

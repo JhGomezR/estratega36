@@ -3,16 +3,15 @@
 #   app   -> la aplicación Next.js (build desde el Dockerfile, salida standalone)
 #   caddy -> reverse proxy con HTTPS automático (Let's Encrypt) delante de la app
 #
-# Backend de datos: Firebase (Firestore/Auth) es gestionado en la nube, por eso
-# NO hay contenedor de base de datos.
+# Sin bind-mounts de archivos (fallan en plataformas gestionadas como Hostinger):
+#   - El Caddyfile se hornea en la imagen de caddy (ver ./caddy/Dockerfile).
+#   - Las credenciales de Firebase se pasan por la variable FIREBASE_SERVICE_ACCOUNT_KEY.
 #
-# Uso:
-#   1) Copia .env.example a .env y rellena los valores.
-#   2) Coloca tu service-account.json (clave del Firebase Admin SDK) en la raíz.
-#   3) docker compose up -d --build
+# Backend de datos: Firebase (Firestore/Auth) es gestionado en la nube → sin
+# contenedor de base de datos.
 #
-# Local sin dominio: pon APP_DOMAIN=localhost en .env (Caddy usa TLS interno).
-# En la web: apunta el DNS de tu dominio a este servidor y pon APP_DOMAIN=tudominio.com
+# Variables requeridas (en el panel del proveedor o en un archivo .env):
+#   APP_DOMAIN, GEMINI_API_KEY, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY
 
 services:
   app:
@@ -29,12 +28,9 @@ services:
       HOSTNAME: "0.0.0.0"
       # Genkit / Google AI
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      # Firebase Admin SDK: usa el archivo de credenciales montado abajo.
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/service-account.json
+      # Firebase Admin SDK: JSON de la cuenta de servicio (en una sola línea).
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
       NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-    volumes:
-      # Monta la clave de servicio en solo-lectura (NO la metas en la imagen).
-      - ./service-account.json:/run/secrets/service-account.json:ro
     expose:
       - "3000"
     healthcheck:
@@ -47,7 +43,8 @@ services:
       - estratega
 
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: ./caddy
     restart: unless-stopped
     depends_on:
       - app
@@ -57,7 +54,7 @@ services:
     environment:
       APP_DOMAIN: ${APP_DOMAIN:-localhost}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Volúmenes con NOMBRE (no bind-mounts) → seguros en cualquier host.
       - caddy_data:/data
       - caddy_config:/config
     networks:
