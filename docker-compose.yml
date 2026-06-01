@@ -1,27 +1,27 @@
-# Despliegue de Estratega 360 en plataformas gestionadas (Hostinger, etc.)
+# Despliegue de Estratega 360 detrás de TRAEFIK (ya presente en el server,
+# contenedor root-traefik-1 escuchando 80/443).
 #
-# Estas plataformas YA exponen su propio proxy + HTTPS en los puertos 80/443 y
-# enrutan tu dominio hacia el contenedor. Por eso aquí NO levantamos un proxy
-# propio (intentar tomar el 80 da "port is already allocated"): publicamos la
-# app en un puerto y la plataforma se encarga del dominio y el TLS.
+# La app NO publica puertos: se une a la red de Traefik y se enruta por labels.
+# Traefik resuelve el dominio y el TLS (Let's Encrypt).
 #
 # Backend de datos: Firebase (Firestore/Auth) gestionado en la nube → sin
 # contenedor de base de datos.
 #
-# Variables (en el panel del proveedor o en .env):
-#   APP_PORT (opcional, def. 8080), GEMINI_API_KEY,
-#   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY
+# Variables (panel del proveedor o .env):
+#   APP_DOMAIN                -> dominio público (ej. app.midominio.com)
+#   TRAEFIK_NETWORK           -> red docker EXTERNA donde vive Traefik (¡verifícala!)
+#   TRAEFIK_ENTRYPOINT        -> entrypoint https de Traefik (suele ser "websecure")
+#   TRAEFIK_CERTRESOLVER      -> nombre del certresolver de Traefik (ej. "letsencrypt")
+#   GEMINI_API_KEY, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY
 #
-# En Hostinger: tras desplegar, en el panel asocia tu dominio al puerto APP_PORT.
-#
-# (Si en cambio usas un VPS donde TÚ controlas 80/443 y quieres HTTPS propio,
-#  hay una imagen de Caddy lista en ./caddy — añade ese servicio y publica 80/443.)
+# Cómo descubrir los valores de Traefik en tu server:
+#   docker inspect root-traefik-1 --format "{{json .NetworkSettings.Networks}}"   # red(es)
+#   docker inspect root-traefik-1 --format "{{json .Args}}"                        # entrypoints/certresolver
 
 services:
   app:
     build:
       context: .
-      # NEXT_PUBLIC_* se hornean en tiempo de BUILD (no en runtime).
       args:
         NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
     image: estratega360:latest
@@ -30,17 +30,31 @@ services:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      # Genkit / Google AI
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      # Firebase Admin SDK: JSON de la cuenta de servicio (en una sola línea).
       FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
       NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-    ports:
-      # host:contenedor — NO usamos 80/443 (los gestiona la plataforma).
-      - "${APP_PORT:-8080}:3000"
+    # Sin "ports": Traefik llega a la app por la red interna en el puerto 3000.
+    expose:
+      - "3000"
+    networks:
+      - traefik
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=${TRAEFIK_NETWORK}'
+      - 'traefik.http.routers.estratega360.rule=Host(`${APP_DOMAIN}`)'
+      - 'traefik.http.routers.estratega360.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}'
+      - 'traefik.http.routers.estratega360.tls=true'
+      - 'traefik.http.routers.estratega360.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}'
+      - 'traefik.http.services.estratega360.loadbalancer.server.port=3000'
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/login',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 40s
+
+networks:
+  # Red EXTERNA gestionada por Traefik (debe existir ya en el server).
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
