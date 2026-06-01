@@ -1,0 +1,17 @@
+# Reverse proxy con HTTPS automático.
+# - En la web: APP_DOMAIN=tudominio.com  -> Caddy obtiene certificado Let's Encrypt.
+# - Local:     APP_DOMAIN=localhost      -> Caddy usa un certificado TLS interno.
+
+{$APP_DOMAIN} {
+	encode gzip zstd
+	reverse_proxy app:3000
+
+	# Cabeceras de seguridad a nivel de proxy (refuerzan las del app).
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

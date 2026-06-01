@@ -14,6 +14,9 @@ yarn-error.log*
 *-debug.log
 .env*
 !.env.example
+docker-compose.yml
+Caddyfile
+service-account.json
 .vscode
 .idea
 coverage
