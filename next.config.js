@@ -2,11 +2,6 @@
 const nextConfig = {
   /* config options here */
 
-  // Produce a self-contained server bundle (.next/standalone) for small Docker
-  // images. Server-only externalized packages (genkit, firebase-admin, …) are
-  // traced into the standalone output automatically.
-  output: 'standalone',
-
   // Don't advertise the framework/version (fingerprinting). DAST finding.
   poweredByHeader: false,
 
