@@ -39,7 +39,7 @@ services:
       - traefik_net
     labels:
       - 'traefik.enable=true'
-      - 'traefik.docker.network=traefik_net'
+      - 'traefik.docker.network=${TRAEFIK_NETWORK:-traefik_net}'
       - 'traefik.http.routers.estratega360.rule=Host(`${APP_DOMAIN}`)'
       - 'traefik.http.routers.estratega360.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}'
       - 'traefik.http.routers.estratega360.tls=true'
@@ -54,5 +54,8 @@ services:
 
 networks:
   # Red EXTERNA gestionada por Traefik (ya existe en el server).
+  # El NOMBRE REAL puede llevar prefijo del proyecto (ej. root_traefik_net).
+  # Verifícalo con `docker network ls` y ponlo en TRAEFIK_NETWORK.
   traefik_net:
     external: true
+    name: ${TRAEFIK_NETWORK:-traefik_net}
