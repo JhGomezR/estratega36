@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input"
 import { useAuth, useDoc, useFirebase, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { Loader2, Save } from "lucide-react"
 import { doc } from "firebase/firestore"
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth"
 import type { User } from "@/lib/types"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -54,6 +55,7 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 export default function ProfilePage() {
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { toast } = useToast();
 
   const userRef = useMemoFirebase(() => {
@@ -109,15 +111,33 @@ export default function ProfilePage() {
     setIsSaving(false);
   };
   
-  const handlePasswordSubmit = (data: PasswordFormValues) => {
-      // TODO: Implement password change logic with Firebase Auth
-    console.log("Password change data:", data);
+  const handlePasswordSubmit = async (data: PasswordFormValues) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser || !currentUser.email) {
+      toast({ variant: "destructive", title: "Error", description: "No hay una sesión activa." });
+      return;
+    }
     setIsChangingPassword(true);
-    toast({ title: "Contraseña actualizada", description: "Tu contraseña ha sido cambiada exitosamente." });
-     setTimeout(() => {
-        passwordForm.reset();
-        setIsChangingPassword(false)
-     }, 2000);
+    try {
+      // Re-authenticate before changing the password (Firebase requires a recent login).
+      const credential = EmailAuthProvider.credential(currentUser.email, data.currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+      await updatePassword(currentUser, data.newPassword);
+      toast({ title: "Contraseña actualizada", description: "Tu contraseña ha sido cambiada exitosamente." });
+      passwordForm.reset();
+    } catch (error: any) {
+      let description = "No se pudo cambiar la contraseña. Inténtalo de nuevo.";
+      if (error?.code === 'auth/wrong-password' || error?.code === 'auth/invalid-credential') {
+        description = "La contraseña actual es incorrecta.";
+      } else if (error?.code === 'auth/weak-password') {
+        description = "La nueva contraseña es demasiado débil (mínimo 6 caracteres).";
+      } else if (error?.code === 'auth/requires-recent-login') {
+        description = "Por seguridad, vuelve a iniciar sesión antes de cambiar tu contraseña.";
+      }
+      toast({ variant: "destructive", title: "Error", description });
+    } finally {
+      setIsChangingPassword(false);
+    }
   }
 
   const isLoading = isUserLoading || userLoading || roleLoading;
@@ -127,7 +147,7 @@ export default function ProfilePage() {
       <div className="flex items-center gap-6">
          <Avatar className="h-24 w-24 border-4 border-primary/20">
             <AvatarImage src={user?.avatar} alt={user?.firstName} data-ai-hint="person portrait"/>
-            <AvatarFallback className="text-3xl">{user?.firstName.charAt(0)}{user?.lastName.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="text-3xl">{user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Mi Perfil</h1>

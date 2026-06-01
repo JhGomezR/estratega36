@@ -174,9 +174,9 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (brandingSettings) {
       setColors({
-        primaryColor: hslStringToHex(brandingSettings.primaryColor) || '#1A237E',
-        accentColor: hslStringToHex(brandingSettings.accentColor) || '#FFC107',
-        sidebarColor: hslStringToHex(brandingSettings.sidebarColor) || '#141E46',
+        primaryColor: hslStringToHex(brandingSettings.primaryColor ?? '') || '#1A237E',
+        accentColor: hslStringToHex(brandingSettings.accentColor ?? '') || '#FFC107',
+        sidebarColor: hslStringToHex(brandingSettings.sidebarColor ?? '') || '#141E46',
       });
       if (brandingSettings.logoUrl) {
           setLogoPreview(brandingSettings.logoUrl);

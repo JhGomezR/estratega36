@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// =====================================================================
+// CONTROL PLANE ruleset — se despliega a la base `(default)`.
+//
+// Contiene SOLO datos de plataforma: registro de tenants, usuarios y roles
+// de plataforma, estadísticas y auditoría. Los datos de negocio de cada
+// tenant viven en su propia base nombrada (ver firestore.tenant.rules).
+//
+// Autorización por custom claim `platformAdmin`.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isPlatformAdmin() {
+      return request.auth != null && request.auth.token.platformAdmin == true;
+    }
+
+    // Registro de tenants. Un usuario puede LEER el documento de su propio
+    // tenant (para resolver databaseId / status / branding tras el login).
+    match /tenants/{tenantId} {
+      allow get:    if isPlatformAdmin() || (request.auth != null && request.auth.token.tenantId == tenantId);
+      allow list:   if isPlatformAdmin();
+      allow create, update, delete: if isPlatformAdmin();
+    }
+
+    match /platformUsers/{uid} {
+      allow read:   if isPlatformAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow write:  if isPlatformAdmin();
+    }
+
+    match /platformRoles/{roleId} {
+      allow read, write: if isPlatformAdmin();
+    }
+
+    match /platformStats/{document=**} {
+      allow read:  if isPlatformAdmin();
+      allow write: if false; // sólo escrito por backend/jobs vía Admin SDK
+    }
+
+    match /auditLogs/{logId} {
+      allow read:           if isPlatformAdmin();
+      allow create:         if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false;
+    }
+  }
+}

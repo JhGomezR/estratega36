@@ -97,6 +97,9 @@ export const analyzeCampaignData = ai.defineFlow(
             votersByCityJSON: JSON.stringify(input.votersByCity),
             votersBySectorJSON: JSON.stringify(input.votersBySector),
         });
-        return output!;
+        if (!output) {
+            throw new Error('El modelo no devolvió un análisis válido. Inténtalo de nuevo.');
+        }
+        return output;
     }
 );

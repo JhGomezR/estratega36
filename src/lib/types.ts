@@ -194,14 +194,71 @@ export type SocialApiSettings = {
   facebookAppId?: string;
 };
 
+/**
+ * Branding for a tenant. Managed exclusively from the Control Plane
+ * (no longer editable from inside the tenant app).
+ */
+export type TenantBranding = {
+    primaryColor?: string;
+    accentColor?: string;
+    sidebarColor?: string;
+    logoUrl?: string;
+    loginImageUrl?: string;
+};
+
+export type TenantStatus = 'provisioning' | 'active' | 'inactive' | 'failed';
+
+/**
+ * A tenant lives in the Control Plane (the `(default)` database).
+ * Its business data lives in its OWN named Firestore database (`databaseId`).
+ */
 export type Tenant = WithId<{
+    displayName: string;
     companyName: string;
-    subdomain: string;
     plan: 'basico' | 'estratega' | '360';
+    /** Named Firestore database that holds this tenant's data, e.g. "tenant-acme". */
     databaseId: string;
     ownerUid: string;
     createdAt: string;
-    status: 'active' | 'inactive';
+    status: TenantStatus;
+    branding?: TenantBranding;
+    /** @deprecated Tenancy no longer uses subdomains. Kept optional for backward compat during migration. */
+    subdomain?: string;
+}>;
+
+/**
+ * Permissions for the Control Plane (platform operators), independent from tenant permissions.
+ */
+export const platformPermissionGroups: Record<string, readonly string[]> = {
+    tenant: ["read", "create", "update", "delete"],
+    platformUser: ["read", "create", "update", "delete"],
+    platformRole: ["read", "create", "update", "delete"],
+    stats: ["read"],
+};
+
+const generatePlatformPermissions = (): readonly string[] => {
+    const all: string[] = [];
+    for (const module in platformPermissionGroups) {
+        platformPermissionGroups[module].forEach(action => all.push(`${module}:${action}`));
+    }
+    return all as readonly string[];
+};
+
+export const availablePlatformPermissions = generatePlatformPermissions();
+
+export type PlatformRole = WithId<{
+    name: string;
+    permissions: string[];
+    status: 'activo' | 'inactivo';
+}>;
+
+export type PlatformUser = WithId<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    roleId: string;
+    avatar?: string;
+    status: 'activo' | 'inactivo';
 }>;
 
 export type AuditLog = {

@@ -39,7 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { format, parseISO } from "date-fns"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser, usePlatformClaims } from "@/firebase"
 import { collection, doc, collectionGroup, addDoc } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -53,6 +53,7 @@ export default function VotersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const auth = useAuth();
+  const platformClaims = usePlatformClaims();
   const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
   const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
@@ -84,7 +85,7 @@ export default function VotersPage() {
 
     const activeVoters = votersData.filter(v => v.status !== 'inactivo');
     
-    if (auth.currentUser?.email === 'axdrcys@gmail.com') {
+    if (platformClaims?.platformAdmin) {
       return activeVoters;
     }
 
@@ -111,7 +112,7 @@ export default function VotersPage() {
 
     return [];
 
-  }, [votersData, currentUser, users, roles, auth.currentUser]);
+  }, [votersData, currentUser, users, roles, platformClaims]);
   
 
   const lists = React.useMemo(() => {

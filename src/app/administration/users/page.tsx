@@ -42,7 +42,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser, usePlatformClaims } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
@@ -53,6 +53,7 @@ import { usePermissions } from "@/hooks/usePermissions"
 export default function UsersPage() {
   const firestore = useFirestore();
   const auth = useAuth();
+  const platformClaims = usePlatformClaims();
   const { toast } = useToast();
   const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
@@ -77,8 +78,8 @@ export default function UsersPage() {
 
     const activeUsers = usersData.filter(u => u.status !== 'inactivo');
 
-    // Super admin can see everyone
-    if (auth.currentUser?.email === 'axdrcys@gmail.com') {
+    // Platform operators (impersonating a tenant) can see everyone.
+    if (platformClaims?.platformAdmin) {
       return activeUsers;
     }
     
@@ -103,7 +104,7 @@ export default function UsersPage() {
     // Other roles can only see themselves
     return activeUsers.filter(u => u.id === currentUser.uid);
 
-  }, [usersData, currentUser, roles, auth.currentUser]);
+  }, [usersData, currentUser, roles, platformClaims]);
 
 
   const lists = React.useMemo(() => {
@@ -166,7 +167,9 @@ export default function UsersPage() {
           toast({ variant: "destructive", title: "Error al crear usuario", description: "La contraseña es obligatoria para nuevos usuarios." });
           return;
         }
-        const result = await createUser(data);
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error('Sesión no disponible. Vuelve a iniciar sesión.');
+        const result = await createUser(data, idToken);
         if (result.error) {
           throw new Error(result.error);
         }
@@ -297,7 +300,7 @@ export default function UsersPage() {
                     </Button>
                     <AlertDialog open={!!userToDelete && userToDelete.id === user.id} onOpenChange={(open) => !open && setUserToDelete(null)}>
                       <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={() => confirmDelete(user)} disabled={user.email === 'axdrcys@gmail.com'}>
+                         <Button variant="ghost" size="icon" onClick={() => confirmDelete(user)} disabled={user.id === currentUser?.uid}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>

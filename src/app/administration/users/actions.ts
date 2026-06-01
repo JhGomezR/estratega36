@@ -1,19 +1,33 @@
 
 'use server'
 
-import { adminAuth, adminDb } from '@/firebase/admin'
+import { adminAuth } from '@/firebase/admin'
+import { getCallerContext, assertCan } from '@/firebase/authz'
 import type { UserFormValues } from '@/components/user-form'
 import type { User } from '@/lib/types'
 
 /**
- * Creates a new user in Firebase Authentication and a corresponding user profile in Firestore.
- * This is a server action and should only be called from a server environment.
+ * Creates a new user in Firebase Authentication and a corresponding profile in
+ * the CALLER'S database scope (tenant DB for tenant members, `(default)` for
+ * legacy users). Authorization is verified server-side via the caller's ID
+ * token + `user:create` permission — the Admin SDK bypasses Firestore rules,
+ * so this check is the real access control.
+ *
  * @param data - The user data from the form.
- * @returns An object with the new user's UID or an error message.
+ * @param idToken - The caller's Firebase ID token (from `auth.currentUser.getIdToken()`).
  */
 export async function createUser(
-  data: UserFormValues
+  data: UserFormValues,
+  idToken: string
 ): Promise<{ uid?: string; error?: string }> {
+  let ctx;
+  try {
+    ctx = await getCallerContext(idToken)
+    assertCan(ctx, 'user:create')
+  } catch (e: any) {
+    return { error: e?.message || 'No autorizado.' }
+  }
+
   try {
     const { password, ...profileData } = data
 
@@ -25,23 +39,23 @@ export async function createUser(
     const userRecord = await adminAuth.createUser({
       email: profileData.email,
       password: password,
-      emailVerified: false, 
+      emailVerified: false,
       disabled: false,
     })
 
-    // 2. Create the user profile in Firestore
+    // 2. Create the user profile in the caller's database scope
     const newUserProfile: Partial<User> = {
       ...profileData,
       email: profileData.email,
       avatar: `https://picsum.photos/seed/user${Date.now()}/100/100`,
       status: 'activo' as const,
     }
-    
+
     if ('parentId' in newUserProfile && (newUserProfile.parentId === 'none' || !newUserProfile.parentId)) {
         delete newUserProfile.parentId;
     }
 
-    await adminDb.collection('users').doc(userRecord.uid).set(newUserProfile)
+    await ctx.db.collection('users').doc(userRecord.uid).set(newUserProfile)
 
     return { uid: userRecord.uid }
 

@@ -171,7 +171,10 @@ service cloud.firestore {
      * Allows public read for branding, but write is restricted.
      */
     match /settings/{document=**} {
-      allow get: if true;
+      // Only the public 'branding' document is world-readable (needed by the
+      // unauthenticated login screen). Any other settings doc (e.g. API tokens)
+      // requires authentication.
+      allow get: if document == 'branding' || isAuthenticated();
       allow list, write: if hasPermission('setting:update');
     }
     

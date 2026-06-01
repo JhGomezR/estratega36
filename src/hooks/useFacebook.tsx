@@ -30,7 +30,7 @@ export const FacebookProvider: React.FC<FacebookProviderProps> = ({ children }) 
         return;
     }
 
-    window.fbAsyncInit = function() {
+    (window as any).fbAsyncInit = function() {
         (window as any).FB.init({
             appId: 'YOUR_APP_ID', // Placeholder, will be re-init with real id
             cookie: true,

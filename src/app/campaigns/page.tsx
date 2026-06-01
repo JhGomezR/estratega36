@@ -265,7 +265,7 @@ export default function CampaignsPage() {
                 <CampaignForm
                 campaign={selectedCampaign}
                 lists={lists}
-                onSubmit={handleFormSubmit}
+                onSubmit={handleFormSubmit as any}
                 onCancel={() => setIsFormOpen(false)}
                 />
             </DialogContent>

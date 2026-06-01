@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useAuth } from "@/firebase"
+import { useUser } from "@/firebase"
 
 const callFormSchema = z.object({
   status: z.enum(CallStatus),
@@ -48,7 +48,7 @@ const statusLabels: Record<(typeof CallStatus)[number], string> = {
 };
 
 export function CallForm({ call, users, onSubmit, onCancel }: CallFormProps) {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser } = useUser();
   
   const form = useForm<CallFormValues>({
     resolver: zodResolver(callFormSchema),

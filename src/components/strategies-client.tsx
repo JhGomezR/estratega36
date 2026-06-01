@@ -192,11 +192,12 @@ export function StrategiesClient({ campaigns, isLoading }: StrategiesClientProps
     setIsSaving(true);
     try {
       const { campaignId, ...inputs } = formValues;
+      const idToken = await currentUser.getIdToken();
       const result = await saveGeneratedStrategy({
         campaignId,
         inputs,
         outputs: strategy as Record<SectionKey, string>,
-      });
+      }, idToken);
 
       if (result.success && result.id) {
         logAudit(currentUser.uid, 'strategy:save', { strategyId: result.id, campaignId: campaignId });

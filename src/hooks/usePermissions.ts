@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { useDoc, useFirestore, useMemoFirebase, useUser, usePlatformClaims } from "@/firebase"
 import type { Role, User } from "@/lib/types"
 import { permissionGroups } from "@/lib/types"
 import { doc } from "firebase/firestore"
@@ -10,6 +10,7 @@ import { useMemo } from "react"
 export function usePermissions() {
   const { user: authUser, isUserLoading: isAuthLoading } = useUser()
   const firestore = useFirestore()
+  const claims = usePlatformClaims()
 
   const userRef = useMemoFirebase(
     () => (firestore && authUser ? doc(firestore, `users/${authUser.uid}`) : null),
@@ -24,9 +25,12 @@ export function usePermissions() {
   const { data: role, isLoading: isRoleLoading } = useDoc<Role>(roleRef)
 
   const permissions = useMemo(() => {
-    if (user?.email === 'axdrcys@gmail.com') {
+    // Platform operators (claim `platformAdmin`) get full access — this is what
+    // grants total control when they enter a tenant ("impersonation"). Replaces
+    // the previous hardcoded super-admin email.
+    if (claims?.platformAdmin) {
         const allPermissions = new Set<string>();
-         Object.keys(permissionGroups).forEach(module => {
+        Object.keys(permissionGroups).forEach(module => {
             permissionGroups[module].forEach(action => {
                 allPermissions.add(`${module}:${action}`);
             });
@@ -35,7 +39,7 @@ export function usePermissions() {
     }
     if (!role) return new Set<string>()
     return new Set(role.permissions)
-  }, [role, user])
+  }, [role, claims])
   
   const hasPermission = (permission: string) => {
     return permissions.has(permission)

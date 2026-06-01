@@ -2,10 +2,12 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
+import { Firestore, doc, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { Analytics, getAnalytics } from 'firebase/analytics';
+import { Analytics } from 'firebase/analytics';
+import type { Tenant } from '@/lib/types';
+import { getTenantFirestore, getImpersonatedDatabaseId } from '@/firebase/tenant-db';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -22,92 +24,206 @@ interface UserAuthState {
   userError: Error | null;
 }
 
+/** Resolved custom claims for the signed-in user. */
+export interface PlatformClaims {
+  platformAdmin: boolean;
+  tenantId?: string;
+  roleId?: string;
+}
+
+/** How the active Firestore connection was resolved for this session. */
+export type ConnectionScope = 'default' | 'tenant' | 'impersonation';
+
+/** Outcome of resolving the tenant for the signed-in user. */
+export type TenantResolution =
+  | { state: 'idle' }
+  | { state: 'resolving' }
+  | { state: 'default' } // legacy user or platform admin on control plane
+  | { state: 'active'; tenant: Tenant }
+  | { state: 'blocked'; reason: 'inactive' | 'provisioning' | 'missing' | 'error' };
+
 // Combined state for the Firebase context
 export interface FirebaseContextState {
-  areServicesAvailable: boolean; // True if core services (app, firestore, auth instance) are provided
+  areServicesAvailable: boolean;
   firebaseApp: FirebaseApp | null;
+  /** The ACTIVE Firestore connection (tenant DB when applicable, else `(default)`). */
   firestore: Firestore | null;
-  auth: Auth | null; // The Auth service instance
+  /** Always the `(default)` database (Control Plane). */
+  defaultDb: Firestore | null;
+  auth: Auth | null;
   analytics: Analytics | null;
   // User authentication state
   user: User | null;
-  isUserLoading: boolean; // True during initial auth check
-  userError: Error | null; // Error from auth listener
+  isUserLoading: boolean;
+  userError: Error | null;
+  // Multi-tenant resolution
+  claims: PlatformClaims | null;
+  tenantResolution: TenantResolution;
+  connectionScope: ConnectionScope;
 }
 
-// Return type for useFirebase()
 export interface FirebaseServicesAndUser {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
+  defaultDb: Firestore;
   auth: Auth;
   analytics: Analytics | null;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
+  claims: PlatformClaims | null;
+  tenantResolution: TenantResolution;
+  connectionScope: ConnectionScope;
 }
 
-// Return type for useUser() - specific to user auth state
-export interface UserHookResult { // Renamed from UserAuthHookResult for consistency if desired, or keep as UserAuthHookResult
+export interface UserHookResult {
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
 }
 
-// React Context
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 /**
- * FirebaseProvider manages and provides Firebase services and user authentication state.
+ * FirebaseProvider manages Firebase services, auth state, and — new for
+ * multi-tenancy — resolves the ACTIVE Firestore connection from the user's
+ * custom claims:
+ *   - platformAdmin (no impersonation) → `(default)` (Control Plane)
+ *   - platformAdmin + impersonation    → the impersonated tenant DB
+ *   - tenantId (active tenant)         → that tenant's named DB
+ *   - no claims (legacy)               → `(default)`  [backward compatible]
  */
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
   firebaseApp,
   firestore,
   auth,
-  analytics
+  analytics,
 }) => {
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
     user: null,
-    isUserLoading: true, // Start loading until first auth event
+    isUserLoading: true,
     userError: null,
   });
 
-  // Effect to subscribe to Firebase auth state changes
+  const [claims, setClaims] = useState<PlatformClaims | null>(null);
+  const [activeFirestore, setActiveFirestore] = useState<Firestore>(firestore);
+  const [connectionScope, setConnectionScope] = useState<ConnectionScope>('default');
+  const [tenantResolution, setTenantResolution] = useState<TenantResolution>({ state: 'idle' });
+
+  // Subscribe to auth state.
   useEffect(() => {
-    if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+    if (!auth) {
+      setUserAuthState({ user: null, isUserLoading: false, userError: new Error('Auth service not provided.') });
       return;
     }
-
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
-
+    setUserAuthState({ user: null, isUserLoading: true, userError: null });
     const unsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser) => { // Auth state determined
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
-      },
-      (error) => { // Auth listener error
-        console.error("FirebaseProvider: onAuthStateChanged error:", error);
+      (firebaseUser) => setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null }),
+      (error) => {
+        console.error('FirebaseProvider: onAuthStateChanged error:', error);
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
       }
     );
-    return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+    return () => unsubscribe();
+  }, [auth]);
 
-  // Memoize the context value
+  // Resolve claims + tenant connection whenever the user changes.
+  useEffect(() => {
+    let cancelled = false;
+    const user = userAuthState.user;
+
+    if (!user) {
+      setClaims(null);
+      setActiveFirestore(firestore);
+      setConnectionScope('default');
+      setTenantResolution({ state: 'idle' });
+      return;
+    }
+
+    setTenantResolution({ state: 'resolving' });
+
+    (async () => {
+      try {
+        const tokenResult = await user.getIdTokenResult();
+        if (cancelled) return;
+        const resolvedClaims: PlatformClaims = {
+          platformAdmin: tokenResult.claims.platformAdmin === true,
+          tenantId: tokenResult.claims.tenantId as string | undefined,
+          roleId: tokenResult.claims.roleId as string | undefined,
+        };
+        setClaims(resolvedClaims);
+
+        const impersonated = resolvedClaims.platformAdmin ? getImpersonatedDatabaseId() : null;
+
+        if (impersonated) {
+          setActiveFirestore(getTenantFirestore(impersonated));
+          setConnectionScope('impersonation');
+          setTenantResolution({ state: 'default' });
+          return;
+        }
+
+        if (resolvedClaims.tenantId) {
+          const tenantSnap = await getDoc(doc(firestore, 'tenants', resolvedClaims.tenantId));
+          if (cancelled) return;
+          if (!tenantSnap.exists()) {
+            setActiveFirestore(firestore);
+            setConnectionScope('default');
+            setTenantResolution({ state: 'blocked', reason: 'missing' });
+            return;
+          }
+          const tenant = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
+          if (tenant.status === 'active' && tenant.databaseId) {
+            setActiveFirestore(getTenantFirestore(tenant.databaseId));
+            setConnectionScope('tenant');
+            setTenantResolution({ state: 'active', tenant });
+          } else {
+            setActiveFirestore(firestore);
+            setConnectionScope('default');
+            setTenantResolution({
+              state: 'blocked',
+              reason: tenant.status === 'provisioning' ? 'provisioning' : 'inactive',
+            });
+          }
+          return;
+        }
+
+        // Legacy user (no claims) or platform admin without impersonation → default.
+        setActiveFirestore(firestore);
+        setConnectionScope('default');
+        setTenantResolution({ state: 'default' });
+      } catch (error) {
+        if (cancelled) return;
+        console.error('FirebaseProvider: tenant resolution failed:', error);
+        setActiveFirestore(firestore);
+        setConnectionScope('default');
+        setTenantResolution({ state: 'blocked', reason: 'error' });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userAuthState.user, firestore]);
+
   const contextValue = useMemo((): FirebaseContextState => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);
     return {
       areServicesAvailable: servicesAvailable,
       firebaseApp: servicesAvailable ? firebaseApp : null,
-      firestore: servicesAvailable ? firestore : null,
+      firestore: servicesAvailable ? activeFirestore : null,
+      defaultDb: servicesAvailable ? firestore : null,
       auth: servicesAvailable ? auth : null,
       analytics: servicesAvailable ? analytics : null,
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
+      claims,
+      tenantResolution,
+      connectionScope,
     };
-  }, [firebaseApp, firestore, auth, analytics, userAuthState]);
+  }, [firebaseApp, firestore, activeFirestore, auth, analytics, userAuthState, claims, tenantResolution, connectionScope]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -117,67 +233,57 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   );
 };
 
-/**
- * Hook to access core Firebase services and user authentication state.
- * Throws error if core services are not available or used outside provider.
- */
 export const useFirebase = (): FirebaseServicesAndUser => {
   const context = useContext(FirebaseContext);
-
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
-
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
+  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth || !context.defaultDb) {
     throw new Error('Firebase core services not available. Check FirebaseProvider props.');
   }
-
   return {
     firebaseApp: context.firebaseApp,
     firestore: context.firestore,
+    defaultDb: context.defaultDb,
     auth: context.auth,
     analytics: context.analytics,
     user: context.user,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
+    claims: context.claims,
+    tenantResolution: context.tenantResolution,
+    connectionScope: context.connectionScope,
   };
 };
 
-/** Hook to access Firebase Auth instance. */
-export const useAuth = (): Auth => {
-  const { auth } = useFirebase();
-  return auth;
-};
+/** Firebase Auth instance. */
+export const useAuth = (): Auth => useFirebase().auth;
 
-/** Hook to access Firestore instance. */
-export const useFirestore = (): Firestore => {
-  const { firestore } = useFirebase();
-  return firestore;
-};
+/** ACTIVE Firestore connection (tenant DB when applicable, else `(default)`). */
+export const useFirestore = (): Firestore => useFirebase().firestore;
 
-/** Hook to access Firebase App instance. */
-export const useFirebaseApp = (): FirebaseApp => {
-  const { firebaseApp } = useFirebase();
-  return firebaseApp;
-};
+/** Always the `(default)` database — use in Control Plane code. */
+export const useDefaultDb = (): Firestore => useFirebase().defaultDb;
 
-type MemoFirebase <T> = T & {__memo?: boolean};
+/** Firebase App instance. */
+export const useFirebaseApp = (): FirebaseApp => useFirebase().firebaseApp;
 
-export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
+/** Resolved custom claims (platformAdmin / tenantId / roleId), or null if unknown. */
+export const usePlatformClaims = (): PlatformClaims | null => useFirebase().claims;
+
+/** Tenant resolution state for the signed-in user. */
+export const useTenantResolution = (): TenantResolution => useFirebase().tenantResolution;
+
+type MemoFirebase<T> = T & { __memo?: boolean };
+
+export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | MemoFirebase<T> {
   const memoized = useMemo(factory, deps);
-  
-  if(typeof memoized !== 'object' || memoized === null) return memoized;
+  if (typeof memoized !== 'object' || memoized === null) return memoized;
   (memoized as MemoFirebase<T>).__memo = true;
-  
   return memoized;
 }
 
-/**
- * Hook specifically for accessing the authenticated user's state.
- * This provides the User object, loading status, and any auth errors.
- * @returns {UserHookResult} Object with user, isUserLoading, userError.
- */
-export const useUser = (): UserHookResult => { // Renamed from useAuthUser
-  const { user, isUserLoading, userError } = useFirebase(); // Leverages the main hook
+export const useUser = (): UserHookResult => {
+  const { user, isUserLoading, userError } = useFirebase();
   return { user, isUserLoading, userError };
 };

@@ -69,7 +69,22 @@ const geocodeAddressFlow = ai.defineFlow(
       
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
 
-      const response = await fetch(url);
+      // Guard the external call with a timeout so a hanging Google Maps response
+      // can never block the server connection indefinitely.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      let response: Response;
+      try {
+        response = await fetch(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!response.ok) {
+        console.error(`Geocoding HTTP error for address "${address}": ${response.status}`);
+        return { latitude: undefined, longitude: undefined };
+      }
+
       const data = await response.json();
 
       if (data.status === 'OK' && data.results.length > 0) {

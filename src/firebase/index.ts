@@ -2,9 +2,14 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, Firestore, enableIndexedDbPersistence, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAnalytics, Analytics } from 'firebase/analytics';
+
+// Dev/testing only: when NEXT_PUBLIC_USE_EMULATOR=true the client talks to the
+// local Firebase Emulator Suite instead of the real project. NEVER set this in
+// production builds.
+const USE_EMULATOR = process.env.NEXT_PUBLIC_USE_EMULATOR === 'true';
 
 export function initializeFirebase() {
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -13,11 +18,22 @@ export function initializeFirebase() {
 
 export function getSdks(firebaseApp: FirebaseApp) {
   const firestore = getFirestore(firebaseApp);
+  const auth = getAuth(firebaseApp);
+
+  if (USE_EMULATOR && typeof window !== 'undefined') {
+    try {
+      connectFirestoreEmulator(firestore, 'localhost', 8080);
+      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+    } catch {
+      // Already connected (e.g. fast refresh) — safe to ignore.
+    }
+  }
+
   let analytics: Analytics | null = null;
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !USE_EMULATOR) {
     analytics = getAnalytics(firebaseApp);
   }
-  
+
   // Enable offline persistence
   try {
     enableIndexedDbPersistence(firestore)
@@ -40,7 +56,7 @@ export function getSdks(firebaseApp: FirebaseApp) {
 
   return {
     firebaseApp,
-    auth: getAuth(firebaseApp),
+    auth,
     firestore: firestore,
     analytics
   };

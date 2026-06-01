@@ -143,7 +143,7 @@ export default function NetworkHierarchyChart({ campaign, users, voters, roles }
             toggleKey: "active",
             tooltipText: "{name}\\nRol: {roleName}\\nVotantes: {value}",
             cursor: "pointer",
-        });
+        } as any);
 
         series.circles.template.adapters.add("fill", (fill, target) => {
             const dataContext = target.dataItem?.dataContext as ChartData | undefined;

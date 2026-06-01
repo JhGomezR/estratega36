@@ -2,12 +2,19 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
-  maxInstances: 1
+  # A productive multi-tenant SaaS should be able to scale out. Was 1 (a single
+  # instance = no autoscaling, any traffic spike takes the app down). Tune to
+  # the expected concurrency.
+  maxInstances: 5
 # Defines environment variables that will be available to your application.
 # Learn more at https://firebase.google.com/docs/app-hosting/configure-backend#set-environment-variables
 env:
+  # SECURITY: the service-account key is injected as a plain env var read from
+  # .env. Prefer storing it in Secret Manager and referencing it as a secret
+  # (like NEXT_PUBLIC_GOOGLE_MAPS_API_KEY below), so the credential is never a
+  # plaintext value in config or the build environment:
+  #   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
+  #     secret: FIREBASE_SERVICE_ACCOUNT_KEY
   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
     value: ${file('.env:FIREBASE_SERVICE_ACCOUNT_KEY')}
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY

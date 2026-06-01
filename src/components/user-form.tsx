@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, collectionGroup } from "firebase/firestore"
 import { ScrollArea } from "./ui/scroll-area"
 import { usePermissions } from "@/hooks/usePermissions"
@@ -57,7 +57,7 @@ interface UserFormProps {
 }
 
 export function UserForm({ user, roles, campaigns, lists, allUsers, onSubmit, onCancel }: UserFormProps) {
-  const { user: authUser } = useAuth();
+  const { user: authUser } = useUser();
   const { role: currentUserRole } = usePermissions();
   const isAdmin = currentUserRole?.name.toLowerCase().includes('admin');
   const firestore = useFirestore();

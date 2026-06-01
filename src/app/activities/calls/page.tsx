@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, doc, writeBatch } from "firebase/firestore"
 import type { Call, Voter, User } from "@/lib/types"
 import { CallForm } from "@/components/call-form"
@@ -70,7 +70,7 @@ const CALLS_PER_PAGE = 15;
 export default function CallsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser } = useUser();
 
   const callsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `calls`) : null, [firestore]);
   const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);

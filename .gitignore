@@ -39,3 +39,13 @@ next-env.d.ts
 
 # firebase
 src/firebase/service-account.json
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# testing
+/coverage
+
+# local tooling
+.claude/

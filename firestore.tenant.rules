@@ -1,0 +1,133 @@
+rules_version = '2';
+
+// =====================================================================
+// TENANT ruleset — PLANTILLA desplegada a CADA base de datos de tenant.
+//
+// Durante el aprovisionamiento se sustituye el placeholder __TENANT_ID__
+// por el id real del tenant, de modo que un usuario con claims de otro
+// tenant NO pueda operar sobre esta base aunque obtenga un handle a ella.
+//
+// Diferencias vs. el modelo anterior:
+//  - Autorización basada en CUSTOM CLAIMS (tenantId, roleId), no en un
+//    documento /users + un email hardcodeado.
+//  - Una sola lectura get() del rol por evaluación (antes: dos).
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isTenantMember() {
+      return request.auth != null && request.auth.token.tenantId == '__TENANT_ID__';
+    }
+
+    function getRole() {
+      return get(/databases/$(database)/documents/roles/$(request.auth.token.roleId)).data;
+    }
+
+    function hasPermission(permission) {
+      return isTenantMember() && (
+        getRole().name.lower() == 'admin' ||
+        getRole().name.lower() == 'super' ||
+        permission in getRole().permissions
+      );
+    }
+
+    match /users/{userId} {
+      allow read:   if hasPermission('user:read') || (isTenantMember() && request.auth.uid == userId);
+      allow create: if hasPermission('user:create');
+      allow update: if hasPermission('user:update') || (isTenantMember() && request.auth.uid == userId);
+      allow delete: if hasPermission('user:delete');
+    }
+
+    match /roles/{roleId} {
+      allow read:   if hasPermission('role:read');
+      allow create: if hasPermission('role:create');
+      allow update: if hasPermission('role:update');
+      allow delete: if hasPermission('role:delete');
+    }
+
+    match /campaigns/{campaignId} {
+      allow read:   if hasPermission('campaign:read');
+      allow create: if hasPermission('campaign:create');
+      allow update: if hasPermission('campaign:update');
+      allow delete: if hasPermission('campaign:delete');
+    }
+
+    match /strategies/{strategyId} {
+      allow read, create, update, delete: if hasPermission('campaign:read');
+    }
+
+    match /voters/{voterId} {
+      allow read:   if hasPermission('voter:read');
+      allow create: if hasPermission('voter:create');
+      allow update: if hasPermission('voter:update');
+      allow delete: if hasPermission('voter:delete');
+    }
+
+    match /countries/{countryId} {
+      allow read:  if hasPermission('city:read');
+      allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
+      match /departments/{departmentId} {
+        allow read:  if hasPermission('city:read');
+        allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
+        match /cities/{cityId} {
+          allow read:  if hasPermission('city:read');
+          allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
+        }
+      }
+    }
+
+    match /{path=**}/departments/{departmentId} {
+      allow get, list: if hasPermission('city:read');
+    }
+    match /{path=**}/cities/{cityId} {
+      allow get, list: if hasPermission('city:read');
+    }
+
+    match /tasks/{taskId} {
+      allow read:   if hasPermission('task:read');
+      allow create: if hasPermission('task:create');
+      allow update: if hasPermission('task:update');
+      allow delete: if hasPermission('task:delete');
+    }
+
+    match /calls/{callId} {
+      allow read:   if hasPermission('call:read');
+      allow create: if hasPermission('call:create');
+      allow update: if hasPermission('call:update');
+      allow delete: if hasPermission('call:delete');
+    }
+
+    match /forms/{formId} {
+      allow read:   if hasPermission('form:read');
+      allow create: if hasPermission('form:create');
+      allow update: if hasPermission('form:update');
+      allow delete: if hasPermission('form:delete');
+    }
+
+    // Branding ahora se gestiona desde el Control Plane; aquí settings solo es
+    // configuración interna del tenant, legible por sus miembros.
+    match /settings/{document=**} {
+      allow get:         if isTenantMember();
+      allow list, write: if hasPermission('setting:update');
+    }
+
+    match /lists/{listId} {
+      allow read:  if isTenantMember();
+      allow write: if hasPermission('setting:update');
+    }
+
+    match /keywords/{keywordId} {
+      allow read, write: if hasPermission('report:read');
+    }
+    match /socialMentions/{mentionId} {
+      allow read, write: if hasPermission('report:read');
+    }
+
+    match /auditLogs/{logId} {
+      allow read:          if hasPermission('log:read');
+      allow create:        if isTenantMember() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false;
+    }
+  }
+}

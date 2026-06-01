@@ -12,13 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
 import type { User } from "@/lib/types"
 import { LogOut, User as UserIcon } from "lucide-react"
 
 export function UserNav({ onLogout }: { onLogout: () => void }) {
-  const { user: authUser } = useAuth();
+  const { user: authUser } = useUser();
   const firestore = useFirestore();
   
   const userRef = useMemoFirebase(() => {

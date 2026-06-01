@@ -1,7 +1,7 @@
 "use client"
 import { AnalysisClient } from "@/components/analysis-client";
 import { useUser, useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import type { Campaign, Role, User, Voter } from "@/lib/types";
+import type { Campaign, City, Role, User, Voter } from "@/lib/types";
 import { collection, collectionGroup, doc } from "firebase/firestore";
 import React from "react";
 

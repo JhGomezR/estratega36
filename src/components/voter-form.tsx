@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { useDebounce } from 'use-debounce';
 import { Loader2 } from "lucide-react"
@@ -97,7 +97,7 @@ interface VoterFormProps {
 
 export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCancel }: VoterFormProps) {
   const firestore = useFirestore();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser } = useUser();
   const [isSaving, setIsSaving] = React.useState(false);
 
   const voterFormSchema = getVoterFormSchema(allVoters, voter?.id);

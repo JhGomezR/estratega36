@@ -4,6 +4,7 @@
 import { ai } from '@/ai/genkit'
 import { z } from 'zod'
 import { adminDb } from '@/firebase/admin'
+import { getCallerContext, assertCan } from '@/firebase/authz'
 import { collection, addDoc } from 'firebase/firestore'
 
 const GenerateCampaignStrategyInputSchema = z.object({
@@ -224,7 +225,19 @@ const SaveStrategyInputSchema = z.object({
   })
 });
 
-export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInputSchema>): Promise<{ success: boolean, id?: string }> {
+export async function saveGeneratedStrategy(
+  data: z.infer<typeof SaveStrategyInputSchema>,
+  idToken: string
+): Promise<{ success: boolean, id?: string, error?: string }> {
+  let ctx;
+  try {
+    ctx = await getCallerContext(idToken);
+    // Strategies are gated behind campaign access (mirrors the Firestore rules).
+    assertCan(ctx, 'campaign:read');
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'No autorizado.' };
+  }
+
   try {
     const strategyData = {
       campaignId: data.campaignId,
@@ -233,13 +246,12 @@ export async function saveGeneratedStrategy(data: z.infer<typeof SaveStrategyInp
       inputs: data.inputs,
       outputs: data.outputs
     };
-    
-    const docRef = await adminDb.collection('strategies').add(strategyData);
 
-    console.log("Strategy saved with ID: ", docRef.id);
+    // Write to the caller's database scope (tenant DB / legacy default).
+    const docRef = await ctx.db.collection('strategies').add(strategyData);
     return { success: true, id: docRef.id };
   } catch (error) {
     console.error("Error saving strategy:", error);
-    return { success: false };
+    return { success: false, error: 'No se pudo guardar la estrategia.' };
   }
 }

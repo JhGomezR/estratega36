@@ -359,7 +359,7 @@ export default function TasksPage() {
             task={selectedTask}
             users={users || []}
             lists={lists}
-            onSubmit={handleFormSubmit}
+            onSubmit={handleFormSubmit as any}
             onCancel={() => setIsFormOpen(false)}
           />
         </DialogContent>
