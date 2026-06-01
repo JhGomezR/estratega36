@@ -1,37 +1,38 @@
-# Despliegue de Estratega 360 detrás de TRAEFIK (ya presente en el server,
-# contenedor root-traefik-1 escuchando 80/443).
+# Despliegue de Estratega 360 (Next.js standalone) detrás de Traefik.
+#
+# Autocontenido: construye la imagen desde el Dockerfile del repo (no requiere
+# registro externo). En un host con Docker:
+#   docker compose up -d --build
 #
 # La app NO publica puertos: se une a la red de Traefik y se enruta por labels.
-# Traefik resuelve el dominio y el TLS (Let's Encrypt).
+# Traefik (ya presente en el server) resuelve el dominio y el TLS.
 #
-# Backend de datos: Firebase (Firestore/Auth) gestionado en la nube → sin
-# contenedor de base de datos.
+# Backend de datos: Firebase (Firestore/Auth) gestionado en la nube → sin BD.
 #
-# Variables (panel del proveedor o .env):
-#   APP_DOMAIN                -> dominio público (ej. app.midominio.com)
-#   TRAEFIK_ENTRYPOINT        -> entrypoint https de Traefik (suele ser "websecure")
-#   TRAEFIK_CERTRESOLVER      -> nombre del certresolver de Traefik (ej. "letsencrypt")
+# Variables (panel del proveedor o archivo .env):
+#   APP_DOMAIN, TRAEFIK_NETWORK, TRAEFIK_ENTRYPOINT, TRAEFIK_CERTRESOLVER,
 #   GEMINI_API_KEY, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY
-#
-# Red de Traefik fija: traefik_net (externa, ya existente).
-# Para confirmar entrypoint/certresolver de tu Traefik:
-#   docker inspect root-traefik-1 --format "{{json .Args}}"
 
 services:
   app:
-    # Imagen PRE-CONSTRUIDA en un registro (Hostinger no compila imágenes locales;
-    # solo descarga imágenes ya publicadas). Define APP_IMAGE con tu imagen, p. ej.
-    # un repositorio en Docker Hub o GHCR. Debe ser accesible (pública o con login).
-    image: ${APP_IMAGE:?Define APP_IMAGE con la imagen publicada, ej. usuario/estratega360:latest}
+    build:
+      context: .
+      # NEXT_PUBLIC_* se hornean en tiempo de BUILD.
+      args:
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    image: estratega360:latest
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
-      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-    # Sin "ports": Traefik llega a la app por la red interna en el puerto 3000.
+      # Genkit / Google AI
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Firebase Admin SDK: JSON del service-account en UNA sola línea.
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY:-}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    # Sin "ports": Traefik llega a la app por la red interna (puerto 3000).
+    # (Si despliegas SIN Traefik, añade:  ports: ["8080:3000"]  )
     expose:
       - "3000"
     networks:
@@ -53,8 +54,8 @@ services:
 
 networks:
   # Red EXTERNA gestionada por Traefik (ya existe en el server).
-  # El NOMBRE REAL puede llevar prefijo del proyecto (ej. root_traefik_net).
-  # Verifícalo con `docker network ls` y ponlo en TRAEFIK_NETWORK.
+  # Su nombre real puede llevar prefijo de proyecto (ej. root_traefik_net):
+  #   docker network ls   ->   ponlo en TRAEFIK_NETWORK
   traefik_net:
     external: true
     name: ${TRAEFIK_NETWORK:-traefik_net}
