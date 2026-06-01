@@ -2,6 +2,9 @@
 const nextConfig = {
   /* config options here */
 
+  // Salida autocontenida (.next/standalone) para una imagen Docker mínima.
+  output: 'standalone',
+
   // Don't advertise the framework/version (fingerprinting). DAST finding.
   poweredByHeader: false,
 

@@ -1,0 +1,62 @@
+# Estratega 360 — despliegue Docker detrás de Traefik (build autocontenido).
+#
+#   docker compose up -d --build
+#
+# - Construye la imagen desde el Dockerfile del repo (no requiere registro).
+# - NO publica puertos: se une a la red de Traefik y se enruta por labels.
+#   Traefik (ya presente en el server) resuelve el dominio y el HTTPS.
+# - Backend de datos: Firebase (Firestore/Auth) en la nube → sin contenedor de BD.
+#
+# Variables (en el panel del proveedor o en un archivo .env):
+#   APP_DOMAIN              dominio público (ej. app.midominio.com)
+#   TRAEFIK_NETWORK         nombre REAL de la red de Traefik (¡ver nota abajo!)
+#   TRAEFIK_ENTRYPOINT      entrypoint https de Traefik (normalmente "websecure")
+#   TRAEFIK_CERTRESOLVER    certresolver de Traefik (ej. "letsencrypt")
+#   GEMINI_API_KEY                    (Genkit / IA)
+#   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY   (mapa; se hornea en build)
+#   FIREBASE_SERVICE_ACCOUNT_KEY      (Admin SDK; JSON en una sola línea)
+#
+# NOTA red: si Traefik corre bajo un proyecto compose, su red suele llamarse
+# con prefijo (ej. root_traefik_net). Verifica con:  docker network ls
+# y pon ese nombre exacto en TRAEFIK_NETWORK (si no, el contenedor no se crea).
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    image: estratega360:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY:-}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    expose:
+      - "3000"
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik_net}"
+      - "traefik.http.routers.estratega360.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.estratega360.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.estratega360.tls=true"
+      - "traefik.http.routers.estratega360.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.services.estratega360.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/login',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+networks:
+  # Red EXTERNA de Traefik (ya existe en el server). El nombre real se toma de
+  # TRAEFIK_NETWORK (def. traefik_net).
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik_net}
