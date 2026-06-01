@@ -1,17 +1,21 @@
-# Despliegue COMPLETO en la web de Estratega 360.
+# Despliegue de Estratega 360 en plataformas gestionadas (Hostinger, etc.)
 #
-#   app   -> la aplicación Next.js (build desde el Dockerfile, salida standalone)
-#   caddy -> reverse proxy con HTTPS automático (Let's Encrypt) delante de la app
+# Estas plataformas YA exponen su propio proxy + HTTPS en los puertos 80/443 y
+# enrutan tu dominio hacia el contenedor. Por eso aquí NO levantamos un proxy
+# propio (intentar tomar el 80 da "port is already allocated"): publicamos la
+# app en un puerto y la plataforma se encarga del dominio y el TLS.
 #
-# Sin bind-mounts de archivos (fallan en plataformas gestionadas como Hostinger):
-#   - El Caddyfile se hornea en la imagen de caddy (ver ./caddy/Dockerfile).
-#   - Las credenciales de Firebase se pasan por la variable FIREBASE_SERVICE_ACCOUNT_KEY.
-#
-# Backend de datos: Firebase (Firestore/Auth) es gestionado en la nube → sin
+# Backend de datos: Firebase (Firestore/Auth) gestionado en la nube → sin
 # contenedor de base de datos.
 #
-# Variables requeridas (en el panel del proveedor o en un archivo .env):
-#   APP_DOMAIN, GEMINI_API_KEY, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY
+# Variables (en el panel del proveedor o en .env):
+#   APP_PORT (opcional, def. 8080), GEMINI_API_KEY,
+#   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY
+#
+# En Hostinger: tras desplegar, en el panel asocia tu dominio al puerto APP_PORT.
+#
+# (Si en cambio usas un VPS donde TÚ controlas 80/443 y quieres HTTPS propio,
+#  hay una imagen de Caddy lista en ./caddy — añade ese servicio y publica 80/443.)
 
 services:
   app:
@@ -31,39 +35,12 @@ services:
       # Firebase Admin SDK: JSON de la cuenta de servicio (en una sola línea).
       FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY}
       NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-    expose:
-      - "3000"
+    ports:
+      # host:contenedor — NO usamos 80/443 (los gestiona la plataforma).
+      - "${APP_PORT:-8080}:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/login',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 40s
-    networks:
-      - estratega
-
-  caddy:
-    build:
-      context: ./caddy
-    restart: unless-stopped
-    depends_on:
-      - app
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      APP_DOMAIN: ${APP_DOMAIN:-localhost}
-    volumes:
-      # Volúmenes con NOMBRE (no bind-mounts) → seguros en cualquier host.
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - estratega
-
-volumes:
-  caddy_data:
-  caddy_config:
-
-networks:
-  estratega:
-    driver: bridge
