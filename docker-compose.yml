@@ -9,14 +9,13 @@
 #
 # Variables (panel del proveedor o .env):
 #   APP_DOMAIN                -> dominio público (ej. app.midominio.com)
-#   TRAEFIK_NETWORK           -> red docker EXTERNA donde vive Traefik (¡verifícala!)
 #   TRAEFIK_ENTRYPOINT        -> entrypoint https de Traefik (suele ser "websecure")
 #   TRAEFIK_CERTRESOLVER      -> nombre del certresolver de Traefik (ej. "letsencrypt")
 #   GEMINI_API_KEY, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY
 #
-# Cómo descubrir los valores de Traefik en tu server:
-#   docker inspect root-traefik-1 --format "{{json .NetworkSettings.Networks}}"   # red(es)
-#   docker inspect root-traefik-1 --format "{{json .Args}}"                        # entrypoints/certresolver
+# Red de Traefik fija: traefik_net (externa, ya existente).
+# Para confirmar entrypoint/certresolver de tu Traefik:
+#   docker inspect root-traefik-1 --format "{{json .Args}}"
 
 services:
   app:
@@ -37,10 +36,10 @@ services:
     expose:
       - "3000"
     networks:
-      - traefik
+      - traefik_net
     labels:
       - 'traefik.enable=true'
-      - 'traefik.docker.network=${TRAEFIK_NETWORK}'
+      - 'traefik.docker.network=traefik_net'
       - 'traefik.http.routers.estratega360.rule=Host(`${APP_DOMAIN}`)'
       - 'traefik.http.routers.estratega360.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}'
       - 'traefik.http.routers.estratega360.tls=true'
@@ -54,7 +53,6 @@ services:
       start_period: 40s
 
 networks:
-  # Red EXTERNA gestionada por Traefik (debe existir ya en el server).
-  traefik:
+  # Red EXTERNA gestionada por Traefik (ya existe en el server).
+  traefik_net:
     external: true
-    name: ${TRAEFIK_NETWORK}
