@@ -41,11 +41,11 @@ services:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik_net}"
-      - "traefik.http.routers.estratega360.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik}"
+      - "traefik.http.routers.estratega360.rule=Host(`estratega360.com`,`app.estratega360.com`)"
       - "traefik.http.routers.estratega360.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
       - "traefik.http.routers.estratega360.tls=true"
-      - "traefik.http.routers.estratega360.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.estratega360.tls.certresolver=${TRAEFIK_CERTRESOLVER:-mytlschallenge}"
       - "traefik.http.services.estratega360.loadbalancer.server.port=3000"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/login',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
