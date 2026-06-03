@@ -20,7 +20,7 @@ import { initializeFirebase, useDoc, useFirestore, useMemoFirebase } from "@/fir
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, type Auth, type User } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, type Auth, type User } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import type { BrandingSettings } from "@/lib/types";
 import { logAudit } from "@/lib/audit-log";
@@ -99,6 +99,31 @@ export default function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!auth) return;
+    const email = form.getValues("email");
+    const valid = z.string().email().safeParse(email).success;
+    if (!valid) {
+      toast({
+        variant: "destructive",
+        title: "Ingresa tu correo",
+        description: "Escribe tu correo electrónico arriba y vuelve a pulsar el enlace.",
+      });
+      return;
+    }
+    // Mensaje idéntico en éxito/error para no revelar si la cuenta existe.
+    const sameMessage = {
+      title: "Revisa tu correo",
+      description: "Si la cuenta existe, te enviamos un enlace para restablecer tu contraseña.",
+    };
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast(sameMessage);
+    } catch {
+      toast(sameMessage);
+    }
+  };
+
   const loginImageUrl = brandingSettings?.loginImageUrl || "https://picsum.photos/seed/10/1200/1800";
 
 
@@ -151,6 +176,16 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+              <div className="flex justify-end -mt-2">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={!auth}
+                  className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:opacity-50"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
               <Button type="submit" className="w-full" disabled={isSubmitting || !auth}>
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
