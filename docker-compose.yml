@@ -42,7 +42,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik}"
-      - "traefik.http.routers.estratega360.rule=Host(`estratega360.com`,`app.estratega360.com`)"
+      - "traefik.http.routers.estratega360.rule=Host(`app.estratega360.com`)"
       - "traefik.http.routers.estratega360.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
       - "traefik.http.routers.estratega360.tls=true"
       - "traefik.http.routers.estratega360.tls.certresolver=${TRAEFIK_CERTRESOLVER:-mytlschallenge}"
