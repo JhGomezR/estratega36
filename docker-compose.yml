@@ -1,24 +1,17 @@
-# Estratega 360 — despliegue Docker detrás de Traefik (build autocontenido).
+# Estratega 360 — despliegue Docker detras de Traefik (build desde el Dockerfile del repo).
 #
-#   docker compose up -d --build
+#   docker compose up -d --force-recreate
 #
-# - Construye la imagen desde el Dockerfile del repo (no requiere registro).
-# - NO publica puertos: se une a la red de Traefik y se enruta por labels.
-#   Traefik (ya presente en el server) resuelve el dominio y el HTTPS.
-# - Backend de datos: Firebase (Firestore/Auth) en la nube → sin contenedor de BD.
+# Se une explicitamente a la red externa de Traefik: traefik_net
+# Backend de datos: Firebase (Firestore/Auth) en la nube -> sin contenedor de BD.
 #
-# Variables (en el panel del proveedor o en un archivo .env):
-#   APP_DOMAIN              dominio público (ej. app.midominio.com)
-#   TRAEFIK_NETWORK         nombre REAL de la red de Traefik (¡ver nota abajo!)
-#   TRAEFIK_ENTRYPOINT      entrypoint https de Traefik (normalmente "websecure")
-#   TRAEFIK_CERTRESOLVER    certresolver de Traefik (ej. "letsencrypt")
-#   GEMINI_API_KEY                    (Genkit / IA)
-#   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY   (mapa; se hornea en build)
-#   FIREBASE_SERVICE_ACCOUNT_KEY      (Admin SDK; JSON en una sola línea)
-#
-# NOTA red: si Traefik corre bajo un proyecto compose, su red suele llamarse
-# con prefijo (ej. root_traefik_net). Verifica con:  docker network ls
-# y pon ese nombre exacto en TRAEFIK_NETWORK (si no, el contenedor no se crea).
+# Variables en .env:
+#   APP_DOMAIN                        dominio publico (DNS ya apuntando al VPS)
+#   TRAEFIK_ENTRYPOINT               entrypoint https de Traefik (websecure)
+#   TRAEFIK_CERTRESOLVER             certresolver de TU Traefik (letsencrypt)
+#   GEMINI_API_KEY                   (Genkit / IA)
+#   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY  (mapa; se hornea en build)
+#   FIREBASE_SERVICE_ACCOUNT_KEY     (Admin SDK; JSON en una sola linea)
 
 services:
   app:
@@ -38,25 +31,26 @@ services:
     expose:
       - "3000"
     networks:
+      - default
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=${TRAEFIK_NETWORK:-root_default}"
-      - "traefik.http.routers.estratega360.rule=Host(`app.estratega360.com`)"
+      - "traefik.docker.network=traefik_net"
+      - "traefik.http.routers.estratega360.rule=Host(`${APP_DOMAIN}`)"
       - "traefik.http.routers.estratega360.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
-      - "traefik.http.routers.estratega360.tls=true"
-      - "traefik.http.routers.estratega360.tls.certresolver=${TRAEFIK_CERTRESOLVER:-mytlschallenge}"
+      - "traefik.http.routers.estratega360.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
       - "traefik.http.services.estratega360.loadbalancer.server.port=3000"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/login',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 40s
 
 networks:
-  # Red EXTERNA de Traefik (ya existe en el server). El nombre real se toma de
-  # TRAEFIK_NETWORK (def. traefik_net).
+  # Red interna del proyecto (la crea Compose sola).
+  default:
+  # Red EXTERNA de Traefik (ya existe en el server).
   traefik:
     external: true
-    name: ${TRAEFIK_NETWORK:-root_default}
+    name: traefik_net
