@@ -42,6 +42,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isSendingReset, setIsSendingReset] = React.useState(false);
   const [auth, setAuth] = React.useState<Auth | null>(null);
   
   const firestore = useFirestore();
@@ -111,16 +112,46 @@ export default function LoginPage() {
       });
       return;
     }
-    // Mensaje idéntico en éxito/error para no revelar si la cuenta existe.
-    const sameMessage = {
+    // Mensaje neutro: no revela si la cuenta existe (buena práctica).
+    const neutralMessage = {
       title: "Revisa tu correo",
-      description: "Si la cuenta existe, te enviamos un enlace para restablecer tu contraseña.",
+      description:
+        "Si la cuenta existe, te enviamos un enlace para restablecer tu contraseña. Revisa también la carpeta de spam.",
     };
+
+    setIsSendingReset(true);
     try {
       await sendPasswordResetEmail(auth, email);
-      toast(sameMessage);
-    } catch {
-      toast(sameMessage);
+      toast(neutralMessage);
+    } catch (error: any) {
+      // Registrar SIEMPRE el error real para poder diagnosticar desde la
+      // consola del navegador (antes se ocultaba y parecía que funcionaba).
+      console.error("sendPasswordResetEmail falló:", error?.code, error?.message);
+
+      switch (error?.code) {
+        case "auth/user-not-found":
+          // No revelar que la cuenta no existe.
+          toast(neutralMessage);
+          break;
+        case "auth/invalid-email":
+          toast({ variant: "destructive", title: "Correo inválido", description: "Verifica la dirección e inténtalo de nuevo." });
+          break;
+        case "auth/too-many-requests":
+          toast({ variant: "destructive", title: "Demasiados intentos", description: "Espera unos minutos antes de volver a intentarlo." });
+          break;
+        case "auth/network-request-failed":
+          toast({ variant: "destructive", title: "Sin conexión", description: "No se pudo contactar el servidor de autenticación." });
+          break;
+        default:
+          // Falla real: informarla en vez de fingir que se envió.
+          toast({
+            variant: "destructive",
+            title: "No se pudo enviar el correo",
+            description: `Error: ${error?.code || "desconocido"}. Avisa al administrador.`,
+          });
+      }
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -180,10 +211,10 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  disabled={!auth}
+                  disabled={!auth || isSendingReset}
                   className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:opacity-50"
                 >
-                  ¿Olvidaste tu contraseña?
+                  {isSendingReset ? "Enviando..." : "¿Olvidaste tu contraseña?"}
                 </button>
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting || !auth}>
