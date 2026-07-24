@@ -231,14 +231,15 @@ function BrandingDialog({
   tenant, onClose, getIdToken,
 }: { tenant: Tenant | null; onClose: () => void; getIdToken: () => Promise<string> }) {
   const { toast } = useToast();
-  const [b, setB] = React.useState({ logoUrl: '', loginImageUrl: '', primaryColor: '' });
+  // La imagen de login NO es por tenant: es global (se edita en /admin/branding).
+  // Aqui solo el logo interno del tenant y su color de marca.
+  const [b, setB] = React.useState({ logoUrl: '', primaryColor: '' });
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (tenant) {
       setB({
         logoUrl: tenant.branding?.logoUrl || '',
-        loginImageUrl: tenant.branding?.loginImageUrl || '',
         primaryColor: tenant.branding?.primaryColor || '',
       });
     }
@@ -263,11 +264,10 @@ function BrandingDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Branding — {tenant?.displayName}</DialogTitle>
-          <DialogDescription>Logos e imágenes se gestionan desde aquí, no desde el tenant.</DialogDescription>
+          <DialogDescription>Logo interno y color de marca del tenant. La imagen del login es global y se edita en «Marca del login».</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1"><Label>Logo URL</Label><Input value={b.logoUrl} onChange={(e) => setB({ ...b, logoUrl: e.target.value })} /></div>
-          <div className="space-y-1"><Label>Imagen de login URL</Label><Input value={b.loginImageUrl} onChange={(e) => setB({ ...b, loginImageUrl: e.target.value })} /></div>
           <div className="space-y-1"><Label>Color primario</Label><Input value={b.primaryColor} onChange={(e) => setB({ ...b, primaryColor: e.target.value })} placeholder="#1d4ed8" /></div>
         </div>
         <DialogFooter>

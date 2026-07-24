@@ -173,7 +173,8 @@ export async function updateTenantBranding(input: {
     accentColor?: string;
     sidebarColor?: string;
     logoUrl?: string;
-    loginImageUrl?: string;
+    // La imagen de login es GLOBAL (settings/branding en (default)), no por
+    // tenant. Se gestiona en /admin/branding.
   };
 }): Promise<{ success: boolean; error?: string }> {
   try {
