@@ -2,7 +2,9 @@
  * @fileoverview Server-only helpers around the Google Cloud APIs needed to
  * provision a tenant: creating a **named Firestore database** and deploying
  * its security rules. The Firebase Admin SDK does NOT create databases, so we
- * call the REST APIs directly using Application Default Credentials.
+ * call the REST APIs directly, authenticating with the service account in
+ * `FIREBASE_SERVICE_ACCOUNT_KEY` when present and falling back to Application
+ * Default Credentials otherwise (see `createGoogleAuth`).
  *
  * APIs used:
  *  - Firestore Admin API   (firestore.googleapis.com)      → create database
@@ -17,9 +19,40 @@
 import { GoogleAuth } from 'google-auth-library';
 import { adminApp } from '@/firebase/admin';
 
-const auth = new GoogleAuth({
-  scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-});
+const SCOPES = ['https://www.googleapis.com/auth/cloud-platform'];
+
+/**
+ * Builds the GoogleAuth client.
+ *
+ * The Docker deployment (see `docker-compose.yml`) only injects
+ * `FIREBASE_SERVICE_ACCOUNT_KEY` — the service account JSON on a single line —
+ * which is NOT part of the Application Default Credentials chain
+ * (`GOOGLE_APPLICATION_CREDENTIALS` file path / GCE metadata server). Relying on
+ * ADC alone there fails with "No se pudo obtener un access token de GCP", so we
+ * feed those credentials explicitly when present and fall back to ADC otherwise
+ * (local dev with a key file, or Cloud Run / GCE with a metadata server).
+ */
+function createGoogleAuth(): GoogleAuth {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (raw) {
+    try {
+      return new GoogleAuth({ credentials: JSON.parse(raw), scopes: SCOPES });
+    } catch (err) {
+      throw new Error(
+        'FIREBASE_SERVICE_ACCOUNT_KEY no contiene un JSON válido de cuenta de servicio.'
+      );
+    }
+  }
+  return new GoogleAuth({ scopes: SCOPES });
+}
+
+// Perezoso: un JSON malformado no debe reventar la carga del módulo, solo la
+// operación de provisioning que realmente necesita credenciales.
+let authClient: GoogleAuth | null = null;
+function getAuth(): GoogleAuth {
+  if (!authClient) authClient = createGoogleAuth();
+  return authClient;
+}
 
 /** Resolves the active GCP project id from the Admin app / environment. */
 export function getProjectId(): string {
@@ -33,7 +66,7 @@ export function getProjectId(): string {
 }
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<any> {
-  const token = await auth.getAccessToken();
+  const token = await getAuth().getAccessToken();
   if (!token) throw new Error('No se pudo obtener un access token de GCP.');
   const res = await fetch(url, {
     ...init,

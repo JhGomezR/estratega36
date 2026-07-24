@@ -31,18 +31,62 @@ export function getTenantFirestore(databaseId: string): Firestore {
 }
 
 // --- Platform-admin impersonation ("enter tenant") -------------------------
-// When a platform operator opens a tenant, we remember the target database in
+// When a platform operator opens a tenant, we remember the target in
 // sessionStorage so the provider resolves the connection to that tenant's DB.
+//
+// We store the `tenantId` too (not only the `databaseId`) because:
+//   - Server Actions receive the tenantId and resolve the databaseId themselves
+//     from the `tenants/{id}` registry (a client must never pick a raw DB).
+//   - The impersonation banner needs a human-readable label.
 
-const IMPERSONATION_KEY = 'cp:impersonatedDatabaseId';
+const DB_KEY = 'cp:impersonatedDatabaseId';
+const TENANT_KEY = 'cp:impersonatedTenantId';
+const NAME_KEY = 'cp:impersonatedTenantName';
+
+export interface ImpersonationSession {
+  tenantId: string;
+  databaseId: string;
+  /** Display name, only for the UI banner. */
+  displayName?: string;
+}
 
 export function getImpersonatedDatabaseId(): string | null {
   if (typeof window === 'undefined') return null;
-  return window.sessionStorage.getItem(IMPERSONATION_KEY);
+  return window.sessionStorage.getItem(DB_KEY);
 }
 
-export function setImpersonatedDatabaseId(databaseId: string | null): void {
+/** Tenant currently being impersonated — pass this to Server Actions. */
+export function getImpersonatedTenantId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.sessionStorage.getItem(TENANT_KEY);
+}
+
+/** Full impersonation session, or null when the operator is on the control plane. */
+export function getImpersonation(): ImpersonationSession | null {
+  if (typeof window === 'undefined') return null;
+  const tenantId = window.sessionStorage.getItem(TENANT_KEY);
+  const databaseId = window.sessionStorage.getItem(DB_KEY);
+  if (!tenantId || !databaseId) return null;
+  return {
+    tenantId,
+    databaseId,
+    displayName: window.sessionStorage.getItem(NAME_KEY) || undefined,
+  };
+}
+
+/** Starts impersonating a tenant (Control Plane → "Entrar al tenant"). */
+export function setImpersonation(session: ImpersonationSession): void {
   if (typeof window === 'undefined') return;
-  if (databaseId) window.sessionStorage.setItem(IMPERSONATION_KEY, databaseId);
-  else window.sessionStorage.removeItem(IMPERSONATION_KEY);
+  window.sessionStorage.setItem(TENANT_KEY, session.tenantId);
+  window.sessionStorage.setItem(DB_KEY, session.databaseId);
+  if (session.displayName) window.sessionStorage.setItem(NAME_KEY, session.displayName);
+  else window.sessionStorage.removeItem(NAME_KEY);
+}
+
+/** Ends impersonation. The caller must force a reload so the provider re-resolves. */
+export function clearImpersonation(): void {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(TENANT_KEY);
+  window.sessionStorage.removeItem(DB_KEY);
+  window.sessionStorage.removeItem(NAME_KEY);
 }

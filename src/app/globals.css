@@ -2,78 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Sistema de diseño Estratega 360 — basado en el tema TailAdmin.
+ * Los NOMBRES de las variables se conservan (convención shadcn/ui) para no
+ * romper los componentes existentes; sólo cambian los VALORES, tomados de la
+ * paleta oficial de TailAdmin (brand / gray / success / error / warning /
+ * blue-light), convertidos a HSL.
+ */
+
 @layer base {
   :root {
-    --background: 231 60% 94%;
-    --foreground: 232 65% 20%;
-    --card: 231 60% 99%;
-    --card-foreground: 232 65% 20%;
-    --popover: 231 60% 99%;
-    --popover-foreground: 232 65% 20%;
-    --primary: 232 65% 30%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 232 30% 88%;
-    --secondary-foreground: 232 65% 30%;
-    --muted: 232 30% 88%;
-    --muted-foreground: 232 30% 50%;
-    --accent: 45 100% 51%;
-    --accent-foreground: 232 65% 20%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 232 30% 80%;
-    --input: 232 30% 80%;
-    --ring: 45 100% 51%;
-    --chart-1: 232 65% 30%;
-    --chart-2: 45 100% 51%;
-    --chart-3: 232 40% 50%;
-    --chart-4: 45 80% 70%;
-    --chart-5: 232 50% 40%;
-    --radius: 0.5rem;
+    /* --- Superficies --- */
+    --background: 0 0% 100%;              /* white            */
+    --foreground: 214 33% 17%;            /* gray-800 #1d2939 */
+    --card: 0 0% 100%;                    /* white            */
+    --card-foreground: 214 33% 17%;       /* gray-800         */
+    --popover: 0 0% 100%;                 /* white            */
+    --popover-foreground: 214 33% 17%;    /* gray-800         */
 
-    --sidebar-background: 232 65% 18%;
-    --sidebar-foreground: 231 60% 85%;
-    --sidebar-primary: 45 100% 51%;
-    --sidebar-primary-foreground: 232 65% 18%;
-    --sidebar-accent: 232 65% 25%;
-    --sidebar-accent-foreground: 231 60% 95%;
-    --sidebar-border: 232 65% 25%;
-    --sidebar-ring: 45 100% 51%;
+    /* Lienzo de la aplicación (área de contenido del shell) */
+    --canvas: 210 20% 98%;                /* gray-50  #f9fafb */
+
+    /* --- Marca --- */
+    --primary: 232 100% 64%;              /* brand-500 #465fff */
+    --primary-foreground: 0 0% 100%;      /* white             */
+
+    /* --- Neutros --- */
+    --secondary: 216 24% 96%;             /* gray-100 #f2f4f7 */
+    --secondary-foreground: 218 24% 27%;  /* gray-700 #344054 */
+    --muted: 216 24% 96%;                 /* gray-100         */
+    --muted-foreground: 221 13% 46%;      /* gray-500 #667085 */
+    --accent: 216 24% 96%;                /* gray-100 (hover) */
+    --accent-foreground: 218 24% 27%;     /* gray-700         */
+
+    /* --- Estados --- */
+    --destructive: 4 86% 58%;             /* error-500   #f04438 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 82% 39%;               /* success-500 #12b76a */
+    --success-foreground: 0 0% 100%;
+    --warning: 34 94% 50%;                /* warning-500 #f79009 */
+    --warning-foreground: 0 0% 100%;
+    --info: 199 91% 48%;                  /* blue-light-500 #0ba5ec */
+    --info-foreground: 0 0% 100%;
+
+    /* --- Bordes / foco --- */
+    --border: 218 17% 91%;                /* gray-200 #e4e7ec */
+    --input: 217 16% 84%;                 /* gray-300 #d0d5dd */
+    --ring: 232 100% 64%;                 /* brand-500        */
+
+    /* --- Gráficas --- */
+    --chart-1: 232 100% 64%;              /* brand-500        */
+    --chart-2: 222 100% 81%;              /* brand-300 #9cb9ff */
+    --chart-3: 152 82% 39%;               /* success-500      */
+    --chart-4: 34 94% 50%;                /* warning-500      */
+    --chart-5: 252 92% 66%;               /* purple-500 #7a5af8 */
+
+    --radius: 0.5rem;                     /* rounded-lg TailAdmin */
+
+    /* --- Barra lateral (clara: blanca, como TailAdmin) --- */
+    --sidebar-background: 0 0% 100%;      /* white            */
+    --sidebar-foreground: 218 24% 27%;    /* gray-700         */
+    --sidebar-primary: 232 100% 64%;      /* brand-500        */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 218 100% 96%;       /* brand-50 #ecf3ff */
+    --sidebar-accent-foreground: 232 100% 64%; /* brand-500   */
+    --sidebar-muted: 218 15% 65%;         /* gray-400 #98a2b3 */
+    --sidebar-border: 218 17% 91%;        /* gray-200         */
+    --sidebar-ring: 232 100% 64%;
   }
 
   .dark {
-    --background: 232 20% 11%;
-    --foreground: 231 60% 94%;
-    --card: 232 20% 15%;
-    --card-foreground: 231 60% 94%;
-    --popover: 232 20% 11%;
-    --popover-foreground: 231 60% 94%;
-    --primary: 231 60% 94%;
-    --primary-foreground: 232 65% 30%;
-    --secondary: 232 20% 20%;
-    --secondary-foreground: 231 60% 94%;
-    --muted: 232 20% 20%;
-    --muted-foreground: 232 20% 60%;
-    --accent: 45 100% 51%;
-    --accent-foreground: 232 65% 18%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 232 20% 20%;
-    --input: 232 20% 20%;
-    --ring: 45 100% 51%;
-    --chart-1: 231 60% 94%;
-    --chart-2: 45 100% 51%;
-    --chart-3: 231 50% 70%;
-    --chart-4: 45 80% 60%;
-    --chart-5: 231 60% 80%;
-    
-    --sidebar-background: 232 20% 11%;
-    --sidebar-foreground: 231 60% 85%;
-    --sidebar-primary: 45 100% 51%;
-    --sidebar-primary-foreground: 232 65% 18%;
-    --sidebar-accent: 232 20% 20%;
-    --sidebar-accent-foreground: 231 60% 95%;
-    --sidebar-border: 232 20% 18%;
-    --sidebar-ring: 45 100% 51%;
+    --background: 220 43% 11%;            /* gray-900 #101828 */
+    --foreground: 210 20% 98%;            /* gray-50  #f9fafb */
+    --card: 219 31% 15%;                  /* gray-dark #1a2231 */
+    --card-foreground: 210 20% 98%;
+    --popover: 219 31% 15%;
+    --popover-foreground: 210 20% 98%;
+
+    --canvas: 220 43% 11%;                /* gray-900         */
+
+    --primary: 232 100% 64%;              /* brand-500        */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 33% 17%;             /* gray-800 #1d2939 */
+    --secondary-foreground: 210 20% 98%;
+    --muted: 214 33% 17%;                 /* gray-800         */
+    --muted-foreground: 218 15% 65%;      /* gray-400 #98a2b3 */
+    --accent: 214 33% 17%;                /* gray-800 (hover) */
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 4 86% 58%;             /* error-500        */
+    --destructive-foreground: 0 0% 100%;
+    --success: 150 66% 52%;               /* success-400 #32d583 */
+    --success-foreground: 220 43% 11%;
+    --warning: 39 98% 56%;                /* warning-400 #fdb022 */
+    --warning-foreground: 220 43% 11%;
+    --info: 198 95% 60%;                  /* blue-light-400 #36bffa */
+    --info-foreground: 220 43% 11%;
+
+    --border: 214 33% 17%;                /* gray-800         */
+    --input: 218 24% 27%;                 /* gray-700 #344054 */
+    --ring: 232 100% 64%;
+
+    --chart-1: 227 100% 73%;              /* brand-400 #7592ff */
+    --chart-2: 222 100% 81%;              /* brand-300         */
+    --chart-3: 150 66% 52%;               /* success-400       */
+    --chart-4: 39 98% 56%;                /* warning-400       */
+    --chart-5: 252 92% 66%;               /* purple-500        */
+
+    --sidebar-background: 220 43% 11%;    /* gray-900         */
+    --sidebar-foreground: 218 15% 65%;    /* gray-400         */
+    --sidebar-primary: 232 100% 64%;      /* brand-500        */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 237 57% 20%;        /* brand-950 #161950 */
+    --sidebar-accent-foreground: 227 100% 73%; /* brand-400   */
+    --sidebar-muted: 221 13% 46%;         /* gray-500         */
+    --sidebar-border: 214 33% 17%;        /* gray-800         */
+    --sidebar-ring: 232 100% 64%;
   }
 }
 
@@ -83,7 +128,37 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  /* Foco visible y consistente en toda la aplicación (accesibilidad). */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring/60 ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  /* Scrollbar discreta al estilo TailAdmin */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: theme('colors.gray.300');
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: theme('colors.gray.700');
   }
 }

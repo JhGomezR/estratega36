@@ -12,7 +12,11 @@ jest.mock('@/firebase/admin', () => {
   });
 
   const adminStore = {
-    tenants: { acme: { databaseId: 'tenant-acme' } },
+    tenants: {
+      acme: { databaseId: 'tenant-acme' },
+      // Tenant registered but not yet provisioned: no databaseId.
+      naked: { displayName: 'Sin base' },
+    },
     users: { u9: { roleId: 'lider' } },
     roles: { lider: { name: 'Lider', permissions: ['voter:read'] } },
   };
@@ -25,8 +29,9 @@ jest.mock('@/firebase/admin', () => {
 
   return {
     adminApp: {},
-    adminDb: makeDb(adminStore),
-    getTenantDb: () => makeDb(tenantStore),
+    adminDb: { ...makeDb(adminStore), __id: '(default)' },
+    // Tag the handle so tests can assert WHICH database was resolved.
+    getTenantDb: (databaseId: string) => ({ ...makeDb(tenantStore), __id: databaseId }),
   };
 });
 
@@ -98,5 +103,51 @@ describe('getCallerContext (scope resolution)', () => {
   it('rejects a tenant claim with no matching registry entry', async () => {
     mockVerify.mockResolvedValue({ uid: 'x', tenantId: 'ghost', roleId: 'editor' } as any);
     await expect(getCallerContext('token')).rejects.toThrow(/Tenant/);
+  });
+
+  it('exposes the tenantId of a tenant member', async () => {
+    mockVerify.mockResolvedValue({ uid: 'u1', tenantId: 'acme', roleId: 'editor' } as any);
+    const ctx = await getCallerContext('token');
+    expect(ctx.tenantId).toBe('acme');
+    expect((ctx.db as any).__id).toBe('tenant-acme');
+  });
+});
+
+describe('getCallerContext (platform-admin impersonation)', () => {
+  it('stays on the control plane when no tenant is impersonated', async () => {
+    mockVerify.mockResolvedValue({ uid: 'p1', platformAdmin: true } as any);
+    const ctx = await getCallerContext('token');
+    expect((ctx.db as any).__id).toBe('(default)');
+    expect(ctx.tenantId).toBeUndefined();
+  });
+
+  it('resolves the impersonated tenant database from the registry', async () => {
+    mockVerify.mockResolvedValue({ uid: 'p1', platformAdmin: true } as any);
+    const ctx = await getCallerContext('token', 'acme');
+    expect(ctx.isPlatformAdmin).toBe(true);
+    expect(ctx.tenantId).toBe('acme');
+    // databaseId came from tenants/acme, NOT from the caller.
+    expect((ctx.db as any).__id).toBe('tenant-acme');
+    expect(can(ctx, 'voter:delete')).toBe(true);
+  });
+
+  it('rejects impersonating a tenant that does not exist', async () => {
+    mockVerify.mockResolvedValue({ uid: 'p1', platformAdmin: true } as any);
+    await expect(getCallerContext('token', 'ghost')).rejects.toThrow(/Tenant/);
+  });
+
+  it('rejects impersonating a tenant with no database provisioned', async () => {
+    mockVerify.mockResolvedValue({ uid: 'p1', platformAdmin: true } as any);
+    await expect(getCallerContext('token', 'naked')).rejects.toThrow(/Tenant/);
+  });
+
+  it('ignores the impersonation hint for a non-platform caller', async () => {
+    // A tenant user must never be able to escape its own database by passing
+    // someone else's tenantId.
+    mockVerify.mockResolvedValue({ uid: 'u1', tenantId: 'acme', roleId: 'editor' } as any);
+    const ctx = await getCallerContext('token', 'otro-tenant');
+    expect(ctx.tenantId).toBe('acme');
+    expect((ctx.db as any).__id).toBe('tenant-acme');
+    expect(ctx.isPlatformAdmin).toBe(false);
   });
 });

@@ -43,7 +43,7 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebas
 import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { collection, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 
 const ENTITY_LABELS: Record<string, string> = {
   voter: "Votante",
@@ -81,7 +81,7 @@ export default function FormsPage() {
   const handleDelete = () => {
     if (formToDelete && formsCollectionRef && currentUser) {
       setDocumentNonBlocking(doc(formsCollectionRef, formToDelete.id), { trash: true }, { merge: true })
-      logAudit(currentUser.uid, 'form:delete', { formId: formToDelete.id, name: formToDelete.name })
+      logAuditEvent(currentUser, 'form:delete', { formId: formToDelete.id, name: formToDelete.name })
       setFormToDelete(null)
       toast({ title: "Formulario Eliminado", description: "El formulario ha sido movido a la papelera." })
     }
@@ -91,11 +91,11 @@ export default function FormsPage() {
     if (formsCollectionRef && currentUser) {
       if (selectedForm) {
         setDocumentNonBlocking(doc(formsCollectionRef, selectedForm.id), data, { merge: true })
-        logAudit(currentUser.uid, 'form:update', { formId: selectedForm.id, name: data.name })
+        logAuditEvent(currentUser, 'form:update', { formId: selectedForm.id, name: data.name })
         toast({ title: "Formulario Actualizado", description: "Los cambios han sido guardados." })
       } else {
         addDocumentNonBlocking(formsCollectionRef, { ...data, trash: false })
-        logAudit(currentUser.uid, 'form:create', { name: data.name })
+        logAuditEvent(currentUser, 'form:create', { name: data.name })
         toast({ title: "Formulario Creado", description: "El nuevo formulario ha sido creado." })
       }
     }

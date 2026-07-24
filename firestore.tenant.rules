@@ -16,19 +16,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ⚠️ SUPERADMIN DEL SaaS — INTENCIONAL Y AMPLIO.
+    // Un usuario con el claim `platformAdmin` es el operador de la plataforma:
+    // este bypass le da acceso TOTAL a TODAS las bases de datos de TODOS los
+    // tenants (esta plantilla se despliega en cada una de ellas), no solo al
+    // Control Plane. Es lo que hace funcionar la impersonación ("Entrar al
+    // tenant"): sin él, la UI le muestra todo pero Firestore le deniega cada
+    // operación. Consecuencia: el claim `platformAdmin` debe concederse con el
+    // mismo cuidado que una credencial de root y sus acciones auditarse.
+    // Se accede a los claims con token.get(clave, defecto): leer una propiedad
+    // ausente directamente es un ERROR de evaluación, no `false`. Con `||` suele
+    // salvarse por la otra rama, pero deja la autorización dependiendo del orden
+    // de evaluación. El acceso con defecto la vuelve determinista.
+    function isPlatformAdmin() {
+      return request.auth != null && request.auth.token.get('platformAdmin', false) == true;
+    }
+
     function isTenantMember() {
-      return request.auth != null && request.auth.token.tenantId == '__TENANT_ID__';
+      return request.auth != null &&
+        (request.auth.token.get('tenantId', '') == '__TENANT_ID__' || isPlatformAdmin());
     }
 
     function getRole() {
-      return get(/databases/$(database)/documents/roles/$(request.auth.token.roleId)).data;
+      return get(/databases/$(database)/documents/roles/$(request.auth.token.get('roleId', '_none_'))).data;
     }
 
     function hasPermission(permission) {
-      return isTenantMember() && (
-        getRole().name.lower() == 'admin' ||
-        getRole().name.lower() == 'super' ||
-        permission in getRole().permissions
+      return isPlatformAdmin() || (
+        isTenantMember() && (
+          getRole().name.lower() == 'admin' ||
+          getRole().name.lower() == 'super' ||
+          permission in getRole().permissions
+        )
       );
     }
 

@@ -1,11 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { collection } from 'firebase/firestore';
 import { Loader2, PlusCircle, LogIn, Power, PowerOff, Palette } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
-import { setImpersonatedDatabaseId } from '@/firebase/tenant-db';
+import { setImpersonation } from '@/firebase/tenant-db';
 import type { Tenant } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -31,15 +30,19 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | '
   failed: 'destructive',
 };
 
+// `us-central1` es la región de la base de producción: los tenants nuevos deben
+// nacer ahí para no quedar en otra región (la ubicación es INMUTABLE una vez
+// creada la base).
+const DEFAULT_LOCATION_ID = 'us-central1';
+
 const EMPTY_CREATE = {
   displayName: '', companyName: '', plan: 'estratega',
-  locationId: 'nam5', adminEmail: '', adminPassword: '', adminFullName: '',
+  locationId: DEFAULT_LOCATION_ID, adminEmail: '', adminPassword: '', adminFullName: '',
 };
 
 export default function TenantsPage() {
   const auth = useAuth();
   const defaultDb = useDefaultDb();
-  const router = useRouter();
   const { toast } = useToast();
 
   const tenantsRef = useMemoFirebase(() => collection(defaultDb, 'tenants'), [defaultDb]);
@@ -87,8 +90,16 @@ export default function TenantsPage() {
       toast({ variant: 'destructive', title: 'Tenant no activo', description: 'Solo puedes entrar a tenants activos.' });
       return;
     }
-    setImpersonatedDatabaseId(t.databaseId);
-    router.push('/'); // provider re-resolves connection to the tenant DB
+    // Guardamos tenantId + databaseId: el primero viaja a los Server Actions
+    // (que resuelven la base desde el registro), el segundo abre la conexión
+    // cliente. El nombre es solo para el banner de impersonación.
+    setImpersonation({
+      tenantId: t.id,
+      databaseId: t.databaseId,
+      displayName: t.displayName || t.companyName || t.id,
+    });
+    // Recarga dura: el provider resuelve la conexión una vez por sesión.
+    window.location.assign('/');
   };
 
   return (
@@ -182,7 +193,7 @@ export default function TenantsPage() {
             </div>
             <div className="space-y-1">
               <Label>Ubicación Firestore</Label>
-              <Input value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })} placeholder="nam5" />
+              <Input value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })} placeholder={DEFAULT_LOCATION_ID} />
             </div>
             <div className="space-y-1">
               <Label>Admin: nombre completo</Label>

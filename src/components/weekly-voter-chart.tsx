@@ -80,18 +80,24 @@ export function WeeklyVoterChart({ voters, isLoading }: { voters: Voter[] | unde
         data={chartData} 
         margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
       >
-          <CartesianGrid vertical={false} />
+          <CartesianGrid
+              vertical={false}
+              strokeDasharray="4 4"
+              stroke="hsl(var(--border))"
+          />
           <XAxis
               dataKey="day"
               tickLine={false}
               tickMargin={10}
               axisLine={false}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
           />
           <YAxis
              allowDecimals={false}
              tickLine={false}
              axisLine={false}
              tickMargin={10}
+             tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
           />
           <ChartTooltip
               cursor={false}

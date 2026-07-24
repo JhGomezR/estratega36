@@ -1,7 +1,21 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
+  "_comment_firestore": [
+    "La base (default) apunta al ruleset TRANSITORIO a proposito.",
+    "Combina Control Plane + negocio legacy, de modo que un despliegue",
+    "accidental NO deja fuera a los usuarios que todavia leen de (default).",
+    "Cambiar a firestore.control-plane.rules SOLO cuando se verifique que",
+    "toda la operacion corre ya contra la base del tenant.",
+    "Las bases de tenant NO se declaran aqui: sus reglas se despliegan por",
+    "API desde provisionTenant() / el script de cutover, porque hay que",
+    "sustituir el placeholder __TENANT_ID__ y la CLI no lo hace."
+  ],
+  "firestore": [
+    {
+      "database": "(default)",
+      "rules": "firestore.default-transitional.rules",
+      "indexes": "firestore.indexes.json"
+    }
+  ],
   "emulators": {
     "auth": { "port": 9099 },
     "firestore": { "port": 8080 },

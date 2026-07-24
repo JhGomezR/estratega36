@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, sendPasswordResetEmail, type Auth, type User } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import type { BrandingSettings } from "@/lib/types";
-import { logAudit } from "@/lib/audit-log";
+import { logAuditEvent } from "@/lib/audit-log-client";
 
 const loginFormSchema = z.object({
   email: z.string().email("El correo electrónico no es válido."),
@@ -77,7 +77,7 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       
       // Log the audit event after successful login
-      await logAudit(userCredential.user.uid, 'user:login');
+      await logAuditEvent(userCredential.user, 'user:login');
 
       toast({
         title: "Inicio de Sesión Exitoso",

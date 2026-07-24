@@ -36,7 +36,7 @@ import { collection, doc } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 import { useToast } from "@/hooks/use-toast"
 
 type FormMode = 'country' | 'department' | 'city';
@@ -101,7 +101,7 @@ export default function CitiesPage() {
   const handleDelete = () => {
     if (!itemToDelete || !firestore || !currentUser) return;
     deleteDocumentNonBlocking(doc(firestore, itemToDelete.path));
-    logAudit(currentUser.uid, 'geo:delete', { type: itemToDelete.type, path: itemToDelete.path, name: itemToDelete.name });
+    logAuditEvent(currentUser, 'geo:delete', { type: itemToDelete.type, path: itemToDelete.path, name: itemToDelete.name });
     setItemToDelete(null);
     toast({
       title: "Elemento eliminado",
@@ -135,7 +135,7 @@ export default function CitiesPage() {
         addDocumentNonBlocking(collectionRef, dataToSend);
         actionType = 'create';
       }
-      logAudit(currentUser.uid, `geo:${actionType}`, { type: formMode, name: data.name });
+      logAuditEvent(currentUser, `geo:${actionType}`, { type: formMode, name: data.name });
       toast({
         title: `Elemento ${editingItem ? 'actualizado' : 'creado'}`,
         description: `Se ha guardado "${data.name}" correctamente.`,

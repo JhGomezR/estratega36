@@ -13,14 +13,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // token.get(clave, defecto): leer un claim ausente directamente es un ERROR
+    // de evaluación, no `false`, y dejaría la autorización dependiendo del orden
+    // de evaluación de los `||`.
     function isPlatformAdmin() {
-      return request.auth != null && request.auth.token.platformAdmin == true;
+      return request.auth != null && request.auth.token.get('platformAdmin', false) == true;
+    }
+
+    function callerTenantId() {
+      return request.auth.token.get('tenantId', '');
     }
 
     // Registro de tenants. Un usuario puede LEER el documento de su propio
     // tenant (para resolver databaseId / status / branding tras el login).
     match /tenants/{tenantId} {
-      allow get:    if isPlatformAdmin() || (request.auth != null && request.auth.token.tenantId == tenantId);
+      allow get:    if isPlatformAdmin() || (request.auth != null && callerTenantId() == tenantId);
       allow list:   if isPlatformAdmin();
       allow create, update, delete: if isPlatformAdmin();
     }

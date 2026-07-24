@@ -53,7 +53,7 @@ import { CallStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 
 const statusLabels: Record<Call['status'], string> = {
   pendiente: "Pendiente",
@@ -126,7 +126,7 @@ export default function CallsPage() {
               status_call: "activo",
               attempts: 0,
             });
-            logAudit(currentUser.uid, 'call:sync_create', { voterId: voter.id, callId: newCallRef.id });
+            logAuditEvent(currentUser, 'call:sync_create', { voterId: voter.id, callId: newCallRef.id });
           });
 
           await batch.commit();
@@ -222,7 +222,7 @@ export default function CallsPage() {
         callData.callDate = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'");
       }
       setDocumentNonBlocking(doc(callsCollectionRef, selectedCall.id), callData, { merge: true });
-      logAudit(currentUser.uid, 'call:update', { callId: selectedCall.id, ...callData });
+      logAuditEvent(currentUser, 'call:update', { callId: selectedCall.id, ...callData });
     }
     setIsFormOpen(false);
   };
@@ -232,7 +232,7 @@ export default function CallsPage() {
       const originalCall = calls?.find(c => c.id === callId);
       if (originalCall && originalCall.attempts !== localAttempts[callId]) {
         setDocumentNonBlocking(doc(callsCollectionRef, callId), { attempts: localAttempts[callId] }, { merge: true });
-        logAudit(currentUser.uid, 'call:update_attempts', { callId: callId, attempts: localAttempts[callId] });
+        logAuditEvent(currentUser, 'call:update_attempts', { callId: callId, attempts: localAttempts[callId] });
       }
     }
   }
@@ -252,7 +252,7 @@ export default function CallsPage() {
       setIsDetailsOpen(true);
     } else if (callsCollectionRef && currentUser) {
       setDocumentNonBlocking(doc(callsCollectionRef, call.id), { status: newStatus }, { merge: true });
-      logAudit(currentUser.uid, 'call:status_change', { callId: call.id, newStatus: newStatus });
+      logAuditEvent(currentUser, 'call:status_change', { callId: call.id, newStatus: newStatus });
     }
   };
 
@@ -265,7 +265,7 @@ export default function CallsPage() {
         userId: selectedCall.userId || currentUser?.uid,
       };
       setDocumentNonBlocking(doc(callsCollectionRef, selectedCall.id), callData, { merge: true });
-      logAudit(currentUser.uid, 'call:attended', { callId: selectedCall.id, details: callDetails });
+      logAuditEvent(currentUser, 'call:attended', { callId: selectedCall.id, details: callDetails });
       toast({
         title: "Detalles guardados",
         description: "La información de la llamada ha sido registrada.",
@@ -282,7 +282,7 @@ export default function CallsPage() {
   const handleDelete = () => {
     if (callToDelete && callsCollectionRef && currentUser) {
         setDocumentNonBlocking(doc(callsCollectionRef, callToDelete.id), { status_call: 'inactivo' }, { merge: true });
-        logAudit(currentUser.uid, 'call:archive', { callId: callToDelete.id });
+        logAuditEvent(currentUser, 'call:archive', { callId: callToDelete.id });
         setCallToDelete(null);
         toast({
             title: "Llamada archivada",

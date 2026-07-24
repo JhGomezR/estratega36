@@ -10,6 +10,12 @@
  *
  * The returned `db` is the database the caller is allowed to mutate, so actions
  * write to the correct scope for both legacy and migrated tenants.
+ *
+ * IMPERSONATION: a platform operator can "enter" a tenant from the Control
+ * Plane UI. In that case the caller passes the impersonated **tenantId** (never
+ * a raw databaseId — that would let a client point a Server Action at an
+ * arbitrary database); the databaseId is always resolved from the
+ * `tenants/{id}` registry document living in `(default)`.
  */
 
 import type { Firestore } from 'firebase-admin/firestore';
@@ -21,6 +27,16 @@ export interface CallerContext {
   email?: string;
   isPlatformAdmin: boolean;
   scope: 'platform' | 'tenant' | 'legacy';
+  /**
+   * Tenant the resolved `db` belongs to, when there is one:
+   *   - tenant member          → the tenant from their claims
+   *   - platformAdmin + impersonation → the impersonated tenant
+   *   - platformAdmin on control plane / legacy user → undefined
+   *
+   * Server Actions that need to write tenant-scoped state (e.g. custom claims
+   * for a newly created user) MUST use this value, never a client-supplied one.
+   */
+  tenantId?: string;
   /** Firestore handle the caller is authorized to operate on. */
   db: Firestore;
   /** Effective permission set ("module:action"). Empty for platform (bypass). */
@@ -28,6 +44,17 @@ export interface CallerContext {
 }
 
 const ADMIN_ROLE_NAMES = ['admin', 'super', 'super_admin', 'administrador'];
+
+/**
+ * Resolves a tenant's named database from the Control Plane registry.
+ * Throws when the tenant does not exist or has no database provisioned.
+ */
+async function resolveTenantDb(tenantId: string): Promise<Firestore> {
+  const tenantSnap = await adminDb.collection('tenants').doc(tenantId).get();
+  const databaseId = (tenantSnap.data() as { databaseId?: string } | undefined)?.databaseId;
+  if (!databaseId) throw new Error('Tenant no encontrado o sin base de datos.');
+  return getTenantDb(databaseId);
+}
 
 async function permissionsFromRole(db: Firestore, roleId: string | undefined): Promise<Set<string>> {
   if (!roleId) return new Set();
@@ -41,11 +68,35 @@ async function permissionsFromRole(db: Firestore, roleId: string | undefined): P
   return new Set(role.permissions || []);
 }
 
-/** Verifies the ID token and resolves the caller's scope + permissions. */
-export async function getCallerContext(idToken: string | undefined | null): Promise<CallerContext> {
+/**
+ * Verifies the ID token and resolves the caller's scope + permissions.
+ *
+ * @param idToken               Firebase ID token sent by the client.
+ * @param impersonatedTenantId  Only honoured for platform operators: makes the
+ *   returned `db` point at that tenant's database instead of `(default)`, so
+ *   Server Actions executed while "inside" a tenant write where the UI shows.
+ *   Ignored for non-platform callers (a tenant user can never escape its own
+ *   database this way).
+ */
+export async function getCallerContext(
+  idToken: string | undefined | null,
+  impersonatedTenantId?: string | null
+): Promise<CallerContext> {
   const decoded = await verifyCaller(idToken);
 
   if (decoded.platformAdmin === true) {
+    // Impersonation: resolve the target DB from the registry, never from input.
+    if (impersonatedTenantId) {
+      return {
+        uid: decoded.uid,
+        email: decoded.email,
+        isPlatformAdmin: true,
+        scope: 'platform',
+        tenantId: impersonatedTenantId,
+        db: await resolveTenantDb(impersonatedTenantId),
+        permissions: new Set(['*']),
+      };
+    }
     return {
       uid: decoded.uid,
       email: decoded.email,
@@ -61,15 +112,13 @@ export async function getCallerContext(idToken: string | undefined | null): Prom
 
   if (tenantId && roleId) {
     // Resolve the tenant's database from the control-plane registry.
-    const tenantSnap = await adminDb.collection('tenants').doc(tenantId).get();
-    const databaseId = (tenantSnap.data() as { databaseId?: string } | undefined)?.databaseId;
-    if (!databaseId) throw new Error('Tenant no encontrado o sin base de datos.');
-    const db = getTenantDb(databaseId);
+    const db = await resolveTenantDb(tenantId);
     return {
       uid: decoded.uid,
       email: decoded.email,
       isPlatformAdmin: false,
       scope: 'tenant',
+      tenantId,
       db,
       permissions: await permissionsFromRole(db, roleId),
     };

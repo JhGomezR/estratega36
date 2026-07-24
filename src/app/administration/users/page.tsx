@@ -45,6 +45,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser, usePlatformClaims } from "@/firebase"
 import { collection, doc, collectionGroup } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { getImpersonatedTenantId } from "@/firebase/tenant-db"
 import { useToast } from "@/hooks/use-toast"
 import { createUser } from "./actions"
 import { usePermissions } from "@/hooks/usePermissions"
@@ -169,7 +170,9 @@ export default function UsersPage() {
         }
         const idToken = await auth.currentUser?.getIdToken();
         if (!idToken) throw new Error('Sesión no disponible. Vuelve a iniciar sesión.');
-        const result = await createUser(data, idToken);
+        // Si un operador de plataforma está dentro de un tenant, el Server
+        // Action debe escribir (y asignar claims) en ESE tenant.
+        const result = await createUser(data, idToken, getImpersonatedTenantId());
         if (result.error) {
           throw new Error(result.error);
         }

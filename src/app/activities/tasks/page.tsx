@@ -49,7 +49,7 @@ import { KanbanBoard } from "@/components/kanban-board"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 
 const priorityClasses: Record<string, string> = {
   normal: "bg-blue-500 hover:bg-blue-600",
@@ -145,7 +145,7 @@ export default function TasksPage() {
   const handleDelete = () => {
     if (tasksCollectionRef && taskToDelete && currentUser) {
       setDocumentNonBlocking(doc(tasksCollectionRef, taskToDelete.id), { status: 'archivada' }, { merge: true });
-      logAudit(currentUser.uid, 'task:archive', { taskId: taskToDelete.id, title: taskToDelete.title });
+      logAuditEvent(currentUser, 'task:archive', { taskId: taskToDelete.id, title: taskToDelete.title });
       setTaskToDelete(null);
       toast({ title: "Tarea Archivada", description: "La tarea ha sido archivada." });
     }
@@ -155,14 +155,14 @@ export default function TasksPage() {
     if (tasksCollectionRef && currentUser) {
       if (selectedTask) {
         setDocumentNonBlocking(doc(tasksCollectionRef, selectedTask.id), data, { merge: true });
-        logAudit(currentUser.uid, 'task:update', { taskId: selectedTask.id, title: data.title });
+        logAuditEvent(currentUser, 'task:update', { taskId: selectedTask.id, title: data.title });
         toast({ title: "Tarea Actualizada", description: "Los cambios han sido guardados." });
       } else {
          addDocumentNonBlocking(tasksCollectionRef, {
           ...data,
           startDate: format(new Date(), "yyyy-MM-dd"),
         }).then(docRef => {
-          if (docRef) logAudit(currentUser.uid, 'task:create', { taskId: docRef.id, title: data.title });
+          if (docRef) logAuditEvent(currentUser, 'task:create', { taskId: docRef.id, title: data.title });
         });
         toast({ title: "Tarea Creada", description: "La nueva tarea ha sido creada." });
       }

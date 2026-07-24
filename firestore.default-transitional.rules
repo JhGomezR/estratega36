@@ -1,0 +1,239 @@
+rules_version = '2';
+
+// =====================================================================
+// RULESET TRANSITORIO para la base `(default)`.
+//
+// POR QUE EXISTE
+// El cutover a multi-tenant tiene un acoplamiento peligroso: si se despliega
+// `firestore.control-plane.rules` a `(default)` mientras la app desplegada
+// sigue siendo una version que lee los datos de negocio DESDE `(default)`,
+// todos los usuarios quedan bloqueados de golpe (el control plane no expone
+// ninguna coleccion de negocio).
+//
+// Este ruleset rompe ese acoplamiento: combina
+//   (a) las reglas del Control Plane  -> habilita /admin y la resolucion de tenant
+//   (b) las reglas de negocio legacy  -> la app antigua sigue funcionando
+// de modo que el cutover de datos y claims puede hacerse SIN ventana de caida
+// y SIN depender de que la app se haya redesplegado todavia.
+//
+// DIFERENCIA CLAVE con el `firestore.rules` original: la autorizacion de
+// negocio ya NO depende del email hardcodeado 'axdrcys@gmail.com'. Acepta
+// tanto el claim `platformAdmin` como el rol del documento users/{uid},
+// por lo que funciona antes y despues de setear los claims.
+//
+// CICLO DE VIDA: es TEMPORAL. Una vez verificado que toda la operacion corre
+// contra la base del tenant y que `(default)` ya no sirve datos de negocio,
+// se sustituye por `firestore.control-plane.rules` a secas y se vacian las
+// colecciones legacy.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------- Helpers ----------------
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /**
+     * Operador de plataforma (Control Plane).
+     * Se usa token.get(clave, defecto) porque leer una propiedad ausente del
+     * token es un ERROR de evaluación, no `false`; con acceso directo la
+     * autorización acabaría dependiendo del orden de evaluación de los `||`.
+     */
+    function isPlatformAdmin() {
+      return isAuthenticated() && request.auth.token.get('platformAdmin', false) == true;
+    }
+
+    /** tenantId del llamante, o cadena vacía si su token aún no lo lleva. */
+    function callerTenantId() {
+      return request.auth.token.get('tenantId', '');
+    }
+
+    function getUserRole(userId) {
+      let roleId = get(/databases/$(database)/documents/users/$(userId)).data.roleId;
+      return get(/databases/$(database)/documents/roles/$(roleId)).data;
+    }
+
+    /**
+     * Evalua el rol del llamante con UNA SOLA lectura enlazada. Importante:
+     * Firestore limita a 10 accesos a documento por peticion, y hay reglas que
+     * encadenan hasta tres hasPermission(); resolver el rol una vez por llamada
+     * (2 get()) mantiene el peor caso en 6, dentro del limite.
+     */
+    function roleAllows(permission) {
+      let role = getUserRole(request.auth.uid);
+      return role.name.lower() in ['super', 'admin', 'administrador']
+          || permission in role.permissions;
+    }
+
+    /**
+     * Permiso de negocio legacy. Sin email hardcodeado: un operador de
+     * plataforma pasa por claim, y el resto por su rol en users/{uid}.
+     */
+    function hasPermission(permission) {
+      return isPlatformAdmin() || (isAuthenticated() && roleAllows(permission));
+    }
+
+    // =================================================================
+    // (a) CONTROL PLANE
+    // =================================================================
+
+    match /tenants/{tenantId} {
+      // Un usuario puede leer el documento de SU tenant para resolver
+      // databaseId / status / branding tras el login.
+      allow get:    if isPlatformAdmin() || (isAuthenticated() && callerTenantId() == tenantId);
+      allow list:   if isPlatformAdmin();
+      allow create, update, delete: if isPlatformAdmin();
+    }
+
+    match /platformUsers/{uid} {
+      allow read:  if isPlatformAdmin() || (isAuthenticated() && request.auth.uid == uid);
+      allow write: if isPlatformAdmin();
+    }
+
+    match /platformRoles/{roleId} {
+      allow read, write: if isPlatformAdmin();
+    }
+
+    match /platformStats/{document=**} {
+      allow read:  if isPlatformAdmin();
+      allow write: if false; // solo backend/jobs via Admin SDK
+    }
+
+    // =================================================================
+    // (b) NEGOCIO LEGACY — se mantiene vivo durante la transicion
+    // =================================================================
+
+    match /users/{userId} {
+      allow read:   if hasPermission('user:read') || (isAuthenticated() && request.auth.uid == userId);
+      allow create: if hasPermission('user:create');
+      allow update: if hasPermission('user:update') || (isAuthenticated() && request.auth.uid == userId);
+      allow delete: if hasPermission('user:delete');
+    }
+
+    match /roles/{roleId} {
+      allow read:   if hasPermission('role:read');
+      allow create: if hasPermission('role:create');
+      allow update: if hasPermission('role:update');
+      allow delete: if hasPermission('role:delete');
+    }
+
+    match /campaigns/{campaignId} {
+      allow read:   if hasPermission('campaign:read');
+      allow create: if hasPermission('campaign:create');
+      allow update: if hasPermission('campaign:update');
+      allow delete: if hasPermission('campaign:delete');
+    }
+
+    match /strategies/{strategyId} {
+      allow read, create, update, delete: if hasPermission('campaign:read');
+    }
+
+    match /forms/{formId} {
+      allow read:   if hasPermission('form:read');
+      allow create: if hasPermission('form:create');
+      allow update: if hasPermission('form:update');
+      allow delete: if hasPermission('form:delete');
+    }
+
+    match /voters/{voterId} {
+      allow read:   if hasPermission('voter:read');
+      allow create: if hasPermission('voter:create');
+      allow update: if hasPermission('voter:update');
+      allow delete: if hasPermission('voter:delete');
+    }
+
+    match /countries/{countryId} {
+      allow read:  if hasPermission('city:read');
+      allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
+      match /departments/{departmentId} {
+        allow read:  if hasPermission('city:read');
+        allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
+        match /cities/{cityId} {
+          allow read:  if hasPermission('city:read');
+          allow write: if hasPermission('city:create') || hasPermission('city:update') || hasPermission('city:delete');
+        }
+      }
+    }
+
+    match /{path=**}/departments/{departmentId} {
+      allow get, list: if hasPermission('city:read');
+    }
+    match /{path=**}/cities/{cityId} {
+      allow get, list: if hasPermission('city:read');
+    }
+
+    match /tasks/{taskId} {
+      allow read:   if hasPermission('task:read');
+      allow create: if hasPermission('task:create');
+      allow update: if hasPermission('task:update');
+      allow delete: if hasPermission('task:delete');
+    }
+
+    match /calls/{callId} {
+      allow read:   if hasPermission('call:read');
+      allow create: if hasPermission('call:create');
+      allow update: if hasPermission('call:update');
+      allow delete: if hasPermission('call:delete');
+    }
+
+    // Rutas de territorio: existian en produccion SIN ninguna regla, por lo
+    // que el cliente las tenia denegadas por defecto. Se les da la misma
+    // autorizacion que a los votantes, que es lo que representan.
+    match /routes/{routeId} {
+      allow read:   if hasPermission('voter:read');
+      allow create: if hasPermission('voter:create');
+      allow update: if hasPermission('voter:update');
+      allow delete: if hasPermission('voter:delete');
+    }
+
+    // Mensajeria SMS: idem, no tenia reglas. Los mensajes son inmutables una
+    // vez enviados; solo se permite crear y leer.
+    match /sms_messages/{messageId} {
+      allow read:   if hasPermission('call:read');
+      allow create: if hasPermission('call:create');
+      allow update, delete: if false;
+    }
+
+    /**
+     * Ajustes. ENDURECIDO respecto al ruleset anterior, que permitia a
+     * CUALQUIER usuario autenticado leer `settings/smsApi` (usuario y token de
+     * LabsMobile) y `settings/socialApi` (token de Facebook Graph).
+     * Ahora solo `branding` es legible sin restriccion (lo necesita la
+     * pantalla de login sin autenticar); el resto exige 'setting:update'.
+     */
+    match /settings/{settingId} {
+      allow get:   if settingId == 'branding' || hasPermission('setting:update');
+      allow list:  if hasPermission('setting:update');
+      allow write: if hasPermission('setting:update');
+    }
+
+    match /lists/{listId} {
+      allow read:  if isAuthenticated();
+      allow write: if hasPermission('setting:update');
+    }
+
+    match /keywords/{keywordId} {
+      allow read, write: if hasPermission('report:read');
+    }
+    match /socialMentions/{mentionId} {
+      allow read, write: if hasPermission('report:read');
+    }
+
+    // Auditoria. Existen DOS colecciones por un fallo historico de nombres:
+    // `audit_logs` (1917 docs, el historico real) y `auditLogs` (lo que el
+    // codigo escribe hoy). Ambas quedan protegidas igual hasta consolidarlas.
+    match /auditLogs/{logId} {
+      allow read:   if hasPermission('log:read');
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false; // inmutables
+    }
+    match /audit_logs/{logId} {
+      allow read:   if hasPermission('log:read');
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false; // inmutables
+    }
+  }
+}

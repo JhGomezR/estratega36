@@ -13,7 +13,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:rules": "firebase emulators:exec --only firestore --project demo-estratega \"node scripts/rules-test.mjs\"",
-    "test:e2e": "firebase emulators:exec --only firestore --project demo-estratega \"node scripts/functional-journey.mjs\""
+    "test:e2e": "firebase emulators:exec --only firestore --project demo-estratega \"node scripts/functional-journey.mjs\"",
+    "test:consolidate": "firebase emulators:exec --only firestore --project demo-estratega \"npx tsx scripts/consolidate-audit-logs.emulator-test.ts\""
   },
   "dependencies": {
     "@amcharts/amcharts5": "^5.9.15",

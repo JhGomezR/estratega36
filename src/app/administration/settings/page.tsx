@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import Image from "next/image"
 import { Separator } from "@/components/ui/separator"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 
 function hexToHsl(hex: string): string | null {
     if (!hex) return null;
@@ -204,7 +204,7 @@ export default function SettingsPage() {
       try {
           const listRef = doc(firestore, `lists`, listKey);
           setDocumentNonBlocking(listRef, { items: newItems }, { merge: true });
-          logAudit(currentUser.uid, 'settings:list_update', { list: listKey, items: newItems });
+          logAuditEvent(currentUser, 'settings:list_update', { list: listKey, items: newItems });
       } catch(error) {
            toast({
               variant: "destructive",
@@ -261,7 +261,7 @@ export default function SettingsPage() {
         };
         
         setDocumentNonBlocking(brandingSettingsRef, newBrandingSettings, { merge: true });
-        logAudit(currentUser.uid, 'settings:branding_update', { colors, hasLogo: !!logoUrl, hasLoginImage: !!loginImageUrl });
+        logAuditEvent(currentUser, 'settings:branding_update', { colors, hasLogo: !!logoUrl, hasLoginImage: !!loginImageUrl });
 
         updateCssVariables(newBrandingSettings.primaryColor, newBrandingSettings.accentColor, newBrandingSettings.sidebarColor);
         toast({

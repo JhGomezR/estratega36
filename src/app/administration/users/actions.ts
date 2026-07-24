@@ -3,6 +3,7 @@
 
 import { adminAuth } from '@/firebase/admin'
 import { getCallerContext, assertCan } from '@/firebase/authz'
+import { setTenantClaims } from '@/firebase/claims'
 import type { UserFormValues } from '@/components/user-form'
 import type { User } from '@/lib/types'
 
@@ -13,16 +14,25 @@ import type { User } from '@/lib/types'
  * token + `user:create` permission — the Admin SDK bypasses Firestore rules,
  * so this check is the real access control.
  *
+ * When the caller operates inside a tenant (a tenant member, or a platform
+ * operator impersonating one), the new account also gets its `{tenantId,
+ * roleId}` custom claims. WITHOUT those claims the client provider would treat
+ * the account as "legacy" and connect it to `(default)` instead of the tenant
+ * database, leaving it unusable — so a failure to set them rolls the whole
+ * creation back rather than leaving an orphan Auth account.
+ *
  * @param data - The user data from the form.
  * @param idToken - The caller's Firebase ID token (from `auth.currentUser.getIdToken()`).
+ * @param impersonatedTenantId - Tenant being impersonated by a platform operator, if any.
  */
 export async function createUser(
   data: UserFormValues,
-  idToken: string
+  idToken: string,
+  impersonatedTenantId?: string | null
 ): Promise<{ uid?: string; error?: string }> {
   let ctx;
   try {
-    ctx = await getCallerContext(idToken)
+    ctx = await getCallerContext(idToken, impersonatedTenantId)
     assertCan(ctx, 'user:create')
   } catch (e: any) {
     return { error: e?.message || 'No autorizado.' }
@@ -43,7 +53,28 @@ export async function createUser(
       disabled: false,
     })
 
-    // 2. Create the user profile in the caller's database scope
+    // 2. Assign the tenant custom claims ({tenantId, roleId}) so the account
+    //    resolves to the tenant database on its first sign-in. The tenantId
+    //    comes from the verified caller context, never from the form.
+    if (ctx.tenantId) {
+      try {
+        await setTenantClaims(userRecord.uid, ctx.tenantId, profileData.roleId)
+      } catch (claimsError: any) {
+        // Roll back: an Auth account without claims is a broken account.
+        try {
+          await adminAuth.deleteUser(userRecord.uid)
+        } catch (rollbackError) {
+          console.error('Rollback failed, orphan auth user left behind:', userRecord.uid, rollbackError)
+        }
+        console.error('Error setting tenant claims for new user:', claimsError)
+        return {
+          error:
+            'No se pudieron asignar los permisos del tenant al nuevo usuario; la creación fue revertida.',
+        }
+      }
+    }
+
+    // 3. Create the user profile in the caller's database scope
     const newUserProfile: Partial<User> = {
       ...profileData,
       email: profileData.email,

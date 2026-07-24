@@ -22,6 +22,25 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 const ROOT_COLLECTIONS = [
   'users', 'roles', 'campaigns', 'voters', 'tasks', 'calls',
   'strategies', 'forms', 'lists', 'settings', 'keywords', 'socialMentions',
+  'auditLogs', 'routes', 'sms_messages',
+];
+
+// Colecciones legacy que NO se copian porque su contenido debe consolidarse
+// antes en su colección canónica. `audit_logs` (snake_case) es el histórico
+// real; su destino es `auditLogs` vía `scripts/consolidate-audit-logs.ts`.
+// Migrarla tal cual reproduciría la duplicidad dentro de cada tenant.
+const LEGACY_CONSOLIDATED_COLLECTIONS: Record<string, string> = {
+  audit_logs: 'auditLogs',
+};
+
+/** Marca que `consolidate-audit-logs.ts` pone en cada entrada que copia. */
+const LEGACY_AUDIT_SOURCE = 'legacy:audit_logs';
+
+// Colecciones del Control Plane: viven SOLO en `(default)` y nunca se copian a
+// la base de un tenant. Se listan para que el detector de colecciones nuevas no
+// las reporte como olvidadas.
+const CONTROL_PLANE_COLLECTIONS = [
+  'tenants', 'platformUsers', 'platformRoles', 'platformStats',
 ];
 
 // Geographic data is nested: countries/{c}/departments/{d}/cities/{ct}.
@@ -93,12 +112,21 @@ async function main() {
   const { databaseId, dryRun } = parseArgs();
 
   if (!getApps().length) {
-    initializeApp({ credential: applicationDefault() });
+    // Con `FIRESTORE_EMULATOR_HOST` se inicializa SIN credenciales, para poder
+    // validar el script (incluida la puerta de consolidación) contra el
+    // emulador sin tocar ningún proyecto real.
+    initializeApp(
+      process.env.FIRESTORE_EMULATOR_HOST
+        ? { projectId: process.env.GCLOUD_PROJECT || 'demo-estratega' }
+        : { credential: applicationDefault() }
+    );
   }
   const srcDb = getFirestore(); // (default)
   const destDb = getFirestore(databaseId);
 
   console.log(`\nMigrando (default) → "${databaseId}"  ${dryRun ? '[DRY RUN]' : ''}\n`);
+
+  await assertLegacyCollectionsConsolidated(srcDb);
 
   const report: Record<string, number> = {};
   for (const col of ROOT_COLLECTIONS) {
@@ -119,11 +147,63 @@ async function main() {
     console.log(`  ${col.padEnd(16)} src=${srcCount} dest=${destCount} ${ok ? 'OK' : 'MISMATCH'}`);
   }
 
+  // Red de seguridad: cualquier colección que EXISTA en el origen y no esté
+  // contemplada aquí se perdería en silencio (así se habían quedado fuera
+  // `audit_logs`, `routes` y `sms_messages`). Se detecta y se trata como fallo.
+  const unlisted = await findUnlistedCollections(srcDb);
+  if (unlisted.length > 0) {
+    mismatch = true;
+    console.error('\n⚠️  Colecciones presentes en (default) que NO se están migrando:');
+    for (const col of unlisted) {
+      const count = (await srcDb.collection(col).count().get()).data().count;
+      console.error(`  ${col.padEnd(16)} ${count} docs  → añádela a ROOT_COLLECTIONS o a CONTROL_PLANE_COLLECTIONS`);
+    }
+  }
+
   console.log(`\n${dryRun ? 'DRY RUN completado.' : 'Migración completada.'}`);
   if (mismatch) {
-    console.error('Hay diferencias de conteo. Revisa antes de continuar.');
+    console.error('Hay diferencias de conteo o colecciones sin migrar. Revisa antes de continuar.');
     process.exit(2);
   }
+}
+
+/**
+ * Puerta previa: `audit_logs` no se migra, se consolida antes en `auditLogs`.
+ * Si el origen todavía tiene documentos legacy sin consolidar, la migración se
+ * aborta — dejarla correr perdería el histórico en silencio (que es justo el
+ * fallo que este script existe para evitar).
+ */
+async function assertLegacyCollectionsConsolidated(srcDb: Firestore): Promise<void> {
+  for (const [legacyCol, canonicalCol] of Object.entries(LEGACY_CONSOLIDATED_COLLECTIONS)) {
+    const legacyCount = (await srcDb.collection(legacyCol).count().get()).data().count;
+    if (legacyCount === 0) continue;
+
+    const consolidated = (
+      await srcDb.collection(canonicalCol).where('source', '==', LEGACY_AUDIT_SOURCE).count().get()
+    ).data().count;
+
+    if (consolidated < legacyCount) {
+      console.error(
+        `\n⛔ \`${legacyCol}\` tiene ${legacyCount} docs y solo ${consolidated} están consolidados en \`${canonicalCol}\`.`
+      );
+      console.error('   Ejecuta primero:  npx tsx scripts/consolidate-audit-logs.ts --dry-run');
+      console.error('   y luego sin --dry-run. Después vuelve a lanzar esta migración.');
+      process.exit(3);
+    }
+    console.log(`  ${legacyCol} ya consolidada en ${canonicalCol} (${consolidated}/${legacyCount}); no se migra.`);
+  }
+}
+
+/** Colecciones raíz del origen que no están ni en la lista a migrar ni en la del control plane. */
+async function findUnlistedCollections(srcDb: Firestore): Promise<string[]> {
+  const known = new Set([
+    ...ROOT_COLLECTIONS,
+    ...CONTROL_PLANE_COLLECTIONS,
+    ...Object.keys(LEGACY_CONSOLIDATED_COLLECTIONS),
+    GEO_ROOT,
+  ]);
+  const present = await srcDb.listCollections();
+  return present.map((c) => c.id).filter((id) => !known.has(id)).sort();
 }
 
 main().catch((err) => {

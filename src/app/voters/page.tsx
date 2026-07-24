@@ -45,7 +45,7 @@ import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { geocodeAddress } from "@/ai/flows/geocode-address"
 import { Input } from "@/components/ui/input"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 
 const VOTERS_PER_PAGE = 15;
 
@@ -177,7 +177,7 @@ export default function VotersPage() {
   const handleDelete = () => {
     if (voterToDelete && votersCollectionRef && currentUser) {
       setDocumentNonBlocking(doc(votersCollectionRef, voterToDelete.id), { status: 'inactivo' }, { merge: true });
-      logAudit(currentUser.uid, 'voter:archive', { voterId: voterToDelete.id, name: `${voterToDelete.firstName} ${voterToDelete.lastName}` });
+      logAuditEvent(currentUser, 'voter:archive', { voterId: voterToDelete.id, name: `${voterToDelete.firstName} ${voterToDelete.lastName}` });
       setVoterToDelete(null)
       toast({
           title: "Votante Archivado",
@@ -207,7 +207,7 @@ export default function VotersPage() {
         
         if (selectedVoter) {
             setDocumentNonBlocking(doc(votersCollectionRef, selectedVoter.id), voterData, { merge: true });
-            logAudit(currentUser.uid, 'voter:update', { voterId: selectedVoter.id, name: `${data.firstName} ${data.lastName}` });
+            logAuditEvent(currentUser, 'voter:update', { voterId: selectedVoter.id, name: `${data.firstName} ${data.lastName}` });
         } else {
             const newVoterData = {
                 ...voterData,
@@ -215,7 +215,7 @@ export default function VotersPage() {
                 registrationDate: new Date().toISOString(),
             };
             const docRef = await addDoc(votersCollectionRef, newVoterData);
-            logAudit(currentUser.uid, 'voter:create', { voterId: docRef.id, name: `${data.firstName} ${data.lastName}` });
+            logAuditEvent(currentUser, 'voter:create', { voterId: docRef.id, name: `${data.firstName} ${data.lastName}` });
         }
 
         toast({

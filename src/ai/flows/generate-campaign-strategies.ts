@@ -227,11 +227,12 @@ const SaveStrategyInputSchema = z.object({
 
 export async function saveGeneratedStrategy(
   data: z.infer<typeof SaveStrategyInputSchema>,
-  idToken: string
+  idToken: string,
+  impersonatedTenantId?: string | null
 ): Promise<{ success: boolean, id?: string, error?: string }> {
   let ctx;
   try {
-    ctx = await getCallerContext(idToken);
+    ctx = await getCallerContext(idToken, impersonatedTenantId);
     // Strategies are gated behind campaign access (mirrors the Firestore rules).
     assertCan(ctx, 'campaign:read');
   } catch (e: any) {

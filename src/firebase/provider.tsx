@@ -7,7 +7,7 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Analytics } from 'firebase/analytics';
 import type { Tenant } from '@/lib/types';
-import { getTenantFirestore, getImpersonatedDatabaseId } from '@/firebase/tenant-db';
+import { getTenantFirestore, getImpersonation } from '@/firebase/tenant-db';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -155,10 +155,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         };
         setClaims(resolvedClaims);
 
-        const impersonated = resolvedClaims.platformAdmin ? getImpersonatedDatabaseId() : null;
+        const impersonated = resolvedClaims.platformAdmin ? getImpersonation() : null;
 
         if (impersonated) {
-          setActiveFirestore(getTenantFirestore(impersonated));
+          setActiveFirestore(getTenantFirestore(impersonated.databaseId));
           setConnectionScope('impersonation');
           setTenantResolution({ state: 'default' });
           return;

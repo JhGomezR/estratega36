@@ -71,19 +71,30 @@ export function VoterRegistrationChart({ voters, isLoading }: { voters: Voter[] 
       },
     }} className="h-[300px] w-full">
       <BarChart data={voterRegistrationChartData}>
-          <CartesianGrid vertical={false} />
+          <CartesianGrid
+              vertical={false}
+              strokeDasharray="4 4"
+              stroke="hsl(var(--border))"
+          />
           <XAxis
               dataKey="month"
               tickLine={false}
               tickMargin={10}
               axisLine={false}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
           />
-          <YAxis />
+          <YAxis
+              allowDecimals={false}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={10}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+          />
           <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent />}
           />
-          <Bar dataKey="registrations" fill="var(--color-registrations)" radius={4} />
+          <Bar dataKey="registrations" fill="var(--color-registrations)" radius={[6, 6, 0, 0]} />
       </BarChart>
     </ChartContainer>
   )

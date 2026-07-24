@@ -261,6 +261,15 @@ export type PlatformUser = WithId<{
     status: 'activo' | 'inactivo';
 }>;
 
+/**
+ * Entrada de la colección canónica `auditLogs`.
+ *
+ * Los campos `userEmail`, `source` y `legacy` solo aparecen en las entradas
+ * CONSOLIDADAS desde la colección legacy `audit_logs` (ver
+ * `src/lib/audit-log-normalize.ts`): el escritor vivo (`logAudit`) no los
+ * produce. Son opcionales para que un mismo consumidor pueda leer el histórico
+ * y lo nuevo con el mismo tipo.
+ */
 export type AuditLog = {
     userId: string;
     action: string;
@@ -274,6 +283,17 @@ export type AuditLog = {
         region?: string;
         latitude?: number;
         longitude?: number;
+    };
+    /** Email del actor. Solo lo traen las entradas migradas de `audit_logs`. */
+    userEmail?: string;
+    /** Procedencia. `'legacy:audit_logs'` ⇒ entrada consolidada, no nativa. */
+    source?: string;
+    /** Campos del esquema legacy sin equivalente canónico (nada se descarta). */
+    legacy?: {
+        eventType?: string;
+        collectionName?: string;
+        documentId?: string;
+        extra?: Record<string, any>;
     };
 };
 

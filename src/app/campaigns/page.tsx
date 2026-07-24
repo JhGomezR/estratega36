@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils"
 import { CampaignGrid } from "@/components/campaign-grid"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 import { useToast } from "@/hooks/use-toast"
 
 const statusColors: Record<string, string> = {
@@ -93,7 +93,7 @@ export default function CampaignsPage() {
             const endDate = parseISO(campaign.endDate);
             if (isPast(endDate) && !isToday(endDate)) {
               setDocumentNonBlocking(doc(campaignsCollection, campaign.id), { status: 'Finalizada', progress: 100 }, { merge: true });
-              logAudit(currentUser.uid, 'campaign:auto_finalize', { campaignId: campaign.id, name: campaign.name });
+              logAuditEvent(currentUser, 'campaign:auto_finalize', { campaignId: campaign.id, name: campaign.name });
             }
           } catch (e) {
             console.error(`Invalid date for campaign ${campaign.id}: ${campaign.endDate}`);
@@ -181,7 +181,7 @@ export default function CampaignsPage() {
   const handleDelete = () => {
     if (campaignsCollection && campaignToDelete && currentUser) {
       setDocumentNonBlocking(doc(campaignsCollection, campaignToDelete.id), { status: 'Archivada' }, { merge: true });
-      logAudit(currentUser.uid, 'campaign:archive', { campaignId: campaignToDelete.id, name: campaignToDelete.name });
+      logAuditEvent(currentUser, 'campaign:archive', { campaignId: campaignToDelete.id, name: campaignToDelete.name });
       setCampaignToDelete(null);
       toast({ title: "Campaña Archivada", description: `La campaña "${campaignToDelete.name}" ha sido archivada.` });
     }
@@ -196,14 +196,14 @@ export default function CampaignsPage() {
       
       if (selectedCampaign) {
         setDocumentNonBlocking(doc(campaignsCollection, selectedCampaign.id), campaignData, { merge: true });
-        logAudit(currentUser.uid, 'campaign:update', { campaignId: selectedCampaign.id, name: data.name });
+        logAuditEvent(currentUser, 'campaign:update', { campaignId: selectedCampaign.id, name: data.name });
         toast({ title: "Campaña Actualizada", description: "Los cambios han sido guardados." });
       } else {
         addDocumentNonBlocking(campaignsCollection, {
           ...campaignData,
           progress: campaignData.status === 'Finalizada' ? 100 : 0,
         }).then(docRef => {
-            if(docRef) logAudit(currentUser.uid, 'campaign:create', { campaignId: docRef.id, name: data.name });
+            if(docRef) logAuditEvent(currentUser, 'campaign:create', { campaignId: docRef.id, name: data.name });
         });
         toast({ title: "Campaña Creada", description: "La nueva campaña ha sido creada exitosamente." });
       }

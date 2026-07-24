@@ -45,7 +45,7 @@ import { collection, doc } from "firebase/firestore"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { logAudit } from "@/lib/audit-log"
+import { logAuditEvent } from "@/lib/audit-log-client"
 
 const actionIcons: Record<string, LucideIcon> = {
   read: Eye,
@@ -94,7 +94,7 @@ export default function RolesPage() {
   const handleDelete = () => {
     if (roleToDelete && rolesCollectionRef && currentUser) {
       setDocumentNonBlocking(doc(rolesCollectionRef, roleToDelete.id), { trash: true }, { merge: true });
-      logAudit(currentUser.uid, 'role:delete', { roleId: roleToDelete.id, name: roleToDelete.name });
+      logAuditEvent(currentUser, 'role:delete', { roleId: roleToDelete.id, name: roleToDelete.name });
       setRoleToDelete(null);
       toast({ title: "Rol Eliminado", description: "El rol ha sido movido a la papelera." });
     }
@@ -104,12 +104,12 @@ export default function RolesPage() {
     if (rolesCollectionRef && currentUser) {
       if (selectedRole) {
         setDocumentNonBlocking(doc(rolesCollectionRef, selectedRole.id), data, { merge: true });
-        logAudit(currentUser.uid, 'role:update', { roleId: selectedRole.id, name: data.name });
+        logAuditEvent(currentUser, 'role:update', { roleId: selectedRole.id, name: data.name });
         toast({ title: "Rol Actualizado", description: "Los cambios han sido guardados." });
       } else {
         const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
         setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), {...data, trash: false }, {});
-        logAudit(currentUser.uid, 'role:create', { roleId: newRoleId, name: data.name });
+        logAuditEvent(currentUser, 'role:create', { roleId: newRoleId, name: data.name });
         toast({ title: "Rol Creado", description: "El nuevo rol ha sido creado." });
       }
     }
