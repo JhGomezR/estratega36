@@ -238,6 +238,29 @@ export const APP_MODULES = [
 
 export type AppModuleKey = (typeof APP_MODULES)[number]['key'];
 
+/**
+ * Relaciona cada GRUPO de permisos (RBAC, ver `permissionGroups`) con los
+ * módulos de PLAN que lo habilitan. Un grupo de permisos solo tiene sentido si
+ * el plan del tenant incluye al menos uno de sus módulos; se usa para NO
+ * ofrecer permisos de módulos ausentes del plan en el editor de roles (igual
+ * que el sidebar oculta esos módulos). `report` cubre las 3 funciones de IA;
+ * `user` cubre tanto la gestión de usuarios como el Mapa de Red; `log`
+ * (auditoría) se considera parte de la administración/configuración.
+ */
+export const PERMISSION_GROUP_MODULES: Record<string, AppModuleKey[]> = {
+  campaign: ['campaigns'],
+  voter: ['voters', 'voters_map'],
+  user: ['network', 'admin_users'],
+  role: ['admin_roles'],
+  city: ['admin_cities'],
+  task: ['activities_calendar', 'activities_tasks'],
+  call: ['activities_calls'],
+  form: ['admin_forms'],
+  report: ['analysis_campaign', 'analysis_strategies', 'analysis_social'],
+  setting: ['admin_settings'],
+  log: ['admin_settings'],
+};
+
 /** Un plan comercial: define qué módulos habilita. Vive en `(default)/plans`. */
 export type Plan = WithId<{
     name: string;

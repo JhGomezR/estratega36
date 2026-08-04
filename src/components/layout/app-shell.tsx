@@ -13,6 +13,15 @@ import { ImpersonationBanner } from "./impersonation-banner"
 import { PageBreadcrumb } from "./page-breadcrumb"
 import { moduleForPath } from "./nav-config"
 import { SidebarProvider, useSidebar } from "./sidebar-context"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 function AppShellLayout({
   children,
@@ -64,14 +73,31 @@ export function AppShell({
 
   // Guard de PLAN: bloquea el acceso directo por URL a un módulo que el plan
   // del tenant no incluye (el sidebar ya lo oculta; esto cubre la URL directa).
+  // En vez de redirigir en silencio, avisa con un modal y, al cerrarlo, regresa
+  // a la última ruta permitida donde estaba el usuario.
   const pathname = usePathname()
   const router = useRouter()
   const allowedModules = useAllowedModules()
+  const [blockedModule, setBlockedModule] = React.useState<string | null>(null)
+  const lastAllowedPath = React.useRef<string>("/")
+
   React.useEffect(() => {
-    if (allowedModules === null) return // todos los módulos permitidos
+    if (allowedModules === null) {
+      lastAllowedPath.current = pathname
+      return // todos los módulos permitidos
+    }
     const mod = moduleForPath(pathname)
-    if (mod && !allowedModules.has(mod)) router.replace("/")
-  }, [allowedModules, pathname, router])
+    if (mod && !allowedModules.has(mod)) {
+      setBlockedModule(mod)
+    } else {
+      lastAllowedPath.current = pathname
+    }
+  }, [allowedModules, pathname])
+
+  const closeBlocked = () => {
+    setBlockedModule(null)
+    router.replace(lastAllowedPath.current || "/")
+  }
 
   // Personalización por inquilino (marca blanca).
   //
@@ -96,6 +122,21 @@ export function AppShell({
       <AppShellLayout onLogout={onLogout} logoUrl={settings?.logoUrl}>
         {children}
       </AppShellLayout>
+
+      <AlertDialog open={blockedModule !== null}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Módulo no disponible</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tu plan actual no incluye este módulo, por lo que no tienes acceso.
+              Si necesitas habilitarlo, contacta con el administrador de la plataforma.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={closeBlocked}>Volver</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   )
 }

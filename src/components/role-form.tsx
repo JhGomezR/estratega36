@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { Role } from "@/lib/types"
-import { permissionGroups, availablePermissions } from "@/lib/types"
+import { permissionGroups, PERMISSION_GROUP_MODULES } from "@/lib/types"
+import { useAllowedModules } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -85,6 +86,23 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
   const { control, handleSubmit, setValue, watch } = form;
   const currentPermissions = watch('permissions');
 
+  // Solo se ofrecen permisos de módulos que el PLAN del tenant incluye. Si el
+  // plan no habilita un módulo, su grupo de permisos ni siquiera aparece.
+  const allowedModules = useAllowedModules();
+  const visibleGroups = React.useMemo(
+    () =>
+      Object.entries(permissionGroups).filter(
+        ([module]) =>
+          allowedModules === null ||
+          (PERMISSION_GROUP_MODULES[module] ?? []).some((m) => allowedModules.has(m))
+      ),
+    [allowedModules]
+  );
+  const visiblePermissions = React.useMemo(
+    () => visibleGroups.flatMap(([module, actions]) => actions.map((a) => `${module}:${a}`)),
+    [visibleGroups]
+  );
+
   const handlePermissionChange = (permission: string, isChecked: boolean) => {
     const updatedPermissions = isChecked
       ? [...currentPermissions, permission]
@@ -109,11 +127,17 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
   }
 
   const handleSelectAll = (isChecked: boolean) => {
-    setValue('permissions', isChecked ? [...availablePermissions] : [], { shouldValidate: true });
+    if (isChecked) {
+      // Marca todos los VISIBLES conservando cualquier permiso preexistente de
+      // módulos ocultos (p. ej. si el rol se creó bajo un plan superior).
+      setValue('permissions', [...new Set([...currentPermissions, ...visiblePermissions])], { shouldValidate: true });
+    } else {
+      setValue('permissions', currentPermissions.filter((p) => !visiblePermissions.includes(p)), { shouldValidate: true });
+    }
   }
 
-  const allPermissionsSelected = availablePermissions.length === currentPermissions.length;
-  const somePermissionsSelected = currentPermissions.length > 0 && !allPermissionsSelected;
+  const allPermissionsSelected = visiblePermissions.length > 0 && visiblePermissions.every((p) => currentPermissions.includes(p));
+  const somePermissionsSelected = visiblePermissions.some((p) => currentPermissions.includes(p)) && !allPermissionsSelected;
 
   return (
     <Form {...form}>
@@ -177,7 +201,7 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Object.entries(permissionGroups).map(([module, moduleActions]) => {
+                            {visibleGroups.map(([module, moduleActions]) => {
                                 const Icon = moduleIcons[module];
                                 const allModuleActionsExist = moduleActions.every(action => currentPermissions.includes(`${module}:${action}`));
                                 const someModuleActionsExist = moduleActions.some(action => currentPermissions.includes(`${module}:${action}`));
