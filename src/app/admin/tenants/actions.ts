@@ -55,7 +55,9 @@ const ADMIN_PERMISSIONS = [
   'task:create', 'task:read', 'task:update', 'task:delete',
   'call:create', 'call:read', 'call:update', 'call:delete',
   'form:create', 'form:read', 'form:update', 'form:delete',
-  'report:read', 'setting:update', 'log:read',
+  // `log:read` (auditoría) es exclusivo de la administración de plataforma; los
+  // tenants no lo llevan.
+  'report:read', 'setting:update',
 ];
 
 /** Reads the tenant rules template and binds it to a concrete tenant id. */

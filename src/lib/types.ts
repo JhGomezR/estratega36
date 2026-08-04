@@ -258,7 +258,9 @@ export const PERMISSION_GROUP_MODULES: Record<string, AppModuleKey[]> = {
   form: ['admin_forms'],
   report: ['analysis_campaign', 'analysis_strategies', 'analysis_social'],
   setting: ['admin_settings'],
-  log: ['admin_settings'],
+  // Mapeado a [] a propósito: `log` (auditoría) es EXCLUSIVO de la administración
+  // de plataforma (Control Plane), nunca se ofrece en los roles de un tenant.
+  log: [],
 };
 
 /** Un plan comercial: define qué módulos habilita. Vive en `(default)/plans`. */

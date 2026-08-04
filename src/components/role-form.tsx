@@ -91,11 +91,13 @@ export function RoleForm({ role, onSubmit, onCancel }: RoleFormProps) {
   const allowedModules = useAllowedModules();
   const visibleGroups = React.useMemo(
     () =>
-      Object.entries(permissionGroups).filter(
-        ([module]) =>
-          allowedModules === null ||
-          (PERMISSION_GROUP_MODULES[module] ?? []).some((m) => allowedModules.has(m))
-      ),
+      Object.entries(permissionGroups).filter(([module]) => {
+        const mods = PERMISSION_GROUP_MODULES[module] ?? [];
+        // Grupo solo-plataforma (p. ej. `log`): nunca en roles de tenant.
+        if (mods.length === 0) return false;
+        // Sin plan definido → backward-compat: se muestran todos los de tenant.
+        return allowedModules === null || mods.some((m) => allowedModules.has(m));
+      }),
     [allowedModules]
   );
   const visiblePermissions = React.useMemo(
