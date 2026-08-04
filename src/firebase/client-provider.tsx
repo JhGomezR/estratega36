@@ -73,7 +73,10 @@ function AuthGate({ children, onLogout }: { children: ReactNode; onLogout: () =>
   const router = useRouter();
 
   const isPublic = PUBLIC_PAGES.includes(pathname);
-  const isAdminPath = pathname.startsWith('/admin');
+  // Control Plane = /admin y /admin/*. OJO: NO usar startsWith('/admin') a secas,
+  // porque '/administration/...' (administración del TENANT) también empieza con
+  // "/admin" y quedaría bloqueado, redirigiendo al admin del tenant al dashboard.
+  const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
   const isPlatformAdmin = claims?.platformAdmin === true;
   const isImpersonating = connectionScope === 'impersonation';
   // While signed in, wait until claims/tenant have been resolved before routing.
