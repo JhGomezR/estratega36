@@ -156,8 +156,6 @@ export default function SettingsPage() {
   });
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
   const [logoFile, setLogoFile] = React.useState<File | null>(null);
-  const [loginImagePreview, setLoginImagePreview] = React.useState<string | null>(null);
-  const [loginImageFile, setLoginImageFile] = React.useState<File | null>(null);
 
 
   const lists = React.useMemo(() => {
@@ -180,9 +178,6 @@ export default function SettingsPage() {
       });
       if (brandingSettings.logoUrl) {
           setLogoPreview(brandingSettings.logoUrl);
-      }
-      if (brandingSettings.loginImageUrl) {
-          setLoginImagePreview(brandingSettings.loginImageUrl);
       }
       updateCssVariables(brandingSettings.primaryColor, brandingSettings.accentColor, brandingSettings.sidebarColor);
     }
@@ -226,30 +221,14 @@ export default function SettingsPage() {
     }
   };
   
-  const handleLoginImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setLoginImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLoginImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSaveBranding = async () => {
     if (!brandingSettingsRef || !currentUser) return;
     setIsSaving(true);
     try {
         let logoUrl = brandingSettings?.logoUrl;
-        let loginImageUrl = brandingSettings?.loginImageUrl;
-        
+
         if (logoFile) {
             logoUrl = logoPreview!;
-        }
-        if (loginImageFile) {
-            loginImageUrl = loginImagePreview!;
         }
 
         const newBrandingSettings: BrandingSettings = {
@@ -257,11 +236,10 @@ export default function SettingsPage() {
             accentColor: hexToHsl(colors.accentColor)!,
             sidebarColor: hexToHsl(colors.sidebarColor)!,
             logoUrl: logoUrl,
-            loginImageUrl: loginImageUrl,
         };
-        
+
         setDocumentNonBlocking(brandingSettingsRef, newBrandingSettings, { merge: true });
-        logAuditEvent(currentUser, 'settings:branding_update', { colors, hasLogo: !!logoUrl, hasLoginImage: !!loginImageUrl });
+        logAuditEvent(currentUser, 'settings:branding_update', { colors, hasLogo: !!logoUrl });
 
         updateCssVariables(newBrandingSettings.primaryColor, newBrandingSettings.accentColor, newBrandingSettings.sidebarColor);
         toast({
@@ -362,34 +340,6 @@ export default function SettingsPage() {
                                     <label htmlFor="logo-upload" className="cursor-pointer">
                                         <Upload className="mr-2 h-4 w-4"/>
                                         {logoFile ? "Cambiar" : "Subir logo"}
-                                    </label>
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                  </div>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-                     <div className="pt-2">
-                        <Label htmlFor="login-image-upload">Imagen de Fondo para Login</Label>
-                        <p className="text-xs text-muted-foreground">
-                            Imagen vertical recomendada (ej. 1200x1800px).
-                        </p>
-                    </div>
-                    <div className="col-span-2">
-                         <div className="flex items-center gap-4">
-                           <div className="w-24 h-24 rounded-lg border border-dashed flex items-center justify-center bg-muted/50 overflow-hidden">
-                                {loginImagePreview ? (
-                                    <Image src={loginImagePreview} alt="Vista previa de imagen de login" width={80} height={80} className="object-cover h-full w-full"/>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground text-center p-2">Vista previa</span>
-                                )}
-                            </div>
-                            <div className="flex-1">
-                                <Input id="login-image-upload" type="file" accept="image/*" onChange={handleLoginImageChange} className="hidden" />
-                                <Button asChild variant="outline">
-                                    <label htmlFor="login-image-upload" className="cursor-pointer">
-                                        <Upload className="mr-2 h-4 w-4"/>
-                                        {loginImageFile ? "Cambiar" : "Subir imagen"}
                                     </label>
                                 </Button>
                             </div>
