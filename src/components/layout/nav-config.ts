@@ -32,6 +32,8 @@ export type NavLeaf = {
   icon: LucideIcon
   /** Permiso requerido (`hasPermission`). Sin valor: siempre visible. */
   permission?: string
+  /** Módulo del plan requerido. Sin valor: no depende del plan. */
+  module?: string
 }
 
 export type NavItem = NavLeaf | {
@@ -40,6 +42,8 @@ export type NavItem = NavLeaf | {
   /** Identificador estable del submenú (para el estado abierto/cerrado). */
   key: string
   children: NavLeaf[]
+  /** Módulo del plan requerido para todo el submenú. */
+  module?: string
 }
 
 export type NavSection = {
@@ -48,6 +52,8 @@ export type NavSection = {
   items: NavItem[]
   /** Permiso que gobierna la sección completa. */
   permission?: string
+  /** Módulo del plan que gobierna la sección completa. */
+  module?: string
 }
 
 export function isNavGroup(
@@ -66,29 +72,34 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Campañas",
         icon: Target,
         permission: "campaign:read",
+        module: "campaigns",
       },
       {
         href: "/voters",
         label: "Votantes",
         icon: Users,
         permission: "voter:read",
+        module: "voters",
       },
       {
         href: "/map",
         label: "Mapa de Votantes",
         icon: Map,
         permission: "voter:read",
+        module: "voters",
       },
       {
         href: "/network",
         label: "Mapa de Red",
         icon: GitFork,
         permission: "user:read",
+        module: "network",
       },
       {
         key: "activities",
         label: "Actividades",
         icon: Activity,
+        module: "activities",
         children: [
           {
             href: "/activities/calendar",
@@ -115,6 +126,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Análisis IA",
     permission: "report:read",
+    module: "analysis",
     items: [
       {
         href: "/analysis",
@@ -135,6 +147,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "Administración",
+    module: "administration",
     items: [
       {
         href: "/administration/roles",
@@ -169,6 +182,27 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ]
+
+/**
+ * Módulo del plan requerido por una ruta (o `undefined` si no depende del plan,
+ * p. ej. el Dashboard). Se usa para bloquear el acceso directo por URL a un
+ * módulo no incluido en el plan del tenant.
+ */
+export function moduleForPath(pathname: string): string | undefined {
+  const matches = (href: string) => pathname === href || pathname.startsWith(href + "/")
+  for (const section of NAV_SECTIONS) {
+    for (const item of section.items) {
+      if (isNavGroup(item)) {
+        for (const child of item.children) {
+          if (matches(child.href)) return child.module ?? item.module ?? section.module
+        }
+      } else if (matches(item.href)) {
+        return item.module ?? section.module
+      }
+    }
+  }
+  return undefined
+}
 
 /** Etiquetas en español para las migas de pan, derivadas de la navegación. */
 export const ROUTE_LABELS: Record<string, string> = {

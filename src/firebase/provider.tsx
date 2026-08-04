@@ -274,6 +274,21 @@ export const usePlatformClaims = (): PlatformClaims | null => useFirebase().clai
 /** Tenant resolution state for the signed-in user. */
 export const useTenantResolution = (): TenantResolution => useFirebase().tenantResolution;
 
+/**
+ * Módulos habilitados por el PLAN del tenant. `null` = todos habilitados
+ * (operador de plataforma / impersonación / usuario legacy / tenant sin
+ * `planModules`). Un `Set` restringe a esos módulos.
+ */
+export const useAllowedModules = (): Set<string> | null => {
+  const { claims, tenantResolution } = useFirebase();
+  if (claims?.platformAdmin) return null; // control plane / impersonación → todo
+  if (tenantResolution.state === 'active') {
+    const pm = tenantResolution.tenant.planModules;
+    return Array.isArray(pm) ? new Set(pm) : null;
+  }
+  return null;
+};
+
 type MemoFirebase<T> = T & { __memo?: boolean };
 
 export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | MemoFirebase<T> {

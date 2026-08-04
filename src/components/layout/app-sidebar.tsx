@@ -8,6 +8,7 @@ import { ChevronDown, MoreHorizontal } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { usePermissions } from "@/hooks/usePermissions"
+import { useAllowedModules } from "@/firebase"
 import { useSidebar } from "./sidebar-context"
 import {
   isNavGroup,
@@ -157,19 +158,25 @@ function SidebarGroup({
 
 function SidebarSection({ section }: { section: NavSection }) {
   const { hasPermission } = usePermissions()
+  const allowed = useAllowedModules()
   const { isWide } = useSidebar()
 
+  // Módulo permitido por el plan del tenant (null = todos).
+  const moduleOk = (module?: string) => !module || allowed === null || allowed.has(module)
+
   if (section.permission && !hasPermission(section.permission)) return null
+  if (!moduleOk(section.module)) return null
 
   const items = section.items
     .map((item) => {
       if (isNavGroup(item)) {
+        if (!moduleOk(item.module)) return null
         const children = item.children.filter(
-          (child) => !child.permission || hasPermission(child.permission)
+          (child) => (!child.permission || hasPermission(child.permission)) && moduleOk(child.module)
         )
         return children.length > 0 ? { item, children } : null
       }
-      return !item.permission || hasPermission(item.permission)
+      return (!item.permission || hasPermission(item.permission)) && moduleOk(item.module)
         ? { item, children: [] as NavLeaf[] }
         : null
     })

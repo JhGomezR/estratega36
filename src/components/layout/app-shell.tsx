@@ -2,14 +2,16 @@
 
 import * as React from "react"
 import { doc } from "firebase/firestore"
+import { usePathname, useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase"
+import { useDoc, useFirestore, useMemoFirebase, useAllowedModules } from "@/firebase"
 import type { BrandingSettings } from "@/lib/types"
 import { AppHeader } from "./app-header"
 import { AppSidebar } from "./app-sidebar"
 import { ImpersonationBanner } from "./impersonation-banner"
 import { PageBreadcrumb } from "./page-breadcrumb"
+import { moduleForPath } from "./nav-config"
 import { SidebarProvider, useSidebar } from "./sidebar-context"
 
 function AppShellLayout({
@@ -59,6 +61,17 @@ export function AppShell({
     [firestore]
   )
   const { data: settings } = useDoc<BrandingSettings>(settingsRef)
+
+  // Guard de PLAN: bloquea el acceso directo por URL a un módulo que el plan
+  // del tenant no incluye (el sidebar ya lo oculta; esto cubre la URL directa).
+  const pathname = usePathname()
+  const router = useRouter()
+  const allowedModules = useAllowedModules()
+  React.useEffect(() => {
+    if (allowedModules === null) return // todos los módulos permitidos
+    const mod = moduleForPath(pathname)
+    if (mod && !allowedModules.has(mod)) router.replace("/")
+  }, [allowedModules, pathname, router])
 
   // Personalización por inquilino (marca blanca).
   //

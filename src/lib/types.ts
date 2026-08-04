@@ -212,10 +212,40 @@ export type TenantStatus = 'provisioning' | 'active' | 'inactive' | 'failed';
  * A tenant lives in the Control Plane (the `(default)` database).
  * Its business data lives in its OWN named Firestore database (`databaseId`).
  */
+/**
+ * Módulos "de negocio" que un PLAN puede habilitar para un tenant. El gating
+ * combina PLAN (qué módulos existen) ∩ RBAC (qué acciones por rol).
+ */
+export const APP_MODULES = [
+  { key: 'campaigns', label: 'Campañas' },
+  { key: 'voters', label: 'Votantes y Mapa' },
+  { key: 'network', label: 'Mapa de Red' },
+  { key: 'activities', label: 'Actividades' },
+  { key: 'analysis', label: 'Análisis IA' },
+  { key: 'administration', label: 'Administración' },
+] as const;
+
+export type AppModuleKey = (typeof APP_MODULES)[number]['key'];
+
+/** Un plan comercial: define qué módulos habilita. Vive en `(default)/plans`. */
+export type Plan = WithId<{
+    name: string;
+    description?: string;
+    modules: string[];
+    status: 'activo' | 'inactivo';
+}>;
+
 export type Tenant = WithId<{
     displayName: string;
     companyName: string;
-    plan: 'basico' | 'estratega' | '360';
+    /** Id del plan asignado (referencia a `(default)/plans/{plan}`). */
+    plan: string;
+    /**
+     * Módulos habilitados, DENORMALIZADOS desde el plan al aprovisionar/cambiar
+     * de plan. Permite el gating sin lecturas ni reglas extra. Ausente =
+     * (backward-compat) todos los módulos habilitados.
+     */
+    planModules?: string[];
     /** Named Firestore database that holds this tenant's data, e.g. "tenant-acme". */
     databaseId: string;
     ownerUid: string;

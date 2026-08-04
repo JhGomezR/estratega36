@@ -27,7 +27,7 @@ const ProvisionInput = z.object({
   idToken: z.string().min(1),
   displayName: z.string().min(2),
   companyName: z.string().min(2),
-  plan: z.enum(['basico', 'estratega', '360']),
+  plan: z.string().min(1),
   /** Firestore location for the new database (must match project constraints). */
   locationId: z.string().min(2),
   adminEmail: z.string().email(),
@@ -92,11 +92,20 @@ export async function provisionTenant(
     return { success: false, error: `Ya existe un tenant con id "${tenantId}".` };
   }
 
+  // Módulos del plan (denormalizados para el gating sin lecturas ni reglas
+  // extra). Si el plan aún no existe, se omite → backward-compat: el tenant
+  // vería todos los módulos hasta que se le asigne un plan con módulos.
+  const planSnap = await adminDb.collection('plans').doc(parsed.plan).get();
+  const planModules = planSnap.exists
+    ? (planSnap.data() as { modules?: string[] } | undefined)?.modules
+    : undefined;
+
   // 0) Register as provisioning so the UI can reflect progress.
   await tenantRef.set({
     displayName: parsed.displayName,
     companyName: parsed.companyName,
     plan: parsed.plan,
+    ...(Array.isArray(planModules) ? { planModules } : {}),
     databaseId,
     ownerUid: '',
     createdAt: new Date().toISOString(),
@@ -188,6 +197,30 @@ export async function updateTenantBranding(input: {
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo actualizar el branding.' };
+  }
+}
+
+/**
+ * Asigna (o cambia) el plan de un tenant y DENORMALIZA sus módulos
+ * (`planModules`) desde el documento del plan. Solo operador de plataforma.
+ */
+export async function changeTenantPlan(input: {
+  idToken: string;
+  tenantId: string;
+  plan: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requirePlatformAdmin(input.idToken);
+    const planSnap = await adminDb.collection('plans').doc(input.plan).get();
+    if (!planSnap.exists) return { success: false, error: 'El plan seleccionado no existe.' };
+    const modules = (planSnap.data() as { modules?: string[] } | undefined)?.modules || [];
+    await adminDb
+      .collection('tenants')
+      .doc(input.tenantId)
+      .update({ plan: input.plan, planModules: modules });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'No se pudo cambiar el plan.' };
   }
 }
 

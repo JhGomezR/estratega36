@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import { collection } from 'firebase/firestore';
-import { Loader2, PlusCircle, LogIn, Power, PowerOff, Palette, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, LogIn, Power, PowerOff, Palette, Trash2, Package } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
 import { setImpersonation } from '@/firebase/tenant-db';
-import type { Tenant } from '@/lib/types';
+import type { Tenant, Plan } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { provisionTenant, setTenantStatus, updateTenantBranding, deleteTenant } from './actions';
+import { provisionTenant, setTenantStatus, updateTenantBranding, deleteTenant, changeTenantPlan } from './actions';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   active: 'default',
@@ -48,6 +48,9 @@ export default function TenantsPage() {
   const tenantsRef = useMemoFirebase(() => collection(defaultDb, 'tenants'), [defaultDb]);
   const { data: tenants, isLoading } = useCollection<Tenant>(tenantsRef);
 
+  const plansRef = useMemoFirebase(() => collection(defaultDb, 'plans'), [defaultDb]);
+  const { data: plans } = useCollection<Plan>(plansRef);
+
   const [createOpen, setCreateOpen] = React.useState(false);
   const [form, setForm] = React.useState({ ...EMPTY_CREATE });
   const [submitting, setSubmitting] = React.useState(false);
@@ -56,6 +59,9 @@ export default function TenantsPage() {
   const [deleteTarget, setDeleteTarget] = React.useState<Tenant | null>(null);
   const [confirmText, setConfirmText] = React.useState('');
   const [deleting, setDeleting] = React.useState(false);
+  const [planTarget, setPlanTarget] = React.useState<Tenant | null>(null);
+  const [selectedPlan, setSelectedPlan] = React.useState('');
+  const [changingPlan, setChangingPlan] = React.useState(false);
 
   const idToken = async () => {
     const t = await auth.currentUser?.getIdToken();
@@ -128,6 +134,26 @@ export default function TenantsPage() {
     }
   };
 
+  const openPlan = (t: Tenant) => { setPlanTarget(t); setSelectedPlan(t.plan || ''); };
+
+  const handleChangePlan = async () => {
+    if (!planTarget || !selectedPlan) return;
+    setChangingPlan(true);
+    try {
+      const res = await changeTenantPlan({ idToken: await idToken(), tenantId: planTarget.id, plan: selectedPlan });
+      if (res.success) {
+        toast({ title: 'Plan actualizado', description: 'Los módulos del tenant se ajustaron al plan.' });
+        setPlanTarget(null);
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: res.error });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } finally {
+      setChangingPlan(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -169,6 +195,9 @@ export default function TenantsPage() {
                       <Badge variant={STATUS_VARIANT[t.status] || 'outline'} className="capitalize">{t.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-1">
+                      <Button variant="ghost" size="icon" title="Cambiar plan" onClick={() => openPlan(t)}>
+                        <Package className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" title="Branding" onClick={() => setBrandingTenant(t)}>
                         <Palette className="h-4 w-4" />
                       </Button>
@@ -258,6 +287,34 @@ export default function TenantsPage() {
         onClose={() => setBrandingTenant(null)}
         getIdToken={idToken}
       />
+
+      {/* Cambiar plan */}
+      <Dialog open={!!planTarget} onOpenChange={(o) => { if (!o) setPlanTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar plan — {planTarget?.displayName}</DialogTitle>
+            <DialogDescription>Los módulos habilitados del tenant se ajustarán al plan seleccionado.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label>Plan</Label>
+            <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+              <SelectTrigger><SelectValue placeholder="Selecciona un plan" /></SelectTrigger>
+              <SelectContent>
+                {(plans || []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {(!plans || plans.length === 0) && (
+              <p className="text-xs text-muted-foreground">No hay planes. Créalos primero en «Planes».</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanTarget(null)} disabled={changingPlan}>Cancelar</Button>
+            <Button onClick={handleChangePlan} disabled={changingPlan || !selectedPlan}>
+              {changingPlan && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Eliminar tenant (DESTRUCTIVO) */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setConfirmText(''); } }}>
