@@ -20,9 +20,19 @@ function getAdminApp(): admin.app.App {
     //  2) No env var → Application Default Credentials (GCP App Hosting/Cloud Run,
     //     or a GOOGLE_APPLICATION_CREDENTIALS file path).
     const saKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const app = saKey
-      ? admin.initializeApp({ credential: admin.credential.cert(JSON.parse(saKey)) })
-      : admin.initializeApp();
+    let app: admin.app.App;
+    if (saKey) {
+      const parsed = JSON.parse(saKey);
+      app = admin.initializeApp({
+        credential: admin.credential.cert(parsed),
+        // Sin esto, adminApp.options.projectId queda vacío en el contenedor
+        // (no hay GOOGLE_CLOUD_PROJECT), y getProjectId() falla al aprovisionar
+        // tenants ("No se pudo resolver el projectId de GCP").
+        projectId: parsed.project_id,
+      });
+    } else {
+      app = admin.initializeApp();
+    }
     console.log('Firebase Admin SDK initialized successfully.');
     return app;
   } catch (error: any) {
