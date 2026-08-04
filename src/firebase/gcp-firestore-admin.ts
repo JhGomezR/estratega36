@@ -115,6 +115,37 @@ export async function createFirestoreDatabase(
 }
 
 /**
+ * Deletes a named Firestore database (DESTRUCTIVO: borra todos sus datos).
+ * Devuelve el nombre de la operación de larga duración (espera con
+ * waitForOperation) o `null` si la base ya no existe.
+ * Requiere que la protección de borrado esté deshabilitada (valor por defecto).
+ */
+export async function deleteFirestoreDatabase(databaseId: string): Promise<string | null> {
+  if (!databaseId || databaseId === '(default)') {
+    throw new Error(
+      `deleteFirestoreDatabase no acepta un databaseId inválido o "(default)" (recibido: "${databaseId}").`
+    );
+  }
+  const projectId = getProjectId();
+  const name = `projects/${projectId}/databases/${databaseId}`;
+
+  // Obtener el etag (y confirmar existencia). Si no existe, ya está borrada.
+  let etag: string | undefined;
+  try {
+    const db = await authedFetch(`https://firestore.googleapis.com/v1/${name}`);
+    etag = db?.etag;
+  } catch (err: any) {
+    const msg = String(err?.message || '');
+    if (msg.includes(' 404') || /NOT_FOUND/i.test(msg)) return null;
+    throw err;
+  }
+
+  const url = `https://firestore.googleapis.com/v1/${name}${etag ? `?etag=${encodeURIComponent(etag)}` : ''}`;
+  const op = await authedFetch(url, { method: 'DELETE' });
+  return op?.name || null;
+}
+
+/**
  * Polls a long-running operation until it completes or times out.
  * @param operationName full operation resource name returned by create*.
  */

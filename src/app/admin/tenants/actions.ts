@@ -18,6 +18,7 @@ import {
   createFirestoreDatabase,
   waitForOperation,
   deployFirestoreRules,
+  deleteFirestoreDatabase,
 } from '@/firebase/gcp-firestore-admin';
 import { slugify } from '@/lib/slug';
 import type { TenantStatus } from '@/lib/types';
@@ -222,5 +223,58 @@ export async function assignUserToTenant(input: {
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo asignar el usuario al tenant.' };
+  }
+}
+
+/**
+ * DESTRUCTIVO: elimina un tenant por completo.
+ *   1) borra su base de datos dedicada (y TODOS sus datos),
+ *   2) borra el usuario admin dueño en Auth (si existe),
+ *   3) borra el documento del registro en `(default)/tenants/{id}`.
+ *
+ * Es best-effort en los pasos 1 y 2 (si la DB o el usuario ya no existen se
+ * continúa), pero SIEMPRE elimina el documento de registro al final.
+ * Solo invocable por un operador de plataforma.
+ */
+export async function deleteTenant(input: {
+  idToken: string;
+  tenantId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requirePlatformAdmin(input.idToken);
+
+    const ref = adminDb.collection('tenants').doc(input.tenantId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return { success: false, error: 'El tenant no existe.' };
+    }
+    const data = snap.data() as { databaseId?: string; ownerUid?: string } | undefined;
+
+    // 1) Borrar la base de datos dedicada (asíncrono).
+    if (data?.databaseId && data.databaseId !== '(default)') {
+      try {
+        const opName = await deleteFirestoreDatabase(data.databaseId);
+        if (opName) await waitForOperation(opName);
+      } catch (e: any) {
+        console.error(`No se pudo borrar la DB "${data.databaseId}":`, e?.message);
+        // No abortamos: puede que la DB no exista (tenant a medio aprovisionar).
+      }
+    }
+
+    // 2) Borrar el usuario admin dueño en Auth (si lo hubo).
+    if (data?.ownerUid) {
+      try {
+        await adminAuth.deleteUser(data.ownerUid);
+      } catch (e: any) {
+        console.error(`No se pudo borrar el usuario ${data.ownerUid}:`, e?.message);
+      }
+    }
+
+    // 3) Borrar el registro del tenant.
+    await ref.delete();
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'No se pudo eliminar el tenant.' };
   }
 }

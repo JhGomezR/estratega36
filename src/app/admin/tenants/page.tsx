@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { collection } from 'firebase/firestore';
-import { Loader2, PlusCircle, LogIn, Power, PowerOff, Palette } from 'lucide-react';
+import { Loader2, PlusCircle, LogIn, Power, PowerOff, Palette, Trash2 } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
 import { setImpersonation } from '@/firebase/tenant-db';
 import type { Tenant } from '@/lib/types';
@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { provisionTenant, setTenantStatus, updateTenantBranding } from './actions';
+import { provisionTenant, setTenantStatus, updateTenantBranding, deleteTenant } from './actions';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   active: 'default',
@@ -53,6 +53,9 @@ export default function TenantsPage() {
   const [submitting, setSubmitting] = React.useState(false);
 
   const [brandingTenant, setBrandingTenant] = React.useState<Tenant | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<Tenant | null>(null);
+  const [confirmText, setConfirmText] = React.useState('');
+  const [deleting, setDeleting] = React.useState(false);
 
   const idToken = async () => {
     const t = await auth.currentUser?.getIdToken();
@@ -100,6 +103,29 @@ export default function TenantsPage() {
     });
     // Recarga dura: el provider resuelve la conexión una vez por sesión.
     window.location.assign('/');
+  };
+
+  const confirmName = deleteTarget
+    ? (deleteTarget.displayName || deleteTarget.companyName || deleteTarget.id)
+    : '';
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await deleteTenant({ idToken: await idToken(), tenantId: deleteTarget.id });
+      if (res.success) {
+        toast({ title: 'Tenant eliminado', description: `Se borró "${deleteTarget.id}" y su base de datos.` });
+        setDeleteTarget(null);
+        setConfirmText('');
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: res.error });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -151,6 +177,15 @@ export default function TenantsPage() {
                       </Button>
                       <Button variant="ghost" size="icon" title="Entrar al tenant" onClick={() => enterTenant(t)} disabled={t.status !== 'active'}>
                         <LogIn className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Eliminar tenant"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => { setDeleteTarget(t); setConfirmText(''); }}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -223,6 +258,39 @@ export default function TenantsPage() {
         onClose={() => setBrandingTenant(null)}
         getIdToken={idToken}
       />
+
+      {/* Eliminar tenant (DESTRUCTIVO) */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setConfirmText(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Eliminar tenant</DialogTitle>
+            <DialogDescription>
+              Acción <strong>IRREVERSIBLE</strong>. Se borrará la base de datos{' '}
+              <span className="font-mono">{deleteTarget?.databaseId}</span> con TODOS sus datos
+              (votantes, campañas, usuarios…), el usuario administrador y el registro del tenant.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>
+              Escribe <span className="font-semibold">{confirmName}</span> para confirmar
+            </Label>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={confirmName}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setConfirmText(''); }} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting || confirmText !== confirmName}>
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
