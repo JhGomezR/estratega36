@@ -217,12 +217,23 @@ export type TenantStatus = 'provisioning' | 'active' | 'inactive' | 'failed';
  * combina PLAN (qué módulos existen) ∩ RBAC (qué acciones por rol).
  */
 export const APP_MODULES = [
-  { key: 'campaigns', label: 'Campañas' },
-  { key: 'voters', label: 'Votantes y Mapa' },
-  { key: 'network', label: 'Mapa de Red' },
-  { key: 'activities', label: 'Actividades' },
-  { key: 'analysis', label: 'Análisis IA' },
-  { key: 'administration', label: 'Administración' },
+  // Cada módulo es INDIVIDUAL (facturable por separado) y tiene su propia
+  // regla de acceso vía el gating de plan. `group` es solo para agrupar en la UI.
+  { key: 'campaigns',            label: 'Campañas',                 group: 'Operación' },
+  { key: 'voters',               label: 'Votantes',                 group: 'Operación' },
+  { key: 'voters_map',           label: 'Mapa de Votantes',         group: 'Operación' },
+  { key: 'network',              label: 'Mapa de Red',              group: 'Operación' },
+  { key: 'activities_calendar',  label: 'Calendario',               group: 'Actividades' },
+  { key: 'activities_calls',     label: 'Llamadas',                 group: 'Actividades' },
+  { key: 'activities_tasks',     label: 'Tareas',                   group: 'Actividades' },
+  { key: 'analysis_campaign',    label: 'Análisis de Campaña (IA)', group: 'Análisis IA' },
+  { key: 'analysis_strategies',  label: 'Generador de Estrategias', group: 'Análisis IA' },
+  { key: 'analysis_social',      label: 'Escucha Social',           group: 'Análisis IA' },
+  { key: 'admin_roles',          label: 'Roles',                    group: 'Administración' },
+  { key: 'admin_users',          label: 'Usuarios',                 group: 'Administración' },
+  { key: 'admin_cities',         label: 'Ciudades',                 group: 'Administración' },
+  { key: 'admin_forms',          label: 'Formularios',              group: 'Administración' },
+  { key: 'admin_settings',       label: 'Configuración',            group: 'Administración' },
 ] as const;
 
 export type AppModuleKey = (typeof APP_MODULES)[number]['key'];

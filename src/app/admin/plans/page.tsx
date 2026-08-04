@@ -18,6 +18,17 @@ import { upsertPlan, deletePlan, seedDefaultPlans } from './actions';
 
 const MODULE_LABEL: Record<string, string> = Object.fromEntries(APP_MODULES.map((m) => [m.key, m.label]));
 
+/** Módulos agrupados por categoría (preservando el orden de APP_MODULES). */
+const MODULE_GROUPS: { group: string; items: { key: string; label: string }[] }[] = (() => {
+  const order: string[] = [];
+  const byGroup: Record<string, { key: string; label: string }[]> = {};
+  for (const m of APP_MODULES) {
+    if (!byGroup[m.group]) { byGroup[m.group] = []; order.push(m.group); }
+    byGroup[m.group].push({ key: m.key, label: m.label });
+  }
+  return order.map((group) => ({ group, items: byGroup[group] }));
+})();
+
 export default function PlansPage() {
   const auth = useAuth();
   const defaultDb = useDefaultDb();
@@ -43,6 +54,8 @@ export default function PlansPage() {
   const openEdit = (p: Plan) => { setEditing(p); setName(p.name); setModules(p.modules || []); setOpen(true); };
   const toggle = (key: string) =>
     setModules((prev) => (prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]));
+  const toggleGroup = (keys: string[], on: boolean) =>
+    setModules((prev) => (on ? [...new Set([...prev, ...keys])] : prev.filter((m) => !keys.includes(m))));
 
   const save = async () => {
     setSaving(true);
@@ -121,18 +134,41 @@ export default function PlansPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? 'Editar plan' : 'Nuevo plan'}</DialogTitle><DialogDescription>Selecciona los módulos que este plan habilita.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? 'Editar plan' : 'Nuevo plan'}</DialogTitle><DialogDescription>Cada módulo es individual: actívalos para cobrar por módulo adicional.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1"><Label>Nombre</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-            <div className="space-y-2">
-              <Label>Módulos habilitados</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {APP_MODULES.map((m) => (
-                  <label key={m.key} className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={modules.includes(m.key)} onCheckedChange={() => toggle(m.key)} />
-                    <span>{m.label}</span>
-                  </label>
-                ))}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Módulos habilitados</Label>
+                <span className="text-xs text-muted-foreground">{modules.length}/{APP_MODULES.length} activos</span>
+              </div>
+              <div className="max-h-[45vh] space-y-4 overflow-y-auto pr-1">
+                {MODULE_GROUPS.map(({ group, items }) => {
+                  const keys = items.map((i) => i.key);
+                  const allOn = keys.every((k) => modules.includes(k));
+                  return (
+                    <div key={group} className="space-y-2">
+                      <div className="flex items-center justify-between border-b pb-1">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</span>
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => toggleGroup(keys, !allOn)}
+                        >
+                          {allOn ? 'Quitar todo' : 'Todo'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {items.map((m) => (
+                          <label key={m.key} className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={modules.includes(m.key)} onCheckedChange={() => toggle(m.key)} />
+                            <span>{m.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -62,23 +62,31 @@ export async function deletePlan(input: {
   }
 }
 
-/** Crea (idempotente) los 3 planes por defecto. Administración va en TODOS
- *  (el admin del tenant debe poder gestionar sus usuarios/roles siempre). */
+/** Crea (idempotente) los 3 planes por defecto, ya con módulos GRANULARES.
+ *  Son solo ejemplos editables: el operador arma cada plan a la carta para
+ *  cobrar por módulo adicional. La base de administración (roles/usuarios/
+ *  configuración) va en TODOS para que el admin del tenant pueda operar. */
 export async function seedDefaultPlans(input: {
   idToken: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePlatformAdmin(input.idToken);
+    const ADMIN_BASE = ['admin_roles', 'admin_users', 'admin_settings'];
     const defaults: Record<string, { name: string; modules: string[] }> = {
-      basico: { name: 'Básico', modules: ['campaigns', 'voters', 'administration'] },
+      basico: {
+        name: 'Básico',
+        modules: ['campaigns', 'voters', ...ADMIN_BASE],
+      },
       estratega: {
         name: 'Estratega',
-        modules: ['campaigns', 'voters', 'network', 'activities', 'administration'],
+        modules: [
+          'campaigns', 'voters', 'voters_map', 'network',
+          'activities_calendar', 'activities_calls', 'activities_tasks',
+          'admin_cities', 'admin_forms', ...ADMIN_BASE,
+        ],
       },
-      '360': {
-        name: '360',
-        modules: ['campaigns', 'voters', 'network', 'activities', 'analysis', 'administration'],
-      },
+      // El plan tope habilita TODO lo que exista en el catálogo de módulos.
+      '360': { name: '360', modules: [...VALID_MODULES] },
     };
     const batch = adminDb.batch();
     for (const [id, p] of Object.entries(defaults)) {

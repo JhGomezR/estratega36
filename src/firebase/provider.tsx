@@ -279,12 +279,31 @@ export const useTenantResolution = (): TenantResolution => useFirebase().tenantR
  * (operador de plataforma / impersonación / usuario legacy / tenant sin
  * `planModules`). Un `Set` restringe a esos módulos.
  */
+/**
+ * Compatibilidad: los planes ANTIGUOS guardaban módulos "gruesos". Al pasar a
+ * módulos individuales, un `planModules` legacy se expande a sus equivalentes
+ * granulares para no dejar sin acceso a tenants ya aprovisionados. Las claves
+ * nuevas se mapean a sí mismas (no aparecen aquí).
+ */
+const LEGACY_MODULE_EXPANSION: Record<string, string[]> = {
+  voters: ['voters', 'voters_map'],
+  activities: ['activities_calendar', 'activities_calls', 'activities_tasks'],
+  analysis: ['analysis_campaign', 'analysis_strategies', 'analysis_social'],
+  administration: ['admin_roles', 'admin_users', 'admin_cities', 'admin_forms', 'admin_settings'],
+};
+
 export const useAllowedModules = (): Set<string> | null => {
   const { claims, tenantResolution } = useFirebase();
   if (claims?.platformAdmin) return null; // control plane / impersonación → todo
   if (tenantResolution.state === 'active') {
     const pm = tenantResolution.tenant.planModules;
-    return Array.isArray(pm) ? new Set(pm) : null;
+    if (!Array.isArray(pm)) return null; // sin plan definido → backward-compat: todo
+    const expanded = new Set<string>();
+    for (const key of pm) {
+      expanded.add(key);
+      for (const g of LEGACY_MODULE_EXPANSION[key] ?? []) expanded.add(g);
+    }
+    return expanded;
   }
   return null;
 };
