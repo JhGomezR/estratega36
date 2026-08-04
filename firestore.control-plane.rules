@@ -46,6 +46,10 @@ service cloud.firestore {
       allow write: if false; // sólo escrito por backend/jobs vía Admin SDK
     }
 
+    match /plans/{planId} {
+      allow read, write: if isPlatformAdmin();
+    }
+
     match /auditLogs/{logId} {
       allow read:           if isPlatformAdmin();
       allow create:         if request.auth != null && request.auth.uid == request.resource.data.userId;

@@ -102,6 +102,12 @@ service cloud.firestore {
       allow write: if false; // solo backend/jobs via Admin SDK
     }
 
+    // Planes comerciales (definen que modulos habilita cada plan). Los lee el
+    // Control Plane; la escritura real va por Server Actions (Admin SDK).
+    match /plans/{planId} {
+      allow read, write: if isPlatformAdmin();
+    }
+
     // =================================================================
     // (b) NEGOCIO LEGACY — se mantiene vivo durante la transicion
     // =================================================================
