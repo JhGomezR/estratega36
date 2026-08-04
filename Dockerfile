@@ -37,6 +37,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Reglas de Firestore: provisionTenant() las lee en runtime desde process.cwd()
+# (/app) para desplegarlas a la DB del tenant. La salida standalone NO las
+# incluye, así que hay que copiarlas explícitamente (si no: ENOENT).
+COPY --from=builder --chown=nextjs:nodejs /app/firestore.tenant.rules ./firestore.tenant.rules
+COPY --from=builder --chown=nextjs:nodejs /app/firestore.control-plane.rules ./firestore.control-plane.rules
+
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
