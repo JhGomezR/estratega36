@@ -43,6 +43,18 @@ export async function upsertPlan(
       },
       { merge: true }
     );
+
+    // `planModules` está DENORMALIZADO en cada tenant, así que editar el plan no
+    // basta: hay que reescribir la copia de los tenants que ya lo tienen. El
+    // provider está suscrito en vivo al doc del tenant, por lo que el cambio se
+    // refleja sin necesidad de re-login.
+    const affected = await adminDb.collection('tenants').where('plan', '==', id).get();
+    if (!affected.empty) {
+      const batch = adminDb.batch();
+      affected.docs.forEach((d) => batch.update(d.ref, { planModules: modules }));
+      await batch.commit();
+    }
+
     return { success: true, id };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo guardar el plan.' };

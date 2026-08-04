@@ -2,7 +2,7 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Analytics } from 'firebase/analytics';
@@ -132,6 +132,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   // Resolve claims + tenant connection whenever the user changes.
   useEffect(() => {
     let cancelled = false;
+    let unsubscribeTenant: (() => void) | undefined;
     const user = userAuthState.user;
 
     if (!user) {
@@ -165,27 +166,43 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         }
 
         if (resolvedClaims.tenantId) {
-          const tenantSnap = await getDoc(doc(firestore, 'tenants', resolvedClaims.tenantId));
-          if (cancelled) return;
-          if (!tenantSnap.exists()) {
-            setActiveFirestore(firestore);
-            setConnectionScope('default');
-            setTenantResolution({ state: 'blocked', reason: 'missing' });
-            return;
-          }
-          const tenant = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
-          if (tenant.status === 'active' && tenant.databaseId) {
-            setActiveFirestore(getTenantFirestore(tenant.databaseId));
-            setConnectionScope('tenant');
-            setTenantResolution({ state: 'active', tenant });
-          } else {
-            setActiveFirestore(firestore);
-            setConnectionScope('default');
-            setTenantResolution({
-              state: 'blocked',
-              reason: tenant.status === 'provisioning' ? 'provisioning' : 'inactive',
-            });
-          }
+          // Suscripción EN VIVO al documento del tenant: si el operador cambia
+          // el plan (y con él `planModules`), el gating de módulos se actualiza
+          // en tiempo real, sin necesidad de cerrar y volver a iniciar sesión.
+          unsubscribeTenant = onSnapshot(
+            doc(firestore, 'tenants', resolvedClaims.tenantId),
+            (tenantSnap) => {
+              if (cancelled) return;
+              if (!tenantSnap.exists()) {
+                setActiveFirestore(firestore);
+                setConnectionScope('default');
+                setTenantResolution({ state: 'blocked', reason: 'missing' });
+                return;
+              }
+              const tenant = { id: tenantSnap.id, ...tenantSnap.data() } as Tenant;
+              if (tenant.status === 'active' && tenant.databaseId) {
+                // getTenantFirestore cachea por databaseId → misma instancia en
+                // cada snapshot, así que setActiveFirestore no provoca churn.
+                setActiveFirestore(getTenantFirestore(tenant.databaseId));
+                setConnectionScope('tenant');
+                setTenantResolution({ state: 'active', tenant });
+              } else {
+                setActiveFirestore(firestore);
+                setConnectionScope('default');
+                setTenantResolution({
+                  state: 'blocked',
+                  reason: tenant.status === 'provisioning' ? 'provisioning' : 'inactive',
+                });
+              }
+            },
+            (error) => {
+              if (cancelled) return;
+              console.error('FirebaseProvider: tenant subscription failed:', error);
+              setActiveFirestore(firestore);
+              setConnectionScope('default');
+              setTenantResolution({ state: 'blocked', reason: 'error' });
+            }
+          );
           return;
         }
 
@@ -204,6 +221,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     return () => {
       cancelled = true;
+      if (unsubscribeTenant) unsubscribeTenant();
     };
   }, [userAuthState.user, firestore]);
 
