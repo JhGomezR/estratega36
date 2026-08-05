@@ -5,7 +5,7 @@ import { Bell } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { useSystemNotifications } from "@/hooks/use-notifications"
-import { playNotificationTone } from "@/lib/notification-sound"
+import { playNotificationTone, primeNotificationAudio } from "@/lib/notification-sound"
 import type { Notification } from "@/lib/types"
 import {
   DropdownMenu,
@@ -33,20 +33,29 @@ const iconButtonClasses =
  * suena un tono. El estado de lectura es por usuario (ver useSystemNotifications).
  */
 export function NotificationsBell() {
-  const { unread, unreadCount, markAsRead, isLoading } = useSystemNotifications()
+  const { items, unread, unreadCount, markAsRead, isLoading } = useSystemNotifications()
 
-  // Tono al INCREMENTAR el número de no leídas (nueva notificación en vivo). Se
-  // fija una línea base tras la primera carga para no sonar al entrar.
-  const baseline = React.useRef<number | null>(null)
+  // Desbloquea el audio en el primer gesto del usuario en la pestaña.
+  React.useEffect(() => { primeNotificationAudio() }, [])
+
+  // Tono por CADA notificación nueva que llega. Se detecta por ID nuevo (no por
+  // conteo, que puede no cambiar si a la vez se marca otra como leída). Tras la
+  // primera carga se fija la base para no sonar al entrar.
+  const knownIds = React.useRef<Set<string> | null>(null)
   React.useEffect(() => {
     if (isLoading) return
-    if (baseline.current === null) {
-      baseline.current = unreadCount
+    const currentIds = new Set(items.map((n) => n.id))
+    if (knownIds.current === null) {
+      knownIds.current = currentIds
       return
     }
-    if (unreadCount > baseline.current) playNotificationTone()
-    baseline.current = unreadCount
-  }, [unreadCount, isLoading])
+    let hasNew = false
+    for (const id of currentIds) {
+      if (!knownIds.current.has(id)) { hasNew = true; break }
+    }
+    knownIds.current = currentIds
+    if (hasNew) playNotificationTone()
+  }, [items, isLoading])
 
   const latest = unread.slice(0, 3)
   const [selected, setSelected] = React.useState<Notification | null>(null)
