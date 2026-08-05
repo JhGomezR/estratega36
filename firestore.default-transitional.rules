@@ -108,6 +108,16 @@ service cloud.firestore {
       allow read, write: if isPlatformAdmin();
     }
 
+    // Notificaciones del sistema (FUENTE UNICA). Admin: gestion total; tenants:
+    // SOLO lectura de difusiones ('all') o de las dirigidas a su tenant. Las
+    // consultas del tenant usan un unico filtro de igualdad, por lo que cada
+    // doc devuelto satisface la condicion de lectura.
+    match /notifications/{notifId} {
+      allow read, write: if isPlatformAdmin();
+      allow read: if isAuthenticated() &&
+        (resource.data.audience == 'all' || resource.data.tenantId == callerTenantId());
+    }
+
     // =================================================================
     // (b) NEGOCIO LEGACY — se mantiene vivo durante la transicion
     // =================================================================

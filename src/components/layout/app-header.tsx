@@ -3,20 +3,14 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react"
+import { Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { usePermissions } from "@/hooks/usePermissions"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { useSidebar } from "./sidebar-context"
 import { ThemeToggle } from "./theme-toggle"
 import { UserNav } from "./user-nav"
+import { NotificationsBell } from "./notifications-bell"
 import { isNavGroup, NAV_SECTIONS, type NavLeaf } from "./nav-config"
 
 const iconButtonClasses =
@@ -128,26 +122,6 @@ function QuickSearch() {
   )
 }
 
-function NotificationsMenu() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className={cn(iconButtonClasses, "relative")}
-        aria-label="Notificaciones"
-      >
-        <Bell className="h-5 w-5" aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <p className="px-2 py-6 text-center text-theme-sm text-muted-foreground">
-          No tienes notificaciones nuevas.
-        </p>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 export function AppHeader({ onLogout }: { onLogout: () => void }) {
   const {
     isExpanded,
@@ -202,7 +176,7 @@ export function AppHeader({ onLogout }: { onLogout: () => void }) {
 
         <div className="flex items-center gap-2 2xsm:gap-3">
           <ThemeToggle />
-          <NotificationsMenu />
+          <NotificationsBell />
           <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
           <UserNav onLogout={onLogout} />
         </div>

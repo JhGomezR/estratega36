@@ -271,6 +271,28 @@ export type Plan = WithId<{
     status: 'activo' | 'inactivo';
 }>;
 
+export type NotificationAudience = 'all' | 'tenant';
+
+/**
+ * Notificación del sistema. FUENTE ÚNICA en el Control Plane
+ * (`(default)/notifications`): los tenants la leen directamente (solo lectura),
+ * por lo que editarla o borrarla desde el admin se refleja en todos sin copias
+ * ni propagación. `audience: 'all'` es difusión a todos los tenants;
+ * `audience: 'tenant'` va dirigida al `tenantId` indicado.
+ */
+export type Notification = WithId<{
+    title: string;
+    body: string;
+    /** Imagen incrustada como data URL base64 (opcional). */
+    imageUrl?: string;
+    audience: NotificationAudience;
+    /** Solo cuando audience === 'tenant'. */
+    tenantId?: string;
+    createdAt: string;
+    updatedAt?: string;
+    status: 'activo' | 'inactivo';
+}>;
+
 export type Tenant = WithId<{
     displayName: string;
     companyName: string;

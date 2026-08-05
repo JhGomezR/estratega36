@@ -50,6 +50,17 @@ service cloud.firestore {
       allow read, write: if isPlatformAdmin();
     }
 
+    // Notificaciones del sistema (FUENTE ÚNICA). El operador de plataforma tiene
+    // gestión total; los tenants SOLO pueden leer las difusiones ('all') o las
+    // dirigidas a su propio tenant. Las consultas del tenant usan un único
+    // filtro de igualdad (audience=='all' o tenantId==<suyo>), de modo que cada
+    // documento devuelto satisface la condición de lectura.
+    match /notifications/{notifId} {
+      allow read, write: if isPlatformAdmin();
+      allow read: if request.auth != null &&
+        (resource.data.audience == 'all' || resource.data.tenantId == callerTenantId());
+    }
+
     match /auditLogs/{logId} {
       allow read:           if isPlatformAdmin();
       allow create:         if request.auth != null && request.auth.uid == request.resource.data.userId;
