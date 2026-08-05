@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import {
   Activity,
+  Bell,
   BrainCircuit,
   Building,
   Calendar,
@@ -67,6 +68,9 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Menú",
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      // Notificaciones del sistema: módulo de solo lectura SIEMPRE visible para
+      // todo tenant (sin permiso ni módulo de plan). Solo listar/leer.
+      { href: "/notifications", label: "Notificaciones", icon: Bell },
       {
         href: "/campaigns",
         label: "Campañas",
