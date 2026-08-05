@@ -6,6 +6,7 @@ import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSystemNotifications } from "@/hooks/use-notifications"
 import { playNotificationTone, primeNotificationAudio } from "@/lib/notification-sound"
+import { primeDesktopNotifications, showDesktopNotification } from "@/lib/notification-desktop"
 import type { Notification } from "@/lib/types"
 import {
   DropdownMenu,
@@ -35,26 +36,32 @@ const iconButtonClasses =
 export function NotificationsBell() {
   const { items, unread, unreadCount, markAsRead, isLoading } = useSystemNotifications()
 
-  // Desbloquea el audio en el primer gesto del usuario en la pestaña.
-  React.useEffect(() => { primeNotificationAudio() }, [])
+  // Desbloquea el audio y pide permiso de notificaciones en el primer gesto.
+  React.useEffect(() => {
+    primeNotificationAudio()
+    primeDesktopNotifications()
+  }, [])
 
-  // Tono por CADA notificación nueva que llega. Se detecta por ID nuevo (no por
-  // conteo, que puede no cambiar si a la vez se marca otra como leída). Tras la
-  // primera carga se fija la base para no sonar al entrar.
+  // Aviso por CADA notificación nueva que llega (detección por ID nuevo, no por
+  // conteo, que podría no cambiar si a la vez se marca otra como leída):
+  //   - suena el tono (también en pestañas de fondo, si el audio ya se desbloqueó),
+  //   - si el usuario está en OTRA pestaña, se muestra un aviso de escritorio.
+  // Tras la primera carga se fija la base para no avisar al entrar.
   const knownIds = React.useRef<Set<string> | null>(null)
   React.useEffect(() => {
     if (isLoading) return
-    const currentIds = new Set(items.map((n) => n.id))
     if (knownIds.current === null) {
-      knownIds.current = currentIds
+      knownIds.current = new Set(items.map((n) => n.id))
       return
     }
-    let hasNew = false
-    for (const id of currentIds) {
-      if (!knownIds.current.has(id)) { hasNew = true; break }
+    const fresh = items.filter((n) => !knownIds.current!.has(n.id))
+    knownIds.current = new Set(items.map((n) => n.id))
+    if (fresh.length === 0) return
+
+    playNotificationTone()
+    if (typeof document !== "undefined" && document.hidden) {
+      fresh.slice(0, 3).forEach((n) => showDesktopNotification(n.title, n.body, n.imageUrl))
     }
-    knownIds.current = currentIds
-    if (hasNew) playNotificationTone()
   }, [items, isLoading])
 
   const latest = unread.slice(0, 3)
