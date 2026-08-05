@@ -61,6 +61,14 @@ service cloud.firestore {
         (resource.data.audience == 'all' || resource.data.tenantId == callerTenantId());
     }
 
+    // Acuses de lectura de notificaciones, POR USUARIO. Cada quien crea/lee los
+    // suyos (userId == su uid); el operador de plataforma puede verlos todos.
+    match /notificationReads/{id} {
+      allow read, write:    if isPlatformAdmin();
+      allow read:           if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
     match /auditLogs/{logId} {
       allow read:           if isPlatformAdmin();
       allow create:         if request.auth != null && request.auth.uid == request.resource.data.userId;

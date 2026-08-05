@@ -118,6 +118,14 @@ service cloud.firestore {
         (resource.data.audience == 'all' || resource.data.tenantId == callerTenantId());
     }
 
+    // Acuses de lectura de notificaciones, POR USUARIO. Cada quien crea/lee los
+    // suyos (userId == su uid); el operador de plataforma puede verlos todos.
+    match /notificationReads/{id} {
+      allow read, write:    if isPlatformAdmin();
+      allow read:           if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
     // =================================================================
     // (b) NEGOCIO LEGACY — se mantiene vivo durante la transicion
     // =================================================================

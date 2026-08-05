@@ -1,16 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { collection, query, where } from "firebase/firestore"
 import { Bell } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import {
-  useCollection,
-  useDefaultDb,
-  useMemoFirebase,
-  usePlatformClaims,
-} from "@/firebase"
+import { useSystemNotifications } from "@/hooks/use-notifications"
+import { playNotificationTone } from "@/lib/notification-sound"
 import type { Notification } from "@/lib/types"
 import {
   DropdownMenu,
@@ -33,50 +28,42 @@ const iconButtonClasses =
 /**
  * Campana de notificaciones del sistema (lado tenant, SOLO lectura).
  *
- * Lee la fuente única `(default)/notifications` con dos consultas de un único
- * filtro de igualdad —difusiones (`audience == 'all'`) y las dirigidas a su
- * tenant (`tenantId == <suyo>`)— que casan con la regla de seguridad. Muestra
- * las 3 más recientes; al hacer clic se abre un modal con el mensaje completo.
+ * Muestra las 3 NO leídas más recientes; el badge cuenta las no leídas. Al abrir
+ * una se marca como leída (deja de contar). Cuando llega una nueva no leída
+ * suena un tono. El estado de lectura es por usuario (ver useSystemNotifications).
  */
 export function NotificationsBell() {
-  const claims = usePlatformClaims()
-  const tenantId = claims?.tenantId
-  const defaultDb = useDefaultDb()
+  const { unread, unreadCount, markAsRead, isLoading } = useSystemNotifications()
 
-  const broadcastQuery = useMemoFirebase(
-    () => query(collection(defaultDb, "notifications"), where("audience", "==", "all")),
-    [defaultDb]
-  )
-  const mineQuery = useMemoFirebase(
-    () =>
-      tenantId
-        ? query(collection(defaultDb, "notifications"), where("tenantId", "==", tenantId))
-        : null,
-    [defaultDb, tenantId]
-  )
-
-  const { data: broadcast } = useCollection<Notification>(broadcastQuery)
-  const { data: mine } = useCollection<Notification>(mineQuery)
-
-  const items = React.useMemo(() => {
-    const byId = new Map<string, Notification>()
-    for (const n of [...(broadcast || []), ...(mine || [])]) {
-      if (n.status !== "inactivo") byId.set(n.id, n)
+  // Tono al INCREMENTAR el número de no leídas (nueva notificación en vivo). Se
+  // fija una línea base tras la primera carga para no sonar al entrar.
+  const baseline = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    if (isLoading) return
+    if (baseline.current === null) {
+      baseline.current = unreadCount
+      return
     }
-    return [...byId.values()].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-  }, [broadcast, mine])
+    if (unreadCount > baseline.current) playNotificationTone()
+    baseline.current = unreadCount
+  }, [unreadCount, isLoading])
 
-  const latest = items.slice(0, 3)
+  const latest = unread.slice(0, 3)
   const [selected, setSelected] = React.useState<Notification | null>(null)
+
+  const open = (n: Notification) => {
+    markAsRead(n.id)
+    setSelected(n)
+  }
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger className={cn(iconButtonClasses, "relative")} aria-label="Notificaciones">
           <Bell className="h-5 w-5" aria-hidden="true" />
-          {items.length > 0 && (
+          {unreadCount > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-              {items.length > 9 ? "9+" : items.length}
+              {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
         </DropdownMenuTrigger>
@@ -93,7 +80,7 @@ export function NotificationsBell() {
                 <button
                   key={n.id}
                   type="button"
-                  onClick={() => setSelected(n)}
+                  onClick={() => open(n)}
                   className="flex w-full items-start gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted"
                 >
                   {n.imageUrl ? (

@@ -1,15 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { collection, query, where } from "firebase/firestore"
 import { Bell, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 
-import {
-  useCollection,
-  useDefaultDb,
-  useMemoFirebase,
-  usePlatformClaims,
-} from "@/firebase"
+import { cn } from "@/lib/utils"
+import { useSystemNotifications } from "@/hooks/use-notifications"
 import type { Notification } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,49 +21,26 @@ const PAGE_SIZE = 10
 /**
  * Módulo de notificaciones del sistema (lado tenant, SOLO lectura).
  *
- * Lista TODAS las notificaciones vigentes del tenant —difusiones y las
- * dirigidas a él— con paginación. El tenant únicamente puede leerlas; la
- * gestión (crear/editar/borrar) vive en el Control Plane. Fuente única:
- * `(default)/notifications`.
+ * Lista TODAS las notificaciones vigentes del tenant con paginación e indicador
+ * de leído/no leído (por usuario). El tenant únicamente puede leerlas; la
+ * gestión vive en el Control Plane. Ver useSystemNotifications.
  */
 export default function TenantNotificationsPage() {
-  const claims = usePlatformClaims()
-  const tenantId = claims?.tenantId
-  const defaultDb = useDefaultDb()
+  const { items, unreadCount, isRead, markAsRead, isLoading } = useSystemNotifications()
 
-  const broadcastQuery = useMemoFirebase(
-    () => query(collection(defaultDb, "notifications"), where("audience", "==", "all")),
-    [defaultDb]
-  )
-  const mineQuery = useMemoFirebase(
-    () =>
-      tenantId
-        ? query(collection(defaultDb, "notifications"), where("tenantId", "==", tenantId))
-        : null,
-    [defaultDb, tenantId]
-  )
-
-  const { data: broadcast, isLoading: loadingA } = useCollection<Notification>(broadcastQuery)
-  const { data: mine, isLoading: loadingB } = useCollection<Notification>(mineQuery)
-
-  const items = React.useMemo(() => {
-    const byId = new Map<string, Notification>()
-    for (const n of [...(broadcast || []), ...(mine || [])]) {
-      if (n.status !== "inactivo") byId.set(n.id, n)
-    }
-    return [...byId.values()].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-  }, [broadcast, mine])
-
-  const isLoading = loadingA || loadingB
   const [page, setPage] = React.useState(0)
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
-  // Si el listado se encoge (p. ej. el admin borra una), no dejar una página vacía.
+  // Si el listado se encoge (p. ej. el admin borra una), no dejar página vacía.
   React.useEffect(() => {
     if (page > totalPages - 1) setPage(totalPages - 1)
   }, [page, totalPages])
   const pageItems = items.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
 
   const [selected, setSelected] = React.useState<Notification | null>(null)
+  const open = (n: Notification) => {
+    markAsRead(n.id)
+    setSelected(n)
+  }
 
   return (
     <div className="space-y-6">
@@ -82,7 +54,7 @@ export default function TenantNotificationsPage() {
           <CardTitle>Bandeja de notificaciones</CardTitle>
           <CardDescription>
             {items.length > 0
-              ? `${items.length} ${items.length === 1 ? "notificación" : "notificaciones"}.`
+              ? `${items.length} en total · ${unreadCount} sin leer.`
               : "Aquí verás los avisos que te envíe la plataforma."}
           </CardDescription>
         </CardHeader>
@@ -97,35 +69,46 @@ export default function TenantNotificationsPage() {
           ) : (
             <>
               <ul className="divide-y">
-                {pageItems.map((n) => (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelected(n)}
-                      className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-muted/50"
-                    >
-                      {n.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={n.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
-                      ) : (
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
-                          <Bell className="h-5 w-5" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className="truncate font-medium">{n.title}</p>
-                          {n.createdAt && (
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                              {new Date(n.createdAt).toLocaleDateString()}
-                            </span>
+                {pageItems.map((n) => {
+                  const read = isRead(n.id)
+                  return (
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        onClick={() => open(n)}
+                        className={cn(
+                          "flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-muted/50",
+                          !read && "bg-primary/5"
+                        )}
+                      >
+                        <div className="relative shrink-0">
+                          {n.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={n.imageUrl} alt="" className="h-12 w-12 rounded object-cover" />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded bg-muted text-muted-foreground">
+                              <Bell className="h-5 w-5" />
+                            </div>
+                          )}
+                          {!read && (
+                            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-background bg-destructive" aria-hidden="true" />
                           )}
                         </div>
-                        <p className="line-clamp-2 text-sm text-muted-foreground">{n.body}</p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className={cn("truncate", read ? "font-medium" : "font-semibold")}>{n.title}</p>
+                            {n.createdAt && (
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                {new Date(n.createdAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          <p className="line-clamp-2 text-sm text-muted-foreground">{n.body}</p>
+                        </div>
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
 
               {totalPages > 1 && (
