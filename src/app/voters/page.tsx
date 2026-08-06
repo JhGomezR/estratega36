@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search, Loader2 } from "lucide-react"
 import type { Voter, City, User, Role, ManagedList, Campaign } from "@/lib/types"
 import { VoterForm, type VoterFormValues } from "@/components/voter-form"
 import {
@@ -40,11 +40,14 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format, parseISO } from "date-fns"
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser, usePlatformClaims } from "@/firebase"
-import { collection, doc, collectionGroup, addDoc } from "firebase/firestore"
+import { usePermissions } from "@/hooks/usePermissions"
+import { collection, doc, collectionGroup, addDoc, writeBatch } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { useToast } from "@/hooks/use-toast"
 import { geocodeAddress } from "@/ai/flows/geocode-address"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { logAuditEvent } from "@/lib/audit-log-client"
 
 const VOTERS_PER_PAGE = 15;
@@ -54,6 +57,7 @@ export default function VotersPage() {
   const { toast } = useToast();
   const auth = useAuth();
   const platformClaims = usePlatformClaims();
+  const { isAdmin } = usePermissions();
   const { user: currentUser, isUserLoading: currentUserLoading } = useUser();
 
   const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
@@ -75,6 +79,10 @@ export default function VotersPage() {
   const [voterToDelete, setVoterToDelete] = React.useState<Voter | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
+  // Selección para asignación masiva de campaña (solo admin).
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [bulkCampaign, setBulkCampaign] = React.useState("");
+  const [bulkAssigning, setBulkAssigning] = React.useState(false);
 
   const promoters = React.useMemo(() => {
     if (!users) return [];
@@ -167,6 +175,42 @@ export default function VotersPage() {
   }, [filteredVoters, currentPage]);
 
   const totalPages = Math.ceil(filteredVoters.length / VOTERS_PER_PAGE);
+
+  // --- Asignación masiva de campaña (solo admin) ---
+  const assignableCampaigns = React.useMemo(
+    () => (campaigns || []).filter(c => c.status !== 'Archivada'),
+    [campaigns]
+  );
+  const colCount = isAdmin ? 9 : 8;
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds(prev => { const n = new Set(prev); if (checked) n.add(id); else n.delete(id); return n; });
+  };
+  const togglePageSelection = (checked: boolean) => {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      paginatedVoters.forEach(v => { if (checked) n.add(v.id); else n.delete(v.id); });
+      return n;
+    });
+  };
+  const handleBulkAssign = async () => {
+    if (!firestore || !votersCollectionRef || selectedIds.size === 0 || !bulkCampaign) return;
+    setBulkAssigning(true);
+    try {
+      const campaignId = bulkCampaign === 'none' ? '' : bulkCampaign;
+      const batch = writeBatch(firestore);
+      selectedIds.forEach(id => batch.update(doc(votersCollectionRef, id), { campaignId }));
+      await batch.commit();
+      if (currentUser) logAuditEvent(currentUser, 'voter:bulk_campaign', { count: selectedIds.size, campaignId });
+      toast({ title: 'Votantes actualizados', description: `${selectedIds.size} votante(s) actualizados.` });
+      setSelectedIds(new Set());
+      setBulkCampaign("");
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo asignar la campaña.' });
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
 
   const handleAddNew = () => {
     setSelectedVoter(null)
@@ -297,10 +341,35 @@ export default function VotersPage() {
             </div>
         </CardHeader>
         <CardContent>
+          {isAdmin && selectedIds.size > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border bg-muted/50 p-3">
+              <span className="text-sm font-medium">{selectedIds.size} seleccionado(s)</span>
+              <Select value={bulkCampaign} onValueChange={setBulkCampaign}>
+                <SelectTrigger className="h-9 w-full sm:w-64"><SelectValue placeholder="Elegir campaña…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin campaña (quitar)</SelectItem>
+                  {assignableCampaigns.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.status})</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button size="sm" onClick={handleBulkAssign} disabled={!bulkCampaign || bulkAssigning}>
+                {bulkAssigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Asignar campaña
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Limpiar</Button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        aria-label="Seleccionar página"
+                        checked={paginatedVoters.length > 0 && paginatedVoters.every(v => selectedIds.has(v.id))}
+                        onCheckedChange={(checked) => togglePageSelection(!!checked)}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead className="min-w-[150px]">Nombre</TableHead>
                   <TableHead className="min-w-[150px]">Documento</TableHead>
                   <TableHead className="min-w-[120px]">Ciudad</TableHead>
@@ -312,10 +381,10 @@ export default function VotersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={8} className="text-center h-24">Cargando...</TableCell></TableRow>}
+                {isLoading && <TableRow><TableCell colSpan={colCount} className="text-center h-24">Cargando...</TableCell></TableRow>}
                 {!isLoading && paginatedVoters.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10">
+                    <TableCell colSpan={colCount} className="text-center py-10">
                       <p className="font-medium">No hay votantes para mostrar.</p>
                       <p className="text-sm text-muted-foreground">
                           {searchQuery ? "Intenta con otra búsqueda." : "Comienza registrando un nuevo votante."}
@@ -324,7 +393,12 @@ export default function VotersPage() {
                   </TableRow>
                 )}
                 {paginatedVoters.map((voter) => (
-                  <TableRow key={voter.id}>
+                  <TableRow key={voter.id} data-state={selectedIds.has(voter.id) ? 'selected' : undefined}>
+                    {isAdmin && (
+                      <TableCell>
+                        <Checkbox aria-label="Seleccionar votante" checked={selectedIds.has(voter.id)} onCheckedChange={(checked) => toggleOne(voter.id, !!checked)} />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">{`${voter.firstName} ${voter.lastName}`}</TableCell>
                     <TableCell>{`${voter.idType}: ${voter.idNumber}`}</TableCell>
                     <TableCell>{getCityName(voter.cityId)}</TableCell>

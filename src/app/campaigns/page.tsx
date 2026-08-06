@@ -52,6 +52,7 @@ import { isToday, isPast, parseISO, differenceInMilliseconds } from "date-fns"
 import { cn } from "@/lib/utils"
 import { CampaignGrid } from "@/components/campaign-grid"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
 import { logAuditEvent } from "@/lib/audit-log-client"
 import { useToast } from "@/hooks/use-toast"
@@ -69,7 +70,7 @@ const CAMPAIGNS_PER_PAGE = 15;
 export default function CampaignsPage() {
   const firestore = useFirestore();
   const auth = useAuth();
-  const { isAdmin } = usePermissions();
+  const { user: userProfile, isAdmin } = usePermissions();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
 
@@ -84,12 +85,17 @@ export default function CampaignsPage() {
   const [campaignToDelete, setCampaignToDelete] = React.useState<Campaign | null>(null);
   const [view, setView] = React.useState<'list' | 'grid'>('grid');
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [campaignFilter, setCampaignFilter] = React.useState<string>('all');
   const [currentPage, setCurrentPage] = React.useState(1);
 
-  // Se muestran TODOS los estados, incluidas las archivadas (quedan bloqueadas).
+  // El admin ve TODAS las campañas (todos los estados, incl. archivadas). Un
+  // usuario normal solo ve las campañas que tiene asignadas (user.campaignIds).
   const campaigns = React.useMemo(() => {
-    return campaignsData ?? [];
-  }, [campaignsData]);
+    const all = campaignsData ?? [];
+    if (isAdmin) return all;
+    const mine = new Set(userProfile?.campaignIds || []);
+    return all.filter(c => mine.has(c.id));
+  }, [campaignsData, isAdmin, userProfile]);
   
   React.useEffect(() => {
     if (campaigns && campaignsCollection && currentUser) {
@@ -115,6 +121,7 @@ export default function CampaignsPage() {
     const now = new Date();
     
     const filtered = campaigns.filter(campaign => {
+        if (campaignFilter !== 'all' && campaign.id !== campaignFilter) return false;
         if (!searchQuery) return true;
         const lowerCaseQuery = searchQuery.toLowerCase();
         return campaign.name.toLowerCase().includes(lowerCaseQuery) ||
@@ -150,7 +157,7 @@ export default function CampaignsPage() {
         
         return { ...campaign, progress: calculatedProgress };
     });
-  }, [campaigns, searchQuery]);
+  }, [campaigns, searchQuery, campaignFilter]);
 
   const paginatedCampaigns = React.useMemo(() => {
     const startIndex = (currentPage - 1) * CAMPAIGNS_PER_PAGE;
@@ -233,18 +240,33 @@ export default function CampaignsPage() {
 
   const isLoading = campaignsLoading || listsLoading;
   
-  const searchInput = (
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-      <Input
-        placeholder="Buscar campaña..."
-        className="pl-10 h-9"
-        value={searchQuery}
-        onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(1);
-        }}
-      />
+  // Filtro de campaña: aparece cuando hay más de una visible (el admin siempre
+  // tiene varias; un usuario con >1 asignada también). Con una sola, no se muestra.
+  const campaignFilterSelect = campaigns.length > 1 ? (
+    <Select value={campaignFilter} onValueChange={(v) => { setCampaignFilter(v); setCurrentPage(1); }}>
+      <SelectTrigger className="h-9 w-full sm:w-56"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Todas las campañas</SelectItem>
+        {campaigns.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  ) : null;
+
+  const searchAndFilter = (
+    <div className="flex flex-col gap-2 sm:flex-row">
+      {campaignFilterSelect}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar campaña..."
+          className="pl-10 h-9"
+          value={searchQuery}
+          onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+          }}
+        />
+      </div>
     </div>
   );
 
@@ -289,14 +311,14 @@ export default function CampaignsPage() {
       </div>
         {view === 'list' ? (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <CardTitle>Lista de Campañas</CardTitle>
                 <CardDescription>
                     Un listado de todas las campañas en tu sistema.
                 </CardDescription>
               </div>
-              {searchInput}
+              {searchAndFilter}
             </CardHeader>
             <CardContent>
             <Table>
@@ -413,7 +435,7 @@ export default function CampaignsPage() {
         </Card>
         ) : (
             <div className="space-y-6">
-                {searchInput}
+                {searchAndFilter}
                 <CampaignGrid campaigns={processedCampaigns} isLoading={isLoading} statusColors={statusColors}/>
             </div>
         )}
