@@ -16,19 +16,25 @@ jest.mock('next/headers', () => ({
   ]),
 }));
 
+jest.mock('@/firebase/admin', () => ({
+  getLogsDb: jest.fn(),
+}));
+
 import { logAudit } from '@/lib/audit-log';
 import { getCallerContext } from '@/firebase/authz';
+import { getLogsDb } from '@/firebase/admin';
 
 const addMock = jest.fn();
 const collectionMock = jest.fn(() => ({ add: addMock }));
-const tenantDb = { collection: collectionMock };
+const logsDb = { collection: collectionMock };
 
 beforeEach(() => {
   jest.clearAllMocks();
   addMock.mockResolvedValue({ id: 'log1' });
+  (getLogsDb as jest.Mock).mockReturnValue(logsDb);
   (getCallerContext as jest.Mock).mockResolvedValue({
-    uid: 'uid-del-token', scope: 'tenant', tenantId: 'acme',
-    isPlatformAdmin: false, db: tenantDb, permissions: new Set<string>(),
+    uid: 'uid-del-token', email: 'user@acme.com', scope: 'tenant', tenantId: 'acme',
+    isPlatformAdmin: false, db: { collection: jest.fn() }, permissions: new Set<string>(),
   });
 });
 
@@ -47,11 +53,13 @@ describe('logAudit', () => {
     expect(entry.userAgent).toBe('jest-agent');
   });
 
-  it("writes to the caller's database, not always to the control plane", async () => {
+  it('writes to the CENTRAL logs database, tagged with the caller tenant', async () => {
     await logAudit('id-token', 'user:login');
+    expect(getLogsDb).toHaveBeenCalled();
     expect(collectionMock).toHaveBeenCalledWith('auditLogs');
-    // The handle used is the one returned by getCallerContext (the tenant DB).
-    expect(collectionMock.mock.instances.length).toBeGreaterThan(0);
+    const entry = addMock.mock.calls[0][0];
+    expect(entry.tenantId).toBe('acme');
+    expect(entry.userEmail).toBe('user@acme.com');
   });
 
   it('forwards the impersonated tenant so platform-operator actions are logged in that tenant', async () => {

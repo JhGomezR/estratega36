@@ -2,6 +2,7 @@
 'use server'
 
 import { getCallerContext } from '@/firebase/authz';
+import { getLogsDb } from '@/firebase/admin';
 import type { AuditLog } from '@/lib/types';
 import { headers } from 'next/headers';
 
@@ -84,6 +85,9 @@ export async function logAudit(
     const logEntry: AuditLog = {
       // NEVER a client-supplied id: the uid comes from the verified token.
       userId: ctx.uid,
+      // Etiqueta de tenant (o 'platform') para el visor central unificado.
+      tenantId: ctx.tenantId ?? 'platform',
+      ...(ctx.email ? { userEmail: ctx.email } : {}),
       action,
       timestamp: new Date().toISOString(),
       // Firestore rechaza valores `undefined`: solo se incluye si hay detalles.
@@ -93,7 +97,10 @@ export async function logAudit(
       geo: await resolveGeo(ip),
     };
 
-    await ctx.db.collection(AUDIT_COLLECTION).add(logEntry);
+    // Escritura CENTRALIZADA: todos los logs (de cualquier tenant y de la
+    // plataforma) van a la base dedicada `estratega-logs`, no a la base del
+    // tenant. Aísla la carga y hace que el rastro sobreviva al borrado del tenant.
+    await getLogsDb().collection(AUDIT_COLLECTION).add(logEntry);
   } catch (error) {
     console.error('Failed to write to audit log:', error);
     // We don't re-throw the error because failing to log an audit event

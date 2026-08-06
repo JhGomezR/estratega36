@@ -47,7 +47,7 @@ export async function createPlatformUser(
       status: 'activo',
     });
 
-    await logPlatformAudit(caller.uid, 'platformUser:create', { uid: userRecord.uid, email: data.email });
+    await logPlatformAudit(caller, 'platformUser:create', { uid: userRecord.uid, email: data.email });
     return { success: true, uid: userRecord.uid };
   } catch (e: any) {
     if (e?.code === 'auth/email-already-exists') {
@@ -66,7 +66,7 @@ export async function setPlatformUserStatus(input: {
     const caller = await requirePlatformAdmin(input.idToken);
     await adminAuth.updateUser(input.uid, { disabled: input.status === 'inactivo' });
     await adminDb.collection('platformUsers').doc(input.uid).set({ status: input.status }, { merge: true });
-    await logPlatformAudit(caller.uid, 'platformUser:set_status', { uid: input.uid, status: input.status });
+    await logPlatformAudit(caller, 'platformUser:set_status', { uid: input.uid, status: input.status });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo actualizar el usuario.' };

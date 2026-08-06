@@ -76,10 +76,10 @@ export async function provisionTenant(
   raw: ProvisionTenantInput
 ): Promise<{ success: boolean; tenantId?: string; error?: string }> {
   let parsed: ProvisionTenantInput;
-  let callerUid = '';
+  let caller: { uid: string; email?: string } = { uid: '' };
   try {
     parsed = ProvisionInput.parse(raw);
-    callerUid = (await requirePlatformAdmin(parsed.idToken)).uid;
+    caller = await requirePlatformAdmin(parsed.idToken);
   } catch (e: any) {
     return { success: false, error: e?.message || 'Solicitud inválida.' };
   }
@@ -176,7 +176,7 @@ export async function provisionTenant(
     // 6) Mark active.
     await tenantRef.update({ status: 'active' as TenantStatus, ownerUid: userRecord.uid });
 
-    await logPlatformAudit(callerUid, 'tenant:create', { tenantId, plan: parsed.plan });
+    await logPlatformAudit(caller, 'tenant:create', { tenantId, plan: parsed.plan });
     return { success: true, tenantId };
   } catch (error: any) {
     console.error(`Provisioning failed for tenant "${tenantId}":`, error?.message);
@@ -234,7 +234,7 @@ export async function changeTenantPlan(input: {
       .collection('tenants')
       .doc(input.tenantId)
       .update({ plan: input.plan, planModules: modules, maxUsers, maxRoles, maxCampaigns });
-    await logPlatformAudit(caller.uid, 'tenant:change_plan', { tenantId: input.tenantId, plan: input.plan });
+    await logPlatformAudit(caller, 'tenant:change_plan', { tenantId: input.tenantId, plan: input.plan });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo cambiar el plan.' };
@@ -250,7 +250,7 @@ export async function setTenantStatus(input: {
   try {
     const caller = await requirePlatformAdmin(input.idToken);
     await adminDb.collection('tenants').doc(input.tenantId).update({ status: input.status });
-    await logPlatformAudit(caller.uid, 'tenant:set_status', { tenantId: input.tenantId, status: input.status });
+    await logPlatformAudit(caller, 'tenant:set_status', { tenantId: input.tenantId, status: input.status });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo actualizar el estado del tenant.' };
@@ -324,7 +324,7 @@ export async function deleteTenant(input: {
     // 3) Borrar el registro del tenant.
     await ref.delete();
 
-    await logPlatformAudit(caller.uid, 'tenant:delete', { tenantId: input.tenantId });
+    await logPlatformAudit(caller, 'tenant:delete', { tenantId: input.tenantId });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo eliminar el tenant.' };

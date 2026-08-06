@@ -75,4 +75,18 @@ export function getTenantDb(databaseId: string): Firestore {
   return db;
 }
 
+/**
+ * Base NOMBRADA dedicada a la auditoría de TODA la plataforma (acciones de
+ * operadores y de todos los tenants), aislada de las bases de negocio. Solo el
+ * Admin SDK la toca; ningún cliente (ni tenant) se conecta a ella. Los logs
+ * quedan etiquetados por `tenantId` (o `'platform'`) y sobreviven al borrado
+ * del tenant.
+ */
+export const LOGS_DATABASE_ID = 'estratega-logs';
+
+/** Cliente Admin Firestore de la base central de logs. */
+export function getLogsDb(): Firestore {
+  return getTenantDb(LOGS_DATABASE_ID);
+}
+
 export { adminApp, adminAuth, adminDb };

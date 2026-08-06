@@ -66,7 +66,7 @@ export async function upsertPlan(
       await batch.commit();
     }
 
-    await logPlatformAudit(caller.uid, data.planId ? 'plan:update' : 'plan:create', { planId: id, name: data.name });
+    await logPlatformAudit(caller, data.planId ? 'plan:update' : 'plan:create', { planId: id, name: data.name });
     return { success: true, id };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo guardar el plan.' };
@@ -80,7 +80,7 @@ export async function deletePlan(input: {
   try {
     const caller = await requirePlatformAdmin(input.idToken);
     await adminDb.collection('plans').doc(input.planId).delete();
-    await logPlatformAudit(caller.uid, 'plan:delete', { planId: input.planId });
+    await logPlatformAudit(caller, 'plan:delete', { planId: input.planId });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo eliminar el plan.' };

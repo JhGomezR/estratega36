@@ -378,6 +378,8 @@ export type PlatformUser = WithId<{
  */
 export type AuditLog = {
     userId: string;
+    /** Tenant al que pertenece la acción; `'platform'` para acciones del admin. */
+    tenantId?: string;
     action: string;
     timestamp: string;
     details?: Record<string, any>;

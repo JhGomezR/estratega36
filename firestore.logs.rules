@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// =====================================================================
+// Base dedicada de AUDITORÍA (`estratega-logs`).
+//
+// Aloja los logs de acciones de TODA la plataforma (operadores y todos los
+// tenants), etiquetados por `tenantId` (o 'platform'). Ningún cliente —ni
+// operador ni tenant— se conecta a esta base: TODA la lectura y escritura pasa
+// por el Admin SDK (que evita las reglas) desde Server Actions del Control
+// Plane, con su propia autorización (`audit:read`).
+//
+// Por eso el acceso de cliente se DENIEGA por completo.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

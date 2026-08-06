@@ -62,7 +62,7 @@ export async function upsertNotification(
       await ref.set(payload);
     }
 
-    await logPlatformAudit(caller.uid, data.id ? 'notification:update' : 'notification:create', { id: ref.id, audience: data.audience });
+    await logPlatformAudit(caller, data.id ? 'notification:update' : 'notification:create', { id: ref.id, audience: data.audience });
     return { success: true, id: ref.id };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo guardar la notificación.' };
@@ -76,7 +76,7 @@ export async function deleteNotification(input: {
   try {
     const caller = await requirePlatformAdmin(input.idToken);
     await adminDb.collection('notifications').doc(input.id).delete();
-    await logPlatformAudit(caller.uid, 'notification:delete', { id: input.id });
+    await logPlatformAudit(caller, 'notification:delete', { id: input.id });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo eliminar la notificación.' };

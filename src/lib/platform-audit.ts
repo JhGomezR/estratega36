@@ -1,21 +1,25 @@
 /**
- * Auditoría de acciones de OPERADORES DE PLATAFORMA → `(default)/auditLogs`.
+ * Auditoría de acciones de OPERADORES DE PLATAFORMA → base central `estratega-logs`
+ * con `tenantId: 'platform'`.
  *
  * Módulo ligero (solo Admin SDK, sin `next/headers` ni geolocalización): se
  * llama desde Server Actions del Control Plane que ya verificaron al operador,
- * pasando su uid ya validado. Nunca lanza: auditar no debe romper la acción.
+ * pasando su identidad ya validada (del token). Nunca lanza: auditar no debe
+ * romper la acción.
  */
 
-import { adminDb } from '@/firebase/admin';
+import { getLogsDb } from '@/firebase/admin';
 
 export async function logPlatformAudit(
-  uid: string,
+  actor: { uid: string; email?: string | null },
   action: string,
   details?: Record<string, any>
 ): Promise<void> {
   try {
-    await adminDb.collection('auditLogs').add({
-      userId: uid,
+    await getLogsDb().collection('auditLogs').add({
+      userId: actor.uid,
+      tenantId: 'platform',
+      ...(actor.email ? { userEmail: actor.email } : {}),
       action,
       timestamp: new Date().toISOString(),
       ...(details ? { details } : {}),

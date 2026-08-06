@@ -27,7 +27,13 @@ export default function LogsPage() {
   const tenantsRef = useMemoFirebase(() => collection(defaultDb, 'tenants'), [defaultDb]);
   const { data: tenants } = useCollection<Tenant>(tenantsRef);
 
-  const [scope, setScope] = React.useState('platform');
+  const tenantName = React.useMemo(() => {
+    const map: Record<string, string> = { platform: 'Plataforma' };
+    (tenants || []).forEach((t) => { map[t.id] = t.displayName || t.id; });
+    return map;
+  }, [tenants]);
+
+  const [scope, setScope] = React.useState('all');
   const [logs, setLogs] = React.useState<AuditLogRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [detail, setDetail] = React.useState<AuditLogRow | null>(null);
@@ -51,7 +57,7 @@ export default function LogsPage() {
 
   const paged = usePagedSearch(
     logs,
-    (l) => `${l.action} ${l.userLabel || ''} ${l.userId} ${l.ipAddress || ''}`,
+    (l) => `${l.action} ${l.userEmail || ''} ${l.userId} ${tenantName[l.tenantId || ''] || l.tenantId || ''} ${l.ipAddress || ''}`,
     15
   );
 
@@ -88,6 +94,7 @@ export default function LogsPage() {
             <Select value={scope} onValueChange={setScope}>
               <SelectTrigger className="h-9 w-full sm:w-64"><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Todos los ámbitos</SelectItem>
                 <SelectItem value="platform">Plataforma (Control Plane)</SelectItem>
                 {(tenants || []).map((t) => (
                   <SelectItem key={t.id} value={t.id}>Tenant: {t.displayName || t.id}</SelectItem>
@@ -106,6 +113,7 @@ export default function LogsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[160px]">Fecha</TableHead>
+                    <TableHead className="min-w-[140px]">Ámbito</TableHead>
                     <TableHead className="min-w-[200px]">Usuario</TableHead>
                     <TableHead className="min-w-[160px]">Acción</TableHead>
                     <TableHead className="min-w-[120px]">IP</TableHead>
@@ -114,14 +122,19 @@ export default function LogsPage() {
                 </TableHeader>
                 <TableBody>
                   {paged.total === 0 && (
-                    <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                    <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                       {paged.query ? 'No se encontraron eventos.' : 'Sin eventos registrados en este ámbito.'}
                     </TableCell></TableRow>
                   )}
                   {paged.pageItems.map((l) => (
                     <TableRow key={l.id}>
                       <TableCell className="whitespace-nowrap text-sm">{l.timestamp ? new Date(l.timestamp).toLocaleString() : '—'}</TableCell>
-                      <TableCell className="text-sm">{l.userLabel || <span className="font-mono text-xs text-muted-foreground">{l.userId}</span>}</TableCell>
+                      <TableCell className="text-sm">
+                        {l.tenantId === 'platform'
+                          ? <Badge variant="secondary">Plataforma</Badge>
+                          : <Badge variant="outline">{tenantName[l.tenantId || ''] || l.tenantId || '—'}</Badge>}
+                      </TableCell>
+                      <TableCell className="text-sm">{l.userEmail || <span className="font-mono text-xs text-muted-foreground">{l.userId}</span>}</TableCell>
                       <TableCell><Badge variant="secondary" className="font-mono text-xs">{l.action}</Badge></TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{l.ipAddress || '—'}</TableCell>
                       <TableCell className="text-right">
@@ -144,7 +157,7 @@ export default function LogsPage() {
           <DialogHeader>
             <DialogTitle className="font-mono text-base">{detail?.action}</DialogTitle>
             <DialogDescription>
-              {detail?.userLabel || detail?.userId} · {detail?.timestamp ? new Date(detail.timestamp).toLocaleString() : ''}
+              {(detail?.tenantId === 'platform' ? 'Plataforma' : tenantName[detail?.tenantId || ''] || detail?.tenantId)} · {detail?.userEmail || detail?.userId} · {detail?.timestamp ? new Date(detail.timestamp).toLocaleString() : ''}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
