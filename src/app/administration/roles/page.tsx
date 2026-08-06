@@ -6,7 +6,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
+  CardFooter
 } from "@/components/ui/card"
 import {
   Table,
@@ -46,6 +47,8 @@ import { collection, doc } from "firebase/firestore"
 import { createRole } from "./actions"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import { usePagedSearch } from "@/hooks/use-paged-search"
+import { TableSearch, TablePagination } from "@/components/table-tools"
 import { useToast } from "@/hooks/use-toast"
 import { logAuditEvent } from "@/lib/audit-log-client"
 
@@ -79,6 +82,8 @@ export default function RolesPage() {
   const roles = React.useMemo(() => {
     return rolesData?.filter(r => !r.trash);
   }, [rolesData]);
+
+  const rolesPaged = usePagedSearch(roles ?? [], (r) => r.name, 10);
 
   const handleAddNew = () => {
     setSelectedRole(null)
@@ -175,11 +180,14 @@ export default function RolesPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Roles de Usuario</CardTitle>
-          <CardDescription>
-            Roles disponibles en el sistema y sus permisos asociados.
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Roles de Usuario</CardTitle>
+            <CardDescription>
+              Roles disponibles en el sistema y sus permisos asociados.
+            </CardDescription>
+          </div>
+          <TableSearch value={rolesPaged.query} onChange={rolesPaged.setQuery} placeholder="Buscar rol…" />
         </CardHeader>
         <CardContent>
           <TooltipProvider>
@@ -194,7 +202,12 @@ export default function RolesPage() {
               </TableHeader>
               <TableBody>
                 {isLoading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
-                {roles?.map((role) => (
+                {!isLoading && rolesPaged.total === 0 && (
+                  <TableRow><TableCell colSpan={4} className="text-center h-24">
+                    {rolesPaged.query ? "No se encontraron roles." : "No hay roles para mostrar."}
+                  </TableCell></TableRow>
+                )}
+                {rolesPaged.pageItems.map((role) => (
                   <TableRow key={role.id}>
                     <TableCell className="font-medium capitalize">{role.name}</TableCell>
                     <TableCell>
@@ -256,6 +269,11 @@ export default function RolesPage() {
             </Table>
           </TooltipProvider>
         </CardContent>
+        {!isLoading && rolesPaged.total > 0 && (
+          <CardFooter className="block">
+            <TablePagination paged={rolesPaged} noun="roles" />
+          </CardFooter>
+        )}
       </Card>
     </div>
   )

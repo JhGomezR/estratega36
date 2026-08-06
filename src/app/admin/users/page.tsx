@@ -6,13 +6,15 @@ import { Loader2, PlusCircle, Power, PowerOff } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
 import type { PlatformUser, PlatformRole } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePagedSearch } from '@/hooks/use-paged-search';
+import { TableSearch, TablePagination } from '@/components/table-tools';
 import { useToast } from '@/hooks/use-toast';
 import { createPlatformUser, setPlatformUserStatus } from './actions';
 
@@ -31,6 +33,12 @@ export default function PlatformUsersPage() {
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ ...EMPTY });
   const [submitting, setSubmitting] = React.useState(false);
+
+  const usersPaged = usePagedSearch(
+    users ?? [],
+    (u) => `${u.firstName} ${u.lastName} ${u.email} ${roles?.find((r) => r.id === u.roleId)?.name || u.roleId}`,
+    10
+  );
 
   const idToken = async () => {
     const t = await auth.currentUser?.getIdToken();
@@ -67,13 +75,16 @@ export default function PlatformUsersPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Operadores</CardTitle><CardDescription>Tienen acceso total a la plataforma y a todos los tenants.</CardDescription></CardHeader>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><CardTitle>Operadores</CardTitle><CardDescription>Tienen acceso total a la plataforma y a todos los tenants.</CardDescription></div>
+          <TableSearch value={usersPaged.query} onChange={usersPaged.setQuery} placeholder="Buscar operador…" />
+        </CardHeader>
         <CardContent>
           {isLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div> : (
             <Table>
               <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Email</TableHead><TableHead>Rol</TableHead><TableHead>Estado</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
               <TableBody>
-                {(users || []).map((u) => (
+                {usersPaged.pageItems.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.firstName} {u.lastName}</TableCell>
                     <TableCell>{u.email}</TableCell>
@@ -86,11 +97,14 @@ export default function PlatformUsersPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {(!users || users.length === 0) && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sin operadores.</TableCell></TableRow>}
+                {usersPaged.total === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{usersPaged.query ? 'No se encontraron operadores.' : 'Sin operadores.'}</TableCell></TableRow>}
               </TableBody>
             </Table>
           )}
         </CardContent>
+        {!isLoading && usersPaged.total > 0 && (
+          <CardFooter className="block"><TablePagination paged={usersPaged} noun="operadores" /></CardFooter>
+        )}
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>

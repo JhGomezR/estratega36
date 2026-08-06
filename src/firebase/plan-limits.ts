@@ -11,7 +11,7 @@
 import { adminDb } from '@/firebase/admin';
 import type { CallerContext } from '@/firebase/authz';
 
-async function tenantLimit(tenantId: string, field: 'maxUsers' | 'maxRoles'): Promise<number> {
+async function tenantLimit(tenantId: string, field: 'maxUsers' | 'maxRoles' | 'maxCampaigns'): Promise<number> {
   const snap = await adminDb.collection('tenants').doc(tenantId).get();
   const value = (snap.data() as Record<string, unknown> | undefined)?.[field];
   return typeof value === 'number' && value > 0 ? value : 0; // 0 = ilimitado
@@ -41,6 +41,23 @@ export async function assertWithinRoleLimit(ctx: CallerContext): Promise<void> {
   if (count >= limit) {
     throw new Error(
       `Has alcanzado el límite de roles de tu plan (${limit}). Contacta al administrador de la plataforma para ampliarlo.`
+    );
+  }
+}
+
+/**
+ * Lanza si crear una campaña superaría el límite del plan. Las campañas
+ * archivadas (retiradas) NO cuentan para el límite.
+ */
+export async function assertWithinCampaignLimit(ctx: CallerContext): Promise<void> {
+  if (!ctx.tenantId) return;
+  const limit = await tenantLimit(ctx.tenantId, 'maxCampaigns');
+  if (!limit) return;
+  const snap = await ctx.db.collection('campaigns').get();
+  const count = snap.docs.filter((d) => (d.data() as { status?: string }).status !== 'Archivada').length;
+  if (count >= limit) {
+    throw new Error(
+      `Has alcanzado el límite de campañas de tu plan (${limit}). Contacta al administrador de la plataforma para ampliarlo.`
     );
   }
 }

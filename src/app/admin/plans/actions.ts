@@ -23,6 +23,7 @@ const PlanInput = z.object({
   /** Límites del tenant. 0 = ilimitado. */
   maxUsers: z.number().int().min(0).optional(),
   maxRoles: z.number().int().min(0).optional(),
+  maxCampaigns: z.number().int().min(0).optional(),
   status: z.enum(['activo', 'inactivo']).default('activo'),
 });
 
@@ -36,6 +37,7 @@ export async function upsertPlan(
     const modules = [...new Set(data.modules.filter((m) => VALID_MODULES.includes(m)))];
     const maxUsers = data.maxUsers ?? 0;
     const maxRoles = data.maxRoles ?? 0;
+    const maxCampaigns = data.maxCampaigns ?? 0;
     const id = data.planId || slugify(data.name);
     if (!id) return { success: false, error: 'Nombre de plan inválido.' };
 
@@ -46,6 +48,7 @@ export async function upsertPlan(
         modules,
         maxUsers,
         maxRoles,
+        maxCampaigns,
         status: data.status,
       },
       { merge: true }
@@ -58,7 +61,7 @@ export async function upsertPlan(
     const affected = await adminDb.collection('tenants').where('plan', '==', id).get();
     if (!affected.empty) {
       const batch = adminDb.batch();
-      affected.docs.forEach((d) => batch.update(d.ref, { planModules: modules, maxUsers, maxRoles }));
+      affected.docs.forEach((d) => batch.update(d.ref, { planModules: modules, maxUsers, maxRoles, maxCampaigns }));
       await batch.commit();
     }
 
@@ -91,12 +94,13 @@ export async function seedDefaultPlans(input: {
   try {
     await requirePlatformAdmin(input.idToken);
     const ADMIN_BASE = ['admin_roles', 'admin_users', 'admin_settings'];
-    const defaults: Record<string, { name: string; modules: string[]; maxUsers: number; maxRoles: number }> = {
+    const defaults: Record<string, { name: string; modules: string[]; maxUsers: number; maxRoles: number; maxCampaigns: number }> = {
       basico: {
         name: 'Básico',
         modules: ['campaigns', 'voters', ...ADMIN_BASE],
         maxUsers: 5,
         maxRoles: 3,
+        maxCampaigns: 1,
       },
       estratega: {
         name: 'Estratega',
@@ -107,15 +111,16 @@ export async function seedDefaultPlans(input: {
         ],
         maxUsers: 20,
         maxRoles: 8,
+        maxCampaigns: 5,
       },
       // El plan tope habilita TODO y sin límites (0 = ilimitado).
-      '360': { name: '360', modules: [...VALID_MODULES], maxUsers: 0, maxRoles: 0 },
+      '360': { name: '360', modules: [...VALID_MODULES], maxUsers: 0, maxRoles: 0, maxCampaigns: 0 },
     };
     const batch = adminDb.batch();
     for (const [id, p] of Object.entries(defaults)) {
       batch.set(
         adminDb.collection('plans').doc(id),
-        { name: p.name, description: '', modules: p.modules, maxUsers: p.maxUsers, maxRoles: p.maxRoles, status: 'activo' },
+        { name: p.name, description: '', modules: p.modules, maxUsers: p.maxUsers, maxRoles: p.maxRoles, maxCampaigns: p.maxCampaigns, status: 'activo' },
         { merge: true }
       );
     }

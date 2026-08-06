@@ -99,11 +99,12 @@ export async function provisionTenant(
   // vería todos los módulos hasta que se le asigne un plan con módulos.
   const planSnap = await adminDb.collection('plans').doc(parsed.plan).get();
   const planData = planSnap.exists
-    ? (planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number } | undefined)
+    ? (planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number; maxCampaigns?: number } | undefined)
     : undefined;
   const planModules = planData?.modules;
   const maxUsers = planData?.maxUsers;
   const maxRoles = planData?.maxRoles;
+  const maxCampaigns = planData?.maxCampaigns;
 
   // 0) Register as provisioning so the UI can reflect progress.
   await tenantRef.set({
@@ -113,6 +114,7 @@ export async function provisionTenant(
     ...(Array.isArray(planModules) ? { planModules } : {}),
     ...(typeof maxUsers === 'number' ? { maxUsers } : {}),
     ...(typeof maxRoles === 'number' ? { maxRoles } : {}),
+    ...(typeof maxCampaigns === 'number' ? { maxCampaigns } : {}),
     databaseId,
     ownerUid: '',
     createdAt: new Date().toISOString(),
@@ -220,14 +222,15 @@ export async function changeTenantPlan(input: {
     await requirePlatformAdmin(input.idToken);
     const planSnap = await adminDb.collection('plans').doc(input.plan).get();
     if (!planSnap.exists) return { success: false, error: 'El plan seleccionado no existe.' };
-    const planData = planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number } | undefined;
+    const planData = planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number; maxCampaigns?: number } | undefined;
     const modules = planData?.modules || [];
     const maxUsers = planData?.maxUsers ?? 0;
     const maxRoles = planData?.maxRoles ?? 0;
+    const maxCampaigns = planData?.maxCampaigns ?? 0;
     await adminDb
       .collection('tenants')
       .doc(input.tenantId)
-      .update({ plan: input.plan, planModules: modules, maxUsers, maxRoles });
+      .update({ plan: input.plan, planModules: modules, maxUsers, maxRoles, maxCampaigns });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo cambiar el plan.' };

@@ -49,6 +49,8 @@ import { getImpersonatedTenantId } from "@/firebase/tenant-db"
 import { useToast } from "@/hooks/use-toast"
 import { createUser } from "./actions"
 import { usePermissions } from "@/hooks/usePermissions"
+import { usePagedSearch } from "@/hooks/use-paged-search"
+import { TableSearch, TablePagination } from "@/components/table-tools"
 
 
 export default function UsersPage() {
@@ -201,7 +203,13 @@ export default function UsersPage() {
   const getRoleName = (roleId: string) => {
     return roles?.find(r => r.id === roleId)?.name ?? 'N/A'
   }
-  
+
+  const usersPaged = usePagedSearch(
+    users,
+    (u) => `${u.firstName} ${u.lastName} ${u.email} ${getRoleName(u.roleId)}`,
+    10
+  );
+
   const isLoading = currentUserLoading || usersLoading || rolesLoading || citiesLoading || campaignsLoading || listsLoading;
 
   const isAdmin = roles?.find(r => r.id === users?.find(u => u.id === currentUser?.uid)?.roleId)?.name.toLowerCase().includes('admin');
@@ -239,11 +247,14 @@ export default function UsersPage() {
       </div>
 
        <Card>
-        <CardHeader>
-          <CardTitle>Lista de Usuarios</CardTitle>
-          <CardDescription>
-            Usuarios con acceso a la plataforma EstrategaCRM.
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Lista de Usuarios</CardTitle>
+            <CardDescription>
+              Usuarios con acceso a la plataforma EstrategaCRM.
+            </CardDescription>
+          </div>
+          <TableSearch value={usersPaged.query} onChange={usersPaged.setQuery} placeholder="Buscar por nombre, email o rol…" />
         </CardHeader>
         <CardContent>
           <Table>
@@ -259,14 +270,14 @@ export default function UsersPage() {
             </TableHeader>
             <TableBody>
               {isLoading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
-              {!isLoading && users.length === 0 && (
+              {!isLoading && usersPaged.total === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center h-24">
-                      No hay usuarios para mostrar.
+                      {usersPaged.query ? "No se encontraron usuarios." : "No hay usuarios para mostrar."}
                   </TableCell>
                 </TableRow>
               )}
-              {users?.map((user) => (
+              {usersPaged.pageItems.map((user) => (
                 <TableRow key={user.id}>
                    <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
@@ -326,8 +337,13 @@ export default function UsersPage() {
             </TableBody>
           </Table>
         </CardContent>
+        {!isLoading && usersPaged.total > 0 && (
+          <CardFooter className="block">
+            <TablePagination paged={usersPaged} noun="usuarios" />
+          </CardFooter>
+        )}
       </Card>
-      
+
         <Dialog open={!!citiesToView} onOpenChange={(open) => !open && setCitiesToView(null)}>
             <DialogContent>
                 <DialogHeader>

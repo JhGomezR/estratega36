@@ -6,13 +6,15 @@ import { Loader2, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
 import { type PlatformRole, availablePlatformPermissions } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { usePagedSearch } from '@/hooks/use-paged-search';
+import { TableSearch, TablePagination } from '@/components/table-tools';
 import { useToast } from '@/hooks/use-toast';
 import { upsertPlatformRole, deletePlatformRole } from './actions';
 
@@ -29,6 +31,8 @@ export default function PlatformRolesPage() {
   const [name, setName] = React.useState('');
   const [perms, setPerms] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
+
+  const rolesPaged = usePagedSearch(roles ?? [], (r) => r.name, 10);
 
   const idToken = async () => {
     const t = await auth.currentUser?.getIdToken();
@@ -76,13 +80,16 @@ export default function PlatformRolesPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Roles</CardTitle><CardDescription>Definen qué puede hacer cada operador.</CardDescription></CardHeader>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><CardTitle>Roles</CardTitle><CardDescription>Definen qué puede hacer cada operador.</CardDescription></div>
+          <TableSearch value={rolesPaged.query} onChange={rolesPaged.setQuery} placeholder="Buscar rol…" />
+        </CardHeader>
         <CardContent>
           {isLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div> : (
             <Table>
               <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Permisos</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
               <TableBody>
-                {(roles || []).map((r) => (
+                {rolesPaged.pageItems.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell><Badge variant="secondary">{r.permissions?.length || 0} permisos</Badge></TableCell>
@@ -92,11 +99,14 @@ export default function PlatformRolesPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {(!roles || roles.length === 0) && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Sin roles.</TableCell></TableRow>}
+                {rolesPaged.total === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">{rolesPaged.query ? 'No se encontraron roles.' : 'Sin roles.'}</TableCell></TableRow>}
               </TableBody>
             </Table>
           )}
         </CardContent>
+        {!isLoading && rolesPaged.total > 0 && (
+          <CardFooter className="block"><TablePagination paged={rolesPaged} noun="roles" /></CardFooter>
+        )}
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>

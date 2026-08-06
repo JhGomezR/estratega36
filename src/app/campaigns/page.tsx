@@ -31,8 +31,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { getImpersonatedTenantId } from "@/firebase/tenant-db"
+import { createCampaign } from "./actions"
 import { collection, doc } from "firebase/firestore"
 import {
   AlertDialog,
@@ -65,6 +67,7 @@ const CAMPAIGNS_PER_PAGE = 15;
 
 export default function CampaignsPage() {
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
 
@@ -187,26 +190,30 @@ export default function CampaignsPage() {
     }
   }
 
-  const handleFormSubmit = (data: Omit<Campaign, 'id' | 'progress'>) => {
-    if (campaignsCollection && currentUser) {
+  const handleFormSubmit = async (data: Omit<Campaign, 'id' | 'progress'>) => {
+    if (!campaignsCollection || !currentUser) return;
+
+    if (selectedCampaign) {
       const campaignData: Partial<Campaign> = { ...data };
-      if (campaignData.status === 'Finalizada') {
-          campaignData.progress = 100;
+      if (campaignData.status === 'Finalizada') campaignData.progress = 100;
+      setDocumentNonBlocking(doc(campaignsCollection, selectedCampaign.id), campaignData, { merge: true });
+      logAuditEvent(currentUser, 'campaign:update', { campaignId: selectedCampaign.id, name: data.name });
+      toast({ title: "Campaña Actualizada", description: "Los cambios han sido guardados." });
+    } else {
+      // Crear va por Server Action para hacer cumplir el límite de campañas del plan.
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Sesión no disponible. Vuelve a iniciar sesión.' });
+        return;
       }
-      
-      if (selectedCampaign) {
-        setDocumentNonBlocking(doc(campaignsCollection, selectedCampaign.id), campaignData, { merge: true });
-        logAuditEvent(currentUser, 'campaign:update', { campaignId: selectedCampaign.id, name: data.name });
-        toast({ title: "Campaña Actualizada", description: "Los cambios han sido guardados." });
-      } else {
-        addDocumentNonBlocking(campaignsCollection, {
-          ...campaignData,
-          progress: campaignData.status === 'Finalizada' ? 100 : 0,
-        }).then(docRef => {
-            if(docRef) logAuditEvent(currentUser, 'campaign:create', { campaignId: docRef.id, name: data.name });
-        });
-        toast({ title: "Campaña Creada", description: "La nueva campaña ha sido creada exitosamente." });
+      const res = await createCampaign(data, idToken, getImpersonatedTenantId());
+      if (res.error) {
+        // Mantén el diálogo abierto para que el usuario ajuste.
+        toast({ variant: 'destructive', title: 'No se pudo crear la campaña', description: res.error });
+        return;
       }
+      logAuditEvent(currentUser, 'campaign:create', { campaignId: res.id, name: data.name });
+      toast({ title: "Campaña Creada", description: "La nueva campaña ha sido creada exitosamente." });
     }
     setIsFormOpen(false);
   }

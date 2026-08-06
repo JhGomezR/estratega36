@@ -272,6 +272,8 @@ export type Plan = WithId<{
     maxUsers?: number;
     /** Máximo de roles que puede crear el tenant. 0/ausente = ilimitado. */
     maxRoles?: number;
+    /** Máximo de campañas activas (no archivadas). 0/ausente = ilimitado. */
+    maxCampaigns?: number;
     status: 'activo' | 'inactivo';
 }>;
 
@@ -315,6 +317,7 @@ export type Tenant = WithId<{
      */
     maxUsers?: number;
     maxRoles?: number;
+    maxCampaigns?: number;
     /** Named Firestore database that holds this tenant's data, e.g. "tenant-acme". */
     databaseId: string;
     ownerUid: string;

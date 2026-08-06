@@ -43,6 +43,7 @@ export default function PlansPage() {
   const [modules, setModules] = React.useState<string[]>([]);
   const [maxUsers, setMaxUsers] = React.useState('');
   const [maxRoles, setMaxRoles] = React.useState('');
+  const [maxCampaigns, setMaxCampaigns] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [seeding, setSeeding] = React.useState(false);
 
@@ -53,12 +54,14 @@ export default function PlansPage() {
   };
 
   const openNew = () => {
-    setEditing(null); setName(''); setModules([]); setMaxUsers(''); setMaxRoles(''); setOpen(true);
+    setEditing(null); setName(''); setModules([]);
+    setMaxUsers(''); setMaxRoles(''); setMaxCampaigns(''); setOpen(true);
   };
   const openEdit = (p: Plan) => {
     setEditing(p); setName(p.name); setModules(p.modules || []);
     setMaxUsers(p.maxUsers ? String(p.maxUsers) : '');
     setMaxRoles(p.maxRoles ? String(p.maxRoles) : '');
+    setMaxCampaigns(p.maxCampaigns ? String(p.maxCampaigns) : '');
     setOpen(true);
   };
   const toggle = (key: string) =>
@@ -78,6 +81,7 @@ export default function PlansPage() {
         modules,
         maxUsers: toLimit(maxUsers),
         maxRoles: toLimit(maxRoles),
+        maxCampaigns: toLimit(maxCampaigns),
         status: 'activo',
       });
       if (res.success) { toast({ title: 'Plan guardado' }); setOpen(false); }
@@ -137,7 +141,7 @@ export default function PlansPage() {
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {p.maxUsers ? p.maxUsers : '∞'} usuarios · {p.maxRoles ? p.maxRoles : '∞'} roles
+                      {p.maxUsers ? p.maxUsers : '∞'} usuarios · {p.maxRoles ? p.maxRoles : '∞'} roles · {p.maxCampaigns ? p.maxCampaigns : '∞'} campañas
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
@@ -159,16 +163,20 @@ export default function PlansPage() {
           <DialogHeader><DialogTitle>{editing ? 'Editar plan' : 'Nuevo plan'}</DialogTitle><DialogDescription>Cada módulo es individual: actívalos para cobrar por módulo adicional.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1"><Label>Nombre</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label>Máx. usuarios</Label>
-                <Input type="number" min={0} value={maxUsers} onChange={(e) => setMaxUsers(e.target.value)} placeholder="Ilimitado" />
+                <Input type="number" min={0} value={maxUsers} onChange={(e) => setMaxUsers(e.target.value)} placeholder="∞" />
               </div>
               <div className="space-y-1">
                 <Label>Máx. roles</Label>
-                <Input type="number" min={0} value={maxRoles} onChange={(e) => setMaxRoles(e.target.value)} placeholder="Ilimitado" />
+                <Input type="number" min={0} value={maxRoles} onChange={(e) => setMaxRoles(e.target.value)} placeholder="∞" />
               </div>
-              <p className="col-span-2 -mt-1 text-xs text-muted-foreground">Vacío o 0 = ilimitado.</p>
+              <div className="space-y-1">
+                <Label>Máx. campañas</Label>
+                <Input type="number" min={0} value={maxCampaigns} onChange={(e) => setMaxCampaigns(e.target.value)} placeholder="∞" />
+              </div>
+              <p className="col-span-3 -mt-1 text-xs text-muted-foreground">Vacío o 0 = ilimitado.</p>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
