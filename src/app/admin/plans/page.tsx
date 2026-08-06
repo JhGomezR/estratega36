@@ -41,6 +41,8 @@ export default function PlansPage() {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState('');
   const [modules, setModules] = React.useState<string[]>([]);
+  const [maxUsers, setMaxUsers] = React.useState('');
+  const [maxRoles, setMaxRoles] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [seeding, setSeeding] = React.useState(false);
 
@@ -50,17 +52,34 @@ export default function PlansPage() {
     return t;
   };
 
-  const openNew = () => { setEditing(null); setName(''); setModules([]); setOpen(true); };
-  const openEdit = (p: Plan) => { setEditing(p); setName(p.name); setModules(p.modules || []); setOpen(true); };
+  const openNew = () => {
+    setEditing(null); setName(''); setModules([]); setMaxUsers(''); setMaxRoles(''); setOpen(true);
+  };
+  const openEdit = (p: Plan) => {
+    setEditing(p); setName(p.name); setModules(p.modules || []);
+    setMaxUsers(p.maxUsers ? String(p.maxUsers) : '');
+    setMaxRoles(p.maxRoles ? String(p.maxRoles) : '');
+    setOpen(true);
+  };
   const toggle = (key: string) =>
     setModules((prev) => (prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]));
   const toggleGroup = (keys: string[], on: boolean) =>
     setModules((prev) => (on ? [...new Set([...prev, ...keys])] : prev.filter((m) => !keys.includes(m))));
 
+  const toLimit = (v: string) => (v.trim() === '' ? 0 : Math.max(0, parseInt(v, 10) || 0));
+
   const save = async () => {
     setSaving(true);
     try {
-      const res = await upsertPlan({ idToken: await idToken(), planId: editing?.id, name, modules, status: 'activo' });
+      const res = await upsertPlan({
+        idToken: await idToken(),
+        planId: editing?.id,
+        name,
+        modules,
+        maxUsers: toLimit(maxUsers),
+        maxRoles: toLimit(maxRoles),
+        status: 'activo',
+      });
       if (res.success) { toast({ title: 'Plan guardado' }); setOpen(false); }
       else toast({ variant: 'destructive', title: 'Error', description: res.error });
     } catch (e: any) {
@@ -106,7 +125,7 @@ export default function PlansPage() {
         <CardContent>
           {isLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div> : (
             <Table>
-              <TableHeader><TableRow><TableHead>Plan</TableHead><TableHead>Módulos</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Plan</TableHead><TableHead>Módulos</TableHead><TableHead>Límites</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
               <TableBody>
                 {(plans || []).map((p) => (
                   <TableRow key={p.id}>
@@ -117,6 +136,9 @@ export default function PlansPage() {
                         {(!p.modules || p.modules.length === 0) && <span className="text-xs text-muted-foreground">Sin módulos</span>}
                       </div>
                     </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {p.maxUsers ? p.maxUsers : '∞'} usuarios · {p.maxRoles ? p.maxRoles : '∞'} roles
+                    </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => remove(p)}><Trash2 className="h-4 w-4" /></Button>
@@ -124,7 +146,7 @@ export default function PlansPage() {
                   </TableRow>
                 ))}
                 {(!plans || plans.length === 0) && (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Sin planes. Pulsa «Crear por defecto» para empezar.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Sin planes. Pulsa «Crear por defecto» para empezar.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -137,6 +159,17 @@ export default function PlansPage() {
           <DialogHeader><DialogTitle>{editing ? 'Editar plan' : 'Nuevo plan'}</DialogTitle><DialogDescription>Cada módulo es individual: actívalos para cobrar por módulo adicional.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1"><Label>Nombre</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Máx. usuarios</Label>
+                <Input type="number" min={0} value={maxUsers} onChange={(e) => setMaxUsers(e.target.value)} placeholder="Ilimitado" />
+              </div>
+              <div className="space-y-1">
+                <Label>Máx. roles</Label>
+                <Input type="number" min={0} value={maxRoles} onChange={(e) => setMaxRoles(e.target.value)} placeholder="Ilimitado" />
+              </div>
+              <p className="col-span-2 -mt-1 text-xs text-muted-foreground">Vacío o 0 = ilimitado.</p>
+            </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Módulos habilitados</Label>

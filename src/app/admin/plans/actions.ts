@@ -20,6 +20,9 @@ const PlanInput = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
   modules: z.array(z.string()),
+  /** Límites del tenant. 0 = ilimitado. */
+  maxUsers: z.number().int().min(0).optional(),
+  maxRoles: z.number().int().min(0).optional(),
   status: z.enum(['activo', 'inactivo']).default('activo'),
 });
 
@@ -31,6 +34,8 @@ export async function upsertPlan(
     await requirePlatformAdmin(data.idToken);
 
     const modules = [...new Set(data.modules.filter((m) => VALID_MODULES.includes(m)))];
+    const maxUsers = data.maxUsers ?? 0;
+    const maxRoles = data.maxRoles ?? 0;
     const id = data.planId || slugify(data.name);
     if (!id) return { success: false, error: 'Nombre de plan inválido.' };
 
@@ -39,19 +44,21 @@ export async function upsertPlan(
         name: data.name,
         description: data.description || '',
         modules,
+        maxUsers,
+        maxRoles,
         status: data.status,
       },
       { merge: true }
     );
 
-    // `planModules` está DENORMALIZADO en cada tenant, así que editar el plan no
-    // basta: hay que reescribir la copia de los tenants que ya lo tienen. El
-    // provider está suscrito en vivo al doc del tenant, por lo que el cambio se
-    // refleja sin necesidad de re-login.
+    // `planModules` y los límites están DENORMALIZADOS en cada tenant, así que
+    // editar el plan no basta: hay que reescribir la copia de los tenants que ya
+    // lo tienen. El provider está suscrito en vivo al doc del tenant, por lo que
+    // el cambio se refleja sin necesidad de re-login.
     const affected = await adminDb.collection('tenants').where('plan', '==', id).get();
     if (!affected.empty) {
       const batch = adminDb.batch();
-      affected.docs.forEach((d) => batch.update(d.ref, { planModules: modules }));
+      affected.docs.forEach((d) => batch.update(d.ref, { planModules: modules, maxUsers, maxRoles }));
       await batch.commit();
     }
 
@@ -84,10 +91,12 @@ export async function seedDefaultPlans(input: {
   try {
     await requirePlatformAdmin(input.idToken);
     const ADMIN_BASE = ['admin_roles', 'admin_users', 'admin_settings'];
-    const defaults: Record<string, { name: string; modules: string[] }> = {
+    const defaults: Record<string, { name: string; modules: string[]; maxUsers: number; maxRoles: number }> = {
       basico: {
         name: 'Básico',
         modules: ['campaigns', 'voters', ...ADMIN_BASE],
+        maxUsers: 5,
+        maxRoles: 3,
       },
       estratega: {
         name: 'Estratega',
@@ -96,15 +105,17 @@ export async function seedDefaultPlans(input: {
           'activities_calendar', 'activities_calls', 'activities_tasks',
           'admin_cities', 'admin_forms', ...ADMIN_BASE,
         ],
+        maxUsers: 20,
+        maxRoles: 8,
       },
-      // El plan tope habilita TODO lo que exista en el catálogo de módulos.
-      '360': { name: '360', modules: [...VALID_MODULES] },
+      // El plan tope habilita TODO y sin límites (0 = ilimitado).
+      '360': { name: '360', modules: [...VALID_MODULES], maxUsers: 0, maxRoles: 0 },
     };
     const batch = adminDb.batch();
     for (const [id, p] of Object.entries(defaults)) {
       batch.set(
         adminDb.collection('plans').doc(id),
-        { name: p.name, description: '', modules: p.modules, status: 'activo' },
+        { name: p.name, description: '', modules: p.modules, maxUsers: p.maxUsers, maxRoles: p.maxRoles, status: 'activo' },
         { merge: true }
       );
     }

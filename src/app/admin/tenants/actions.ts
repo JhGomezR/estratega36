@@ -98,9 +98,12 @@ export async function provisionTenant(
   // extra). Si el plan aún no existe, se omite → backward-compat: el tenant
   // vería todos los módulos hasta que se le asigne un plan con módulos.
   const planSnap = await adminDb.collection('plans').doc(parsed.plan).get();
-  const planModules = planSnap.exists
-    ? (planSnap.data() as { modules?: string[] } | undefined)?.modules
+  const planData = planSnap.exists
+    ? (planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number } | undefined)
     : undefined;
+  const planModules = planData?.modules;
+  const maxUsers = planData?.maxUsers;
+  const maxRoles = planData?.maxRoles;
 
   // 0) Register as provisioning so the UI can reflect progress.
   await tenantRef.set({
@@ -108,6 +111,8 @@ export async function provisionTenant(
     companyName: parsed.companyName,
     plan: parsed.plan,
     ...(Array.isArray(planModules) ? { planModules } : {}),
+    ...(typeof maxUsers === 'number' ? { maxUsers } : {}),
+    ...(typeof maxRoles === 'number' ? { maxRoles } : {}),
     databaseId,
     ownerUid: '',
     createdAt: new Date().toISOString(),
@@ -215,11 +220,14 @@ export async function changeTenantPlan(input: {
     await requirePlatformAdmin(input.idToken);
     const planSnap = await adminDb.collection('plans').doc(input.plan).get();
     if (!planSnap.exists) return { success: false, error: 'El plan seleccionado no existe.' };
-    const modules = (planSnap.data() as { modules?: string[] } | undefined)?.modules || [];
+    const planData = planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number } | undefined;
+    const modules = planData?.modules || [];
+    const maxUsers = planData?.maxUsers ?? 0;
+    const maxRoles = planData?.maxRoles ?? 0;
     await adminDb
       .collection('tenants')
       .doc(input.tenantId)
-      .update({ plan: input.plan, planModules: modules });
+      .update({ plan: input.plan, planModules: modules, maxUsers, maxRoles });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo cambiar el plan.' };

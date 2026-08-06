@@ -17,6 +17,11 @@ jest.mock('@/firebase/claims', () => ({
   setTenantClaims: jest.fn(),
 }));
 
+jest.mock('@/firebase/plan-limits', () => ({
+  assertWithinUserLimit: jest.fn(),
+  assertWithinRoleLimit: jest.fn(),
+}));
+
 import { createUser } from '@/app/administration/users/actions';
 import { getCallerContext, assertCan } from '@/firebase/authz';
 import { setTenantClaims } from '@/firebase/claims';

@@ -268,6 +268,10 @@ export type Plan = WithId<{
     name: string;
     description?: string;
     modules: string[];
+    /** Máximo de usuarios que puede crear el tenant. 0/ausente = ilimitado. */
+    maxUsers?: number;
+    /** Máximo de roles que puede crear el tenant. 0/ausente = ilimitado. */
+    maxRoles?: number;
     status: 'activo' | 'inactivo';
 }>;
 
@@ -304,6 +308,13 @@ export type Tenant = WithId<{
      * (backward-compat) todos los módulos habilitados.
      */
     planModules?: string[];
+    /**
+     * Límites denormalizados desde el plan (como planModules) para poder
+     * hacerlos cumplir en el servidor sin leer la colección `plans`.
+     * 0/ausente = ilimitado.
+     */
+    maxUsers?: number;
+    maxRoles?: number;
     /** Named Firestore database that holds this tenant's data, e.g. "tenant-acme". */
     databaseId: string;
     ownerUid: string;

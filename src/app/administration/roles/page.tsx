@@ -39,9 +39,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
-import { addDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { getImpersonatedTenantId } from "@/firebase/tenant-db"
 import { collection, doc } from "firebase/firestore"
+import { createRole } from "./actions"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
@@ -63,6 +65,7 @@ const actionLabels: Record<string, string> = {
 
 export default function RolesPage() {
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
   
@@ -100,19 +103,35 @@ export default function RolesPage() {
     }
   }
 
-  const handleFormSubmit = (data: Omit<Role, 'id'>) => {
-    if (rolesCollectionRef && currentUser) {
-      if (selectedRole) {
-        setDocumentNonBlocking(doc(rolesCollectionRef, selectedRole.id), data, { merge: true });
-        logAuditEvent(currentUser, 'role:update', { roleId: selectedRole.id, name: data.name });
-        toast({ title: "Rol Actualizado", description: "Los cambios han sido guardados." });
-      } else {
-        const newRoleId = data.name.toLowerCase().replace(/\s/g, '_');
-        setDocumentNonBlocking(doc(rolesCollectionRef, newRoleId), {...data, trash: false }, {});
-        logAuditEvent(currentUser, 'role:create', { roleId: newRoleId, name: data.name });
-        toast({ title: "Rol Creado", description: "El nuevo rol ha sido creado." });
+  const handleFormSubmit = async (data: Omit<Role, 'id'>) => {
+    if (!rolesCollectionRef || !currentUser) return;
+
+    if (selectedRole) {
+      // Editar sigue en cliente (no aumenta el conteo de roles).
+      setDocumentNonBlocking(doc(rolesCollectionRef, selectedRole.id), data, { merge: true });
+      logAuditEvent(currentUser, 'role:update', { roleId: selectedRole.id, name: data.name });
+      toast({ title: "Rol Actualizado", description: "Los cambios han sido guardados." });
+    } else {
+      // Crear va por Server Action para hacer cumplir el límite del plan.
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Sesión no disponible. Vuelve a iniciar sesión.' });
+        return;
       }
+      const res = await createRole(
+        { name: data.name, permissions: data.permissions, status: data.status },
+        idToken,
+        getImpersonatedTenantId()
+      );
+      if (res.error) {
+        // Mantén el diálogo abierto para que el usuario ajuste.
+        toast({ variant: 'destructive', title: 'No se pudo crear el rol', description: res.error });
+        return;
+      }
+      logAuditEvent(currentUser, 'role:create', { roleId: res.id, name: data.name });
+      toast({ title: "Rol Creado", description: "El nuevo rol ha sido creado." });
     }
+
     setIsFormOpen(false)
   }
   

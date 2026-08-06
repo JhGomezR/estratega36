@@ -3,6 +3,7 @@
 
 import { adminAuth } from '@/firebase/admin'
 import { getCallerContext, assertCan } from '@/firebase/authz'
+import { assertWithinUserLimit } from '@/firebase/plan-limits'
 import { setTenantClaims } from '@/firebase/claims'
 import type { UserFormValues } from '@/components/user-form'
 import type { User } from '@/lib/types'
@@ -34,6 +35,8 @@ export async function createUser(
   try {
     ctx = await getCallerContext(idToken, impersonatedTenantId)
     assertCan(ctx, 'user:create')
+    // Límite de usuarios del plan (denormalizado en el tenant).
+    await assertWithinUserLimit(ctx)
   } catch (e: any) {
     return { error: e?.message || 'No autorizado.' }
   }
