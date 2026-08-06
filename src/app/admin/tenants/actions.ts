@@ -21,6 +21,7 @@ import {
   deleteFirestoreDatabase,
 } from '@/firebase/gcp-firestore-admin';
 import { slugify } from '@/lib/slug';
+import { logPlatformAudit } from '@/lib/platform-audit';
 import type { TenantStatus } from '@/lib/types';
 
 const ProvisionInput = z.object({
@@ -75,9 +76,10 @@ export async function provisionTenant(
   raw: ProvisionTenantInput
 ): Promise<{ success: boolean; tenantId?: string; error?: string }> {
   let parsed: ProvisionTenantInput;
+  let callerUid = '';
   try {
     parsed = ProvisionInput.parse(raw);
-    await requirePlatformAdmin(parsed.idToken);
+    callerUid = (await requirePlatformAdmin(parsed.idToken)).uid;
   } catch (e: any) {
     return { success: false, error: e?.message || 'Solicitud inválida.' };
   }
@@ -174,6 +176,7 @@ export async function provisionTenant(
     // 6) Mark active.
     await tenantRef.update({ status: 'active' as TenantStatus, ownerUid: userRecord.uid });
 
+    await logPlatformAudit(callerUid, 'tenant:create', { tenantId, plan: parsed.plan });
     return { success: true, tenantId };
   } catch (error: any) {
     console.error(`Provisioning failed for tenant "${tenantId}":`, error?.message);
@@ -219,7 +222,7 @@ export async function changeTenantPlan(input: {
   plan: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePlatformAdmin(input.idToken);
+    const caller = await requirePlatformAdmin(input.idToken);
     const planSnap = await adminDb.collection('plans').doc(input.plan).get();
     if (!planSnap.exists) return { success: false, error: 'El plan seleccionado no existe.' };
     const planData = planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number; maxCampaigns?: number } | undefined;
@@ -231,6 +234,7 @@ export async function changeTenantPlan(input: {
       .collection('tenants')
       .doc(input.tenantId)
       .update({ plan: input.plan, planModules: modules, maxUsers, maxRoles, maxCampaigns });
+    await logPlatformAudit(caller.uid, 'tenant:change_plan', { tenantId: input.tenantId, plan: input.plan });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo cambiar el plan.' };
@@ -244,8 +248,9 @@ export async function setTenantStatus(input: {
   status: Extract<TenantStatus, 'active' | 'inactive'>;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePlatformAdmin(input.idToken);
+    const caller = await requirePlatformAdmin(input.idToken);
     await adminDb.collection('tenants').doc(input.tenantId).update({ status: input.status });
+    await logPlatformAudit(caller.uid, 'tenant:set_status', { tenantId: input.tenantId, status: input.status });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo actualizar el estado del tenant.' };
@@ -287,7 +292,7 @@ export async function deleteTenant(input: {
   tenantId: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePlatformAdmin(input.idToken);
+    const caller = await requirePlatformAdmin(input.idToken);
 
     const ref = adminDb.collection('tenants').doc(input.tenantId);
     const snap = await ref.get();
@@ -319,6 +324,7 @@ export async function deleteTenant(input: {
     // 3) Borrar el registro del tenant.
     await ref.delete();
 
+    await logPlatformAudit(caller.uid, 'tenant:delete', { tenantId: input.tenantId });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo eliminar el tenant.' };

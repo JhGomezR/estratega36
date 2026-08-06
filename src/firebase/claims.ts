@@ -13,7 +13,7 @@
  * (Server Actions / route handlers). Never import it into client code.
  */
 
-import { adminAuth } from '@/firebase/admin';
+import { adminAuth, adminDb } from '@/firebase/admin';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 
 export interface PlatformClaims {
@@ -61,6 +61,28 @@ export async function requirePlatformAdmin(idToken: string | undefined | null): 
     throw new Error('No autorizado: se requiere acceso de plataforma.');
   }
   return decoded;
+}
+
+/**
+ * Como requirePlatformAdmin, pero además exige un permiso GRANULAR del rol de
+ * plataforma del operador (RBAC). Un operador "bootstrap" sin documento de rol,
+ * o con un rol super/admin, tiene acceso total (evita bloquear al fundador). El
+ * resto debe tener el permiso en su rol.
+ */
+export async function requirePlatformPermission(
+  idToken: string | undefined | null,
+  permission: string
+): Promise<DecodedIdToken> {
+  const decoded = await requirePlatformAdmin(idToken);
+  const puSnap = await adminDb.collection('platformUsers').doc(decoded.uid).get();
+  const roleId = puSnap.exists ? (puSnap.data() as { roleId?: string } | undefined)?.roleId : undefined;
+  if (!roleId) return decoded; // operador sin rol asignado → acceso total
+  const roleSnap = await adminDb.collection('platformRoles').doc(roleId).get();
+  const role = roleSnap.exists ? (roleSnap.data() as { name?: string; permissions?: string[] } | undefined) : undefined;
+  const name = (role?.name || '').toLowerCase();
+  const perms = role?.permissions || [];
+  if (name.includes('super') || name.includes('admin') || perms.includes(permission)) return decoded;
+  throw new Error('No autorizado: tu rol de plataforma no incluye este permiso.');
 }
 
 /**

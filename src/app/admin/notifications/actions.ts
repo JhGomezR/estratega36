@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import { adminDb } from '@/firebase/admin';
 import { requirePlatformAdmin } from '@/firebase/claims';
+import { logPlatformAudit } from '@/lib/platform-audit';
 
 // Tope defensivo del data URL base64. El límite de documento de Firestore es
 // ~1 MB; dejamos margen para el resto de campos. El cliente además comprime.
@@ -38,7 +39,7 @@ export async function upsertNotification(
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const data = NotificationInput.parse(raw);
-    await requirePlatformAdmin(data.idToken);
+    const caller = await requirePlatformAdmin(data.idToken);
 
     const col = adminDb.collection('notifications');
     const ref = data.id ? col.doc(data.id) : col.doc();
@@ -61,6 +62,7 @@ export async function upsertNotification(
       await ref.set(payload);
     }
 
+    await logPlatformAudit(caller.uid, data.id ? 'notification:update' : 'notification:create', { id: ref.id, audience: data.audience });
     return { success: true, id: ref.id };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo guardar la notificación.' };
@@ -72,8 +74,9 @@ export async function deleteNotification(input: {
   id: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePlatformAdmin(input.idToken);
+    const caller = await requirePlatformAdmin(input.idToken);
     await adminDb.collection('notifications').doc(input.id).delete();
+    await logPlatformAudit(caller.uid, 'notification:delete', { id: input.id });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo eliminar la notificación.' };

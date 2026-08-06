@@ -338,6 +338,8 @@ export const platformPermissionGroups: Record<string, readonly string[]> = {
     platformUser: ["read", "create", "update", "delete"],
     platformRole: ["read", "create", "update", "delete"],
     stats: ["read"],
+    /** Auditoría: ver los logs de acciones (plataforma y tenants). Solo plataforma. */
+    audit: ["read"],
 };
 
 const generatePlatformPermissions = (): readonly string[] => {

@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import { adminAuth, adminDb } from '@/firebase/admin';
 import { requirePlatformAdmin, setPlatformAdminClaim } from '@/firebase/claims';
+import { logPlatformAudit } from '@/lib/platform-audit';
 
 const CreateInput = z.object({
   idToken: z.string().min(1),
@@ -25,7 +26,7 @@ export async function createPlatformUser(
 ): Promise<{ success: boolean; uid?: string; error?: string }> {
   try {
     const data = CreateInput.parse(raw);
-    await requirePlatformAdmin(data.idToken);
+    const caller = await requirePlatformAdmin(data.idToken);
 
     const userRecord = await adminAuth.createUser({
       email: data.email,
@@ -46,6 +47,7 @@ export async function createPlatformUser(
       status: 'activo',
     });
 
+    await logPlatformAudit(caller.uid, 'platformUser:create', { uid: userRecord.uid, email: data.email });
     return { success: true, uid: userRecord.uid };
   } catch (e: any) {
     if (e?.code === 'auth/email-already-exists') {
@@ -61,9 +63,10 @@ export async function setPlatformUserStatus(input: {
   status: 'activo' | 'inactivo';
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePlatformAdmin(input.idToken);
+    const caller = await requirePlatformAdmin(input.idToken);
     await adminAuth.updateUser(input.uid, { disabled: input.status === 'inactivo' });
     await adminDb.collection('platformUsers').doc(input.uid).set({ status: input.status }, { merge: true });
+    await logPlatformAudit(caller.uid, 'platformUser:set_status', { uid: input.uid, status: input.status });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo actualizar el usuario.' };

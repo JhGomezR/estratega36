@@ -3,18 +3,20 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, LogOut } from 'lucide-react';
+import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, ScrollText, LogOut } from 'lucide-react';
 import { useAuth, usePlatformClaims, useTenantResolution } from '@/firebase';
+import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { signOut } from 'firebase/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-const NAV = [
+const NAV: { href: string; label: string; icon: typeof Building2; perm?: string }[] = [
   { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
   { href: '/admin/plans', label: 'Planes', icon: Package },
   { href: '/admin/notifications', label: 'Notificaciones', icon: Bell },
   { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users },
   { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck },
+  { href: '/admin/logs', label: 'Auditoría', icon: ScrollText, perm: 'audit:read' },
   { href: '/admin/branding', label: 'Marca del login', icon: ImageIcon },
   { href: '/admin/stats', label: 'Estadísticas', icon: BarChart3 },
 ];
@@ -22,9 +24,12 @@ const NAV = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const claims = usePlatformClaims();
   const resolution = useTenantResolution();
+  const { hasPlatformPermission } = usePlatformPermissions();
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const visibleNav = NAV.filter((item) => !item.perm || hasPlatformPermission(item.perm));
 
   // The AuthGate already redirects non-operators, but guard defensively here too.
   const resolving = resolution.state === 'idle' || resolution.state === 'resolving';
@@ -51,7 +56,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <p className="text-xs text-muted-foreground">Administración de plataforma</p>
         </div>
         <nav className="space-y-1">
-          {NAV.map(({ href, label, icon: Icon }) => (
+          {visibleNav.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}

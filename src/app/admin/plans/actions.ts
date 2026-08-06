@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { adminDb } from '@/firebase/admin';
 import { requirePlatformAdmin } from '@/firebase/claims';
+import { logPlatformAudit } from '@/lib/platform-audit';
 import { slugify } from '@/lib/slug';
 import { APP_MODULES } from '@/lib/types';
 
@@ -32,7 +33,7 @@ export async function upsertPlan(
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const data = PlanInput.parse(raw);
-    await requirePlatformAdmin(data.idToken);
+    const caller = await requirePlatformAdmin(data.idToken);
 
     const modules = [...new Set(data.modules.filter((m) => VALID_MODULES.includes(m)))];
     const maxUsers = data.maxUsers ?? 0;
@@ -65,6 +66,7 @@ export async function upsertPlan(
       await batch.commit();
     }
 
+    await logPlatformAudit(caller.uid, data.planId ? 'plan:update' : 'plan:create', { planId: id, name: data.name });
     return { success: true, id };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo guardar el plan.' };
@@ -76,8 +78,9 @@ export async function deletePlan(input: {
   planId: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePlatformAdmin(input.idToken);
+    const caller = await requirePlatformAdmin(input.idToken);
     await adminDb.collection('plans').doc(input.planId).delete();
+    await logPlatformAudit(caller.uid, 'plan:delete', { planId: input.planId });
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo eliminar el plan.' };
