@@ -35,6 +35,7 @@ import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from "
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { getImpersonatedTenantId } from "@/firebase/tenant-db"
 import { createCampaign } from "./actions"
+import { usePermissions } from "@/hooks/usePermissions"
 import { collection, doc } from "firebase/firestore"
 import {
   AlertDialog,
@@ -68,6 +69,7 @@ const CAMPAIGNS_PER_PAGE = 15;
 export default function CampaignsPage() {
   const firestore = useFirestore();
   const auth = useAuth();
+  const { isAdmin } = usePermissions();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
 
@@ -84,8 +86,9 @@ export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
 
+  // Se muestran TODOS los estados, incluidas las archivadas (quedan bloqueadas).
   const campaigns = React.useMemo(() => {
-    return campaignsData?.filter(c => c.status !== 'Archivada');
+    return campaignsData ?? [];
   }, [campaignsData]);
   
   React.useEffect(() => {
@@ -173,6 +176,11 @@ export default function CampaignsPage() {
   }
 
   const handleEdit = (campaign: Campaign) => {
+    // Las campañas archivadas están bloqueadas (solo el admin puede editarlas).
+    if (campaign.status === 'Archivada' && !isAdmin) {
+      toast({ variant: 'destructive', title: 'Campaña archivada', description: 'Esta campaña está bloqueada y no se puede editar.' });
+      return;
+    }
     setSelectedCampaign(campaign);
     setIsFormOpen(true);
   }
@@ -348,12 +356,12 @@ export default function CampaignsPage() {
                             <Eye className="h-4 w-4" />
                         </Link>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(campaign)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(campaign)} disabled={campaign.status === 'Archivada' && !isAdmin} title={campaign.status === 'Archivada' ? 'Archivada (bloqueada)' : undefined}>
                         <Edit className="h-4 w-4" />
                         </Button>
                         <AlertDialog open={!!campaignToDelete && campaignToDelete.id === campaign.id} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => confirmDelete(campaign)}>
+                            <Button variant="ghost" size="icon" onClick={() => confirmDelete(campaign)} disabled={campaign.status === 'Archivada'} title={campaign.status === 'Archivada' ? 'Ya está archivada' : undefined}>
                             <Trash2 className="h-4 w-4" />
                             </Button>
                         </AlertDialogTrigger>

@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase"
+import { usePermissions } from "@/hooks/usePermissions"
 import { doc, collection, query, where } from "firebase/firestore"
 import type { Campaign, ManagedList, Campaign as CampaignType, GeneratedStrategy } from "@/lib/types"
 import { format, parseISO, isToday } from "date-fns"
@@ -62,6 +63,7 @@ export default function CampaignDetailPage() {
 
 
   const firestore = useFirestore()
+  const { isAdmin } = usePermissions();
   const campaignRef = useMemoFirebase(() => {
     return firestore && campaignId ? doc(firestore, `campaigns`, campaignId) : null
   }, [firestore, campaignId]);
@@ -89,6 +91,12 @@ export default function CampaignDetailPage() {
   }, [managedLists]);
 
   const handleFormSubmit = (data: Omit<CampaignType, 'id' | 'progress'>) => {
+    // Una campaña archivada está bloqueada: solo el admin puede editarla.
+    if (campaign?.status === 'Archivada' && !isAdmin) {
+      toast({ variant: 'destructive', title: 'Campaña archivada', description: 'Esta campaña está bloqueada y no se puede editar.' });
+      setIsFormOpen(false);
+      return;
+    }
     if (campaignRef) {
       const campaignData: Partial<CampaignType> = { ...data };
       if (campaignData.status === 'Finalizada') {
@@ -147,6 +155,11 @@ export default function CampaignDetailPage() {
   }
   
   const isEndingToday = isToday(parseISO(campaign.endDate));
+  // Solo 'Archivada' bloquea la edición (el admin sigue pudiendo editar).
+  const canEdit = isAdmin || campaign.status !== 'Archivada';
+  // La regla de negocio: los datos ligados solo se ven cuando está 'En Campaña'
+  // (el admin siempre los ve).
+  const canSeeLinked = isAdmin || campaign.status === 'En Campaña';
 
 
   return (
@@ -161,7 +174,7 @@ export default function CampaignDetailPage() {
             <p className="text-muted-foreground mt-1">{campaign.description}</p>
           </div>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
+        <Button onClick={() => setIsFormOpen(true)} disabled={!canEdit} title={!canEdit ? 'Campaña archivada (bloqueada)' : undefined}>
           <Edit className="mr-2 h-4 w-4" />
           Editar Campaña
         </Button>
@@ -221,6 +234,11 @@ export default function CampaignDetailPage() {
                 <CardDescription>Historial de estrategias creadas para esta campaña.</CardDescription>
             </CardHeader>
             <CardContent>
+              {!canSeeLinked ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Los datos ligados a esta campaña solo son visibles cuando está <strong>En Campaña</strong>.
+                </p>
+              ) : (
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -250,6 +268,7 @@ export default function CampaignDetailPage() {
                         )}
                     </TableBody>
                 </Table>
+              )}
             </CardContent>
         </Card>
       </div>

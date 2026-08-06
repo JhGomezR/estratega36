@@ -49,10 +49,19 @@ export function usePermissions() {
       return permissionsToCheck.some(p => permissions.has(p));
   }
 
+  // Admin del tenant (o operador de plataforma). Mismo criterio que el resto del
+  // código: rol cuyo nombre incluye "admin"/"super". Los admin quedan exentos de
+  // las restricciones de visibilidad por campaña.
+  const isAdmin = useMemo(() => {
+    if (claims?.platformAdmin) return true;
+    const name = role?.name?.toLowerCase() || "";
+    return name.includes("admin") || name.includes("super");
+  }, [claims, role]);
 
   return {
     user,
     role,
+    isAdmin,
     permissions,
     hasPermission,
     hasAnyPermission,
