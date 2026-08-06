@@ -4,8 +4,9 @@ import * as React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { VotersMap } from '@/components/voters-map';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { usePermissions } from '@/hooks/usePermissions';
 import { collection, collectionGroup } from 'firebase/firestore';
-import type { Voter, City, Department } from '@/lib/types';
+import type { Voter, City, Department, Campaign } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
@@ -27,21 +28,33 @@ function generateColorFromString(str: string, saturation = 90, lightness = 55): 
 export default function MapPage() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const firestore = useFirestore();
+  const { isAdmin } = usePermissions();
 
   const votersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `voters`) : null, [firestore]);
   const citiesCollectionGroup = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'cities') : null, [firestore]);
   const departmentsCollectionGroup = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'departments') : null, [firestore]);
+  const campaignsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `campaigns`) : null, [firestore]);
 
   const { data: voters, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: allCities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionGroup);
   const { data: allDepartments, isLoading: departmentsLoading } = useCollection<Department>(departmentsCollectionGroup);
+  const { data: campaigns } = useCollection<Campaign>(campaignsCollectionRef);
+
+  // Fase C: los no-admin solo ven votantes de campañas 'En Campaña' (los 'Sin
+  // campaña' o en Futura/Finalizada/Archivada quedan ocultos). El admin ve todo.
+  const scopedVoters = React.useMemo(() => {
+    if (!voters) return [];
+    const active = voters.filter(v => v.status === 'activo');
+    if (isAdmin) return active;
+    const enCampanaIds = new Set((campaigns || []).filter(c => c.status === 'En Campaña').map(c => c.id));
+    return active.filter(v => v.campaignId && enCampanaIds.has(v.campaignId));
+  }, [voters, isAdmin, campaigns]);
 
   const voterCountsByCity = React.useMemo(() => {
-    if (!voters || !allCities || !allDepartments) return [];
-    
-    const activeVoters = voters.filter(v => v.status === 'activo');
+    if (!allCities || !allDepartments) return [];
+
     const counts = new Map<string, number>();
-    activeVoters.forEach(voter => {
+    scopedVoters.forEach(voter => {
       counts.set(voter.cityId, (counts.get(voter.cityId) || 0) + 1);
     });
     
@@ -57,19 +70,17 @@ export default function MapPage() {
       .filter(city => city.voterCount > 0)
       .sort((a, b) => b.voterCount - a.voterCount);
 
-  }, [voters, allCities, allDepartments]);
-  
+  }, [scopedVoters, allCities, allDepartments]);
+
   const votersWithLocation: VoterWithColor[] = React.useMemo(() => {
-    if (!voters) return [];
-    const activeVoters = voters.filter(v => v.status === 'activo');
     const cityColorMap = new Map(voterCountsByCity.map(c => [c.id, c.color]));
-    return activeVoters
+    return scopedVoters
       .filter(voter => voter.latitude && voter.longitude)
       .map(voter => ({
           ...voter,
           color: cityColorMap.get(voter.cityId)
       }));
-  }, [voters, voterCountsByCity]);
+  }, [scopedVoters, voterCountsByCity]);
 
   const isLoading = votersLoading || citiesLoading || departmentsLoading;
 

@@ -86,35 +86,36 @@ export default function VotersPage() {
     if (!votersData || !currentUser || !users || !roles) return [];
 
     const activeVoters = votersData.filter(v => v.status !== 'inactivo');
-    
-    if (platformClaims?.platformAdmin) {
-      return activeVoters;
-    }
 
     const currentUserData = users.find(u => u.id === currentUser.uid);
+    const currentUserRole = currentUserData ? roles.find(r => r.id === currentUserData.roleId)?.name.toLowerCase() : undefined;
+    const adminRoles = ['admin', 'super_admin', 'super', 'administrador'];
+    const isAdmin = platformClaims?.platformAdmin || (currentUserRole ? adminRoles.includes(currentUserRole) : false);
+
+    // Admin (o platformAdmin): ve todos los votantes activos.
+    if (isAdmin) return activeVoters;
+
     if (!currentUserData) return [];
 
-    const currentUserRole = roles.find(r => r.id === currentUserData.roleId)?.name.toLowerCase();
-    const adminRoles = ['admin', 'super_admin', 'super', 'administrador'];
-
-    if (currentUserRole && adminRoles.includes(currentUserRole)) {
-      return activeVoters;
-    }
-
+    // Scoping por rol existente (equipo del líder / propios del promotor).
+    let scoped: Voter[];
     if (currentUserRole === 'lider') {
       const leaderId = currentUser.uid;
       const teamMemberIds = users.filter(u => u.parentId === leaderId).map(u => u.id);
       const allTeamIds = [leaderId, ...teamMemberIds];
-      return activeVoters.filter(voter => allTeamIds.includes(voter.promoterId));
+      scoped = activeVoters.filter(voter => allTeamIds.includes(voter.promoterId));
+    } else if (currentUserRole === 'promotor' || currentUserRole === 'voluntario') {
+      scoped = activeVoters.filter(voter => voter.promoterId === currentUser.uid);
+    } else {
+      scoped = [];
     }
 
-    if (currentUserRole === 'promotor' || currentUserRole === 'voluntario') {
-      return activeVoters.filter(voter => voter.promoterId === currentUser.uid);
-    }
+    // Fase C: los no-admin solo ven votantes de campañas 'En Campaña' (los 'Sin
+    // campaña' o en Futura/Finalizada/Archivada quedan ocultos).
+    const enCampanaIds = new Set((campaigns || []).filter(c => c.status === 'En Campaña').map(c => c.id));
+    return scoped.filter(v => v.campaignId && enCampanaIds.has(v.campaignId));
 
-    return [];
-
-  }, [votersData, currentUser, users, roles, platformClaims]);
+  }, [votersData, currentUser, users, roles, platformClaims, campaigns]);
   
 
   const lists = React.useMemo(() => {
