@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react"
-import type { Voter, City, User, Role, ManagedList } from "@/lib/types"
+import type { Voter, City, User, Role, ManagedList, Campaign } from "@/lib/types"
 import { VoterForm, type VoterFormValues } from "@/components/voter-form"
 import {
   Dialog,
@@ -61,12 +61,14 @@ export default function VotersPage() {
   const rolesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `roles`) : null, [firestore]);
   const listsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `lists`) : null, [firestore]);
   const citiesCollectionGroup = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'cities') : null, [firestore]);
+  const campaignsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `campaigns`) : null, [firestore]);
 
   const { data: votersData, isLoading: votersLoading } = useCollection<Voter>(votersCollectionRef);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersCollectionRef);
   const { data: roles, isLoading: rolesLoading } = useCollection<Role>(rolesCollectionRef);
   const { data: managedLists, isLoading: listsLoading } = useCollection<ManagedList>(listsCollectionRef);
   const { data: allCities, isLoading: citiesLoading } = useCollection<City>(citiesCollectionGroup);
+  const { data: campaigns } = useCollection<Campaign>(campaignsCollectionRef);
 
   const [selectedVoter, setSelectedVoter] = React.useState<Voter | null>(null)
   const [isFormOpen, setIsFormOpen] = React.useState(false)
@@ -139,6 +141,11 @@ export default function VotersPage() {
   const getPromoterName = (promoterId: string) => {
       const promoter = users?.find(p => p.id === promoterId);
       return promoter ? `${promoter.firstName} ${promoter.lastName}` : 'N/A';
+  }
+
+  const getCampaignName = (campaignId?: string) => {
+      if (!campaignId) return '—';
+      return campaigns?.find(c => c.id === campaignId)?.name || '—';
   }
 
   const filteredVoters = React.useMemo(() => {
@@ -258,6 +265,7 @@ export default function VotersPage() {
               voter={selectedVoter}
               promoters={promoters}
               allVoters={votersData || []}
+              campaigns={(campaigns || []).filter(c => c.status !== 'Archivada')}
               lists={lists}
               onSubmit={handleFormSubmit}
               onCancel={() => setIsFormOpen(false)}
@@ -297,15 +305,16 @@ export default function VotersPage() {
                   <TableHead className="min-w-[120px]">Ciudad</TableHead>
                   <TableHead className="min-w-[120px]">Vereda/Localidad</TableHead>
                   <TableHead className="min-w-[150px]">Promotor</TableHead>
+                  <TableHead className="min-w-[140px]">Campaña</TableHead>
                   <TableHead className="min-w-[120px]">Fecha Registro</TableHead>
                   <TableHead className="text-right min-w-[100px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={7} className="text-center h-24">Cargando...</TableCell></TableRow>}
+                {isLoading && <TableRow><TableCell colSpan={8} className="text-center h-24">Cargando...</TableCell></TableRow>}
                 {!isLoading && paginatedVoters.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10">
+                    <TableCell colSpan={8} className="text-center py-10">
                       <p className="font-medium">No hay votantes para mostrar.</p>
                       <p className="text-sm text-muted-foreground">
                           {searchQuery ? "Intenta con otra búsqueda." : "Comienza registrando un nuevo votante."}
@@ -320,6 +329,7 @@ export default function VotersPage() {
                     <TableCell>{getCityName(voter.cityId)}</TableCell>
                     <TableCell>{voter.vereda}</TableCell>
                     <TableCell>{getPromoterName(voter.promoterId)}</TableCell>
+                    <TableCell>{getCampaignName(voter.campaignId)}</TableCell>
                     <TableCell>{format(parseISO(voter.registrationDate), 'yyyy-MM-dd')}</TableCell>
                     <TableCell className="text-right">
                        <Button variant="ghost" size="icon" onClick={() => handleEdit(voter)}>

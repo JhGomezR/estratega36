@@ -4,7 +4,7 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Voter, City, User, ManagedList, Country, Department } from "@/lib/types"
+import type { Voter, City, User, ManagedList, Country, Department, Campaign } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -56,6 +56,7 @@ const getVoterFormSchema = (allVoters: Voter[], currentVoterId?: string) => z.ob
   address: z.string().min(5, "La dirección es requerida."),
   sector: z.string({ required_error: "El sector de trabajo es obligatorio." }).min(1, "El sector de trabajo es obligatorio."),
   promoterId: z.string().optional(),
+  campaignId: z.string().optional(),
 }).superRefine((data, ctx) => {
     if (data.idNumber) {
       const isDuplicate = allVoters.some(
@@ -90,12 +91,13 @@ interface VoterFormProps {
   voter?: Voter | null;
   promoters: User[];
   allVoters: Voter[];
+  campaigns: Campaign[];
   lists: Record<string, ManagedList | undefined>;
   onSubmit: (data: VoterFormValues, cityName: string, departmentName: string, countryName: string) => void;
   onCancel: () => void;
 }
 
-export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCancel }: VoterFormProps) {
+export function VoterForm({ voter, promoters, allVoters, campaigns, lists, onSubmit, onCancel }: VoterFormProps) {
   const firestore = useFirestore();
   const { user: currentUser } = useUser();
   const [isSaving, setIsSaving] = React.useState(false);
@@ -120,6 +122,7 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
       address: voter?.address ?? "",
       sector: voter?.sector ?? "",
       promoterId: voter?.promoterId ?? currentUser?.uid,
+      campaignId: voter?.campaignId ?? "",
     },
   });
   
@@ -207,6 +210,27 @@ export function VoterForm({ voter, promoters, allVoters, lists, onSubmit, onCanc
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
         <ScrollArea className="flex-1 max-h-[75vh] p-1 pr-4">
           <div className="space-y-6 p-6">
+            <FormField
+              control={form.control}
+              name="campaignId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Campaña</FormLabel>
+                  <Select onValueChange={(v) => field.onChange(v === "none" ? "" : v)} value={field.value || "none"}>
+                    <FormControl>
+                      <SelectTrigger><SelectValue placeholder="Sin campaña" /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Sin campaña</SelectItem>
+                      {campaigns.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name} ({c.status})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}

@@ -15,6 +15,8 @@ export type Voter = WithId<{
   vereda: string;
   address: string;
   promoterId: string;
+  /** Campaña a la que pertenece el votante. Vacío/ausente = sin campaña. */
+  campaignId?: string;
   registrationDate: string;
   latitude?: number;
   longitude?: number;
