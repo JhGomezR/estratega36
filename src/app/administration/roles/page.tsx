@@ -101,7 +101,7 @@ export default function RolesPage() {
 
   const handleDelete = () => {
     if (roleToDelete && rolesCollectionRef && currentUser) {
-      setDocumentNonBlocking(doc(rolesCollectionRef, roleToDelete.id), { trash: true }, { merge: true });
+      setDocumentNonBlocking(doc(rolesCollectionRef, roleToDelete.id), { trash: true, status: 'inactivo' }, { merge: true });
       logAuditEvent(currentUser, 'role:delete', { roleId: roleToDelete.id, name: roleToDelete.name });
       setRoleToDelete(null);
       toast({ title: "Rol Eliminado", description: "El rol ha sido movido a la papelera." });
