@@ -1,5 +1,3 @@
-# Firebase Studio
+# Estratega 360 CRM
 
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+Un sistema de gestión electoral completo
