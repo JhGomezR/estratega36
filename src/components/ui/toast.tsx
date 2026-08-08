@@ -32,6 +32,11 @@ const toastVariants = cva(
         default: "border bg-background text-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
+        // Éxito (verde), advertencia/vencimientos (naranja) e informativo (azul).
+        // Fondo sólido para máxima visibilidad, coherente con `destructive`.
+        success: "group border-emerald-600 bg-emerald-600 text-white",
+        warning: "group border-orange-500 bg-orange-500 text-white",
+        info: "group border-blue-600 bg-blue-600 text-white",
       },
     },
     defaultVariants: {

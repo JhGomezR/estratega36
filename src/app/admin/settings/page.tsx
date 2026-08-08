@@ -54,7 +54,7 @@ export default function SettingsPage() {
     try {
       const notifyDaysBefore = daysText.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n) && n >= 0);
       const res = await saveBillingConfig({ idToken: await idToken(), config: { ...config, notifyDaysBefore } });
-      if (res.success) { toast({ title: 'Configuración guardada' }); setConfig({ ...config, notifyDaysBefore }); }
+      if (res.success) { toast({ variant: 'success', title: 'Configuración guardada' }); setConfig({ ...config, notifyDaysBefore }); }
       else toast({ variant: 'destructive', title: 'Error', description: res.error });
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Error', description: e.message });

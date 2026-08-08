@@ -57,7 +57,7 @@ export default function BillingPage() {
     try {
       const res = await runBillingSweep({ idToken: await idToken() });
       if (res.success && res.suspended > 0) {
-        toast({ title: 'Vencidos suspendidos', description: `${res.suspended} tenant(s) pasaron a inactivo por impago.` });
+        toast({ variant: 'warning', title: 'Vencidos suspendidos', description: `${res.suspended} tenant(s) pasaron a inactivo por impago.` });
       }
     } catch { /* silencio */ }
   }, [toast]);
@@ -116,7 +116,7 @@ export default function BillingPage() {
     setSaving(true);
     try {
       const res = await configureBilling({ idToken: await idToken(), tenantId: configTarget.id, cycle: configCycle });
-      if (res.success) { toast({ title: 'Facturación configurada' }); setConfigTarget(null); }
+      if (res.success) { toast({ variant: 'success', title: 'Facturación configurada' }); setConfigTarget(null); }
       else toast({ variant: 'destructive', title: 'Error', description: res.error });
     } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
     finally { setSaving(false); }
@@ -127,7 +127,7 @@ export default function BillingPage() {
     setSaving(true);
     try {
       const res = await recordPayment({ idToken: await idToken(), tenantId: payTarget.id, notes: notes.trim() || undefined });
-      if (res.success) { toast({ title: 'Pago registrado' }); setPayTarget(null); setNotes(''); }
+      if (res.success) { toast({ variant: 'success', title: 'Pago registrado' }); setPayTarget(null); setNotes(''); }
       else toast({ variant: 'destructive', title: 'Error', description: res.error });
     } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
     finally { setSaving(false); }
@@ -136,7 +136,7 @@ export default function BillingPage() {
   const doSuspend = async () => {
     if (!suspendTarget) return;
     const res = await suspendTenantBilling({ idToken: await idToken(), tenantId: suspendTarget.id });
-    if (res.success) toast({ title: 'Tenant suspendido', description: 'Pasó a inactivo por impago.' });
+    if (res.success) toast({ variant: 'warning', title: 'Tenant suspendido', description: 'Pasó a inactivo por impago.' });
     else toast({ variant: 'destructive', title: 'Error', description: res.error });
     setSuspendTarget(null);
   };
