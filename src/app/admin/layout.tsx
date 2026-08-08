@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, ScrollText, CircleDollarSign, Settings, LogOut } from 'lucide-react';
+import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, ScrollText, CircleDollarSign, Settings, MapPin, LogOut } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useDoc, useMemoFirebase, usePlatformClaims, useTenantResolution } from '@/firebase';
 import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { signOut } from 'firebase/auth';
@@ -34,6 +34,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: '/admin/branding', label: 'Branding', icon: ImageIcon, perm: 'branding:update' },
       { href: '/admin/settings', label: 'Configuración', icon: Settings, perm: 'setting:update' },
       { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck, perm: 'platformRole:read' },
+      { href: '/admin/locations', label: 'Ubicación', icon: MapPin, perm: 'location:read' },
       { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users, perm: 'platformUser:read' },
     ],
   },

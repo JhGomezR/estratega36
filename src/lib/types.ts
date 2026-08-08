@@ -315,6 +315,23 @@ export type TenantPayment = WithId<{
     notes?: string;
 }>;
 
+/** Municipio de un país en el catálogo de ubicaciones (Control Plane). */
+export type LocationCity = {
+    label: string;
+    name: string;
+    dept: string;
+    lat: number;
+    lng: number;
+    active: boolean;
+};
+
+/** Catálogo de ubicaciones de un país. Vive en `(default)/locations/{id}`. */
+export type LocationDoc = WithId<{
+    name: string;
+    active: boolean;
+    cities: LocationCity[];
+}>;
+
 export type NotificationAudience = 'all' | 'tenant';
 
 /**
@@ -388,6 +405,8 @@ export const platformPermissionGroups: Record<string, readonly string[]> = {
     branding: ["update"],
     /** Configuración de la plataforma (facturación automática, etc.). */
     setting: ["update"],
+    /** Ubicaciones (países y municipios activos para tenants/mapas). */
+    location: ["read", "update"],
 };
 
 const generatePlatformPermissions = (): readonly string[] => {

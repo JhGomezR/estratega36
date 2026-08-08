@@ -10,7 +10,7 @@
 
 import * as React from 'react';
 import { ComposableMap, Geographies, Geography, Marker, Annotation } from 'react-simple-maps';
-import { CO_CITIES } from '@/lib/co-cities';
+import { useActiveCities } from '@/hooks/use-active-cities';
 import type { Tenant } from '@/lib/types';
 
 const GEO_URL = '/geo/colombia.geo.json';
@@ -21,17 +21,19 @@ const PALETTE = [
 ];
 
 export function TenantsMap({ tenants }: { tenants: Tenant[] }) {
+  const { coords } = useActiveCities();
+
   const data = React.useMemo(() => {
     const m = new Map<string, number>();
     tenants.forEach((t) => {
-      if (t.city && CO_CITIES[t.city]) m.set(t.city, (m.get(t.city) || 0) + 1);
+      if (t.city && coords[t.city]) m.set(t.city, (m.get(t.city) || 0) + 1);
     });
     return [...m.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .map(([city, count], i) => ({ city, count, color: PALETTE[i % PALETTE.length], coords: CO_CITIES[city] }));
-  }, [tenants]);
+      .map(([city, count], i) => ({ city, count, color: PALETTE[i % PALETTE.length], coords: coords[city] }));
+  }, [tenants, coords]);
 
-  const sinUbicacion = tenants.filter((t) => !t.city || !CO_CITIES[t.city]).length;
+  const sinUbicacion = tenants.filter((t) => !t.city || !coords[t.city]).length;
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">

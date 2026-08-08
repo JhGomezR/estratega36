@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { CO_CITY_NAMES } from '@/lib/co-cities';
+import { useActiveCities } from '@/hooks/use-active-cities';
 import { provisionTenant, setTenantStatus, updateTenantBranding, deleteTenant, changeTenantPlan, updateTenant } from './actions';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -51,6 +51,9 @@ export default function TenantsPage() {
 
   const plansRef = useMemoFirebase(() => collection(defaultDb, 'plans'), [defaultDb]);
   const { data: plans } = useCollection<Plan>(plansRef);
+
+  // Municipios disponibles (activos) para el selector de ciudad.
+  const { names: cityNames } = useActiveCities();
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [form, setForm] = React.useState({ ...EMPTY_CREATE });
@@ -274,7 +277,7 @@ export default function TenantsPage() {
               <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecciona la ciudad" /></SelectTrigger>
                 <SelectContent>
-                  {CO_CITY_NAMES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {cityNames.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -356,7 +359,7 @@ export default function TenantsPage() {
               <Select value={editForm.city || undefined} onValueChange={(v) => setEditForm({ ...editForm, city: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecciona la ciudad" /></SelectTrigger>
                 <SelectContent>
-                  {CO_CITY_NAMES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {cityNames.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">La ciudad ubica al tenant en el mapa de Estadísticas.</p>
