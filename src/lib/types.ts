@@ -375,6 +375,8 @@ export type Tenant = WithId<{
  */
 export const platformPermissionGroups: Record<string, readonly string[]> = {
     tenant: ["read", "create", "update", "delete"],
+    plan: ["read", "create", "update", "delete"],
+    notification: ["read", "create", "update", "delete"],
     platformUser: ["read", "create", "update", "delete"],
     platformRole: ["read", "create", "update", "delete"],
     stats: ["read"],
@@ -382,6 +384,10 @@ export const platformPermissionGroups: Record<string, readonly string[]> = {
     audit: ["read"],
     /** Facturación/cobros de tenants (ver estado, registrar pagos, suspender). */
     billing: ["read"],
+    /** Branding de la plataforma (logo, favicon, imagen de login). */
+    branding: ["update"],
+    /** Configuración de la plataforma (facturación automática, etc.). */
+    setting: ["update"],
 };
 
 const generatePlatformPermissions = (): readonly string[] => {

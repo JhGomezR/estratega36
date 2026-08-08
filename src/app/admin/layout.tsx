@@ -20,21 +20,21 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: 'Plataforma',
     items: [
-      { href: '/admin/stats', label: 'Estadísticas', icon: BarChart3 },
+      { href: '/admin/stats', label: 'Estadísticas', icon: BarChart3, perm: 'stats:read' },
       { href: '/admin/billing', label: 'Facturación', icon: CircleDollarSign, perm: 'billing:read' },
-      { href: '/admin/notifications', label: 'Notificaciones', icon: Bell },
-      { href: '/admin/plans', label: 'Planes', icon: Package },
-      { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
+      { href: '/admin/notifications', label: 'Notificaciones', icon: Bell, perm: 'notification:read' },
+      { href: '/admin/plans', label: 'Planes', icon: Package, perm: 'plan:read' },
+      { href: '/admin/tenants', label: 'Tenants', icon: Building2, perm: 'tenant:read' },
     ],
   },
   {
     title: 'Gestión',
     items: [
       { href: '/admin/logs', label: 'Auditoría', icon: ScrollText, perm: 'audit:read' },
-      { href: '/admin/branding', label: 'Branding', icon: ImageIcon },
-      { href: '/admin/settings', label: 'Configuración', icon: Settings },
-      { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck },
-      { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users },
+      { href: '/admin/branding', label: 'Branding', icon: ImageIcon, perm: 'branding:update' },
+      { href: '/admin/settings', label: 'Configuración', icon: Settings, perm: 'setting:update' },
+      { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck, perm: 'platformRole:read' },
+      { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users, perm: 'platformUser:read' },
     ],
   },
 ];

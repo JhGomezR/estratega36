@@ -8,6 +8,10 @@ const nextConfig = {
   // Don't advertise the framework/version (fingerprinting). DAST finding.
   poweredByHeader: false,
 
+  // react-simple-maps (y sus deps d3-*) se distribuyen como ESM; transpilarlos
+  // evita el error "Cannot use import statement outside a module" en SSR.
+  transpilePackages: ['react-simple-maps'],
+
   // Baseline security headers (were entirely absent — DAST finding).
   // NOTE: a strict Content-Security-Policy is intentionally NOT set here yet:
   // it requires allow-listing Google Maps / Firebase / amCharts / image hosts

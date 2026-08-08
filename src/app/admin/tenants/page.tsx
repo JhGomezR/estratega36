@@ -21,6 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { CO_CITY_NAMES } from '@/lib/co-cities';
 import { provisionTenant, setTenantStatus, updateTenantBranding, deleteTenant, changeTenantPlan } from './actions';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -246,7 +247,12 @@ export default function TenantsPage() {
             </div>
             <div className="space-y-1">
               <Label>Ciudad</Label>
-              <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ej: Bogotá" />
+              <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecciona la ciudad" /></SelectTrigger>
+                <SelectContent>
+                  {CO_CITY_NAMES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label>Plan</Label>

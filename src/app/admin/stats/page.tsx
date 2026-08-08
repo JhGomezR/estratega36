@@ -6,9 +6,12 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { Loader2, Building2, CheckCircle2, AlertTriangle, Wallet, TrendingUp, Users } from 'lucide-react';
-import { useAuth } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
+import type { Tenant } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TenantsMap } from '@/components/admin/tenants-map';
 import { getPlatformStats, type PlatformStats } from './actions';
 
 const PALETTE = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7', '#ec4899', '#14b8a6'];
@@ -38,6 +41,9 @@ function ChartCard({ title, description, children }: { title: string; descriptio
 
 export default function PlatformStatsPage() {
   const auth = useAuth();
+  const defaultDb = useDefaultDb();
+  const tenantsRef = useMemoFirebase(() => collection(defaultDb, 'tenants'), [defaultDb]);
+  const { data: tenants } = useCollection<Tenant>(tenantsRef);
   const [stats, setStats] = React.useState<PlatformStats | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [clientN, setClientN] = React.useState('5');
@@ -160,6 +166,16 @@ export default function PlatformStatsPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Ubicación de tenants</CardTitle>
+          <CardDescription>Distribución por ciudad en Colombia.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TenantsMap tenants={tenants || []} />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Tenants por estado">
