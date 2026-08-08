@@ -66,44 +66,65 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  const menuItem = 'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium transition-colors duration-200';
+  const inactive = 'text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground';
+  const active = 'bg-sidebar-accent text-sidebar-accent-foreground';
+
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 shrink-0 border-r bg-muted/30 p-4">
-        <div className="mb-6 px-2">
+    <div className="flex min-h-screen bg-canvas">
+      <aside className="sticky top-0 flex h-screen w-[290px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4">
+        {/* Cabecera / marca */}
+        <div className="flex h-16 shrink-0 items-center lg:h-[72px]">
           {branding?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoUrl} alt="Logo" className="mb-2 max-h-12 w-auto object-contain" />
-          ) : null}
-          <p className="text-lg font-bold">Control Plane</p>
-          <p className="text-xs text-muted-foreground">Administración de plataforma</p>
+            <img src={branding.logoUrl} alt="Logo" className="h-9 w-auto object-contain" />
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <span className="text-theme-xl font-semibold tracking-tight text-foreground">Control Plane</span>
+            </div>
+          )}
         </div>
-        <nav className="space-y-1">
-          {visibleNav.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                pathname.startsWith(href) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-              {href === '/admin/billing' && overdueCount > 0 && (
-                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
-                  {overdueCount}
-                </span>
-              )}
-            </Link>
-          ))}
+
+        {/* Navegación */}
+        <nav className="custom-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto pb-4 pt-2">
+          <h3 className="mb-2 px-3 text-theme-xs font-semibold uppercase leading-5 tracking-wider text-sidebar-muted">
+            Plataforma
+          </h3>
+          {visibleNav.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(menuItem, isActive ? active : inactive)}
+              >
+                <Icon className={cn('h-5 w-5 shrink-0 transition-colors', isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-muted')} />
+                <span className="truncate">{label}</span>
+                {href === '/admin/billing' && overdueCount > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
+                    {overdueCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
-        <div className="mt-8">
+
+        {/* Cerrar sesión */}
+        <div className="shrink-0 pb-6 pt-2">
           <Button variant="outline" className="w-full" onClick={() => signOut(auth).then(() => router.push('/login'))}>
             <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
           </Button>
         </div>
       </aside>
-      <main className="flex-1 p-8">{children}</main>
+
+      <main className="min-w-0 flex-1 p-6 md:p-8">
+        <div className="mx-auto w-full max-w-[1536px]">{children}</div>
+      </main>
     </div>
   );
 }
