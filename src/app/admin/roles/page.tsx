@@ -2,21 +2,38 @@
 
 import * as React from 'react';
 import { collection } from 'firebase/firestore';
-import { Loader2, PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Pencil, Trash2, Building2, Users, ShieldCheck, BarChart3, ScrollText, CircleDollarSign } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
-import { type PlatformRole, availablePlatformPermissions } from '@/lib/types';
+import { type PlatformRole, platformPermissionGroups } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { PermissionMatrix } from '@/components/permission-matrix';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { usePagedSearch } from '@/hooks/use-paged-search';
 import { TableSearch, TablePagination } from '@/components/table-tools';
 import { useToast } from '@/hooks/use-toast';
 import { upsertPlatformRole, deletePlatformRole } from './actions';
+
+const PLATFORM_LABELS: Record<string, string> = {
+  tenant: 'Tenants',
+  platformUser: 'Usuarios de plataforma',
+  platformRole: 'Roles de plataforma',
+  stats: 'Estadísticas',
+  audit: 'Auditoría',
+  billing: 'Facturación',
+};
+const PLATFORM_ICONS = {
+  tenant: Building2,
+  platformUser: Users,
+  platformRole: ShieldCheck,
+  stats: BarChart3,
+  audit: ScrollText,
+  billing: CircleDollarSign,
+};
 
 export default function PlatformRolesPage() {
   const auth = useAuth();
@@ -42,9 +59,6 @@ export default function PlatformRolesPage() {
 
   const openNew = () => { setEditing(null); setName(''); setPerms([]); setOpen(true); };
   const openEdit = (r: PlatformRole) => { setEditing(r); setName(r.name); setPerms(r.permissions || []); setOpen(true); };
-
-  const togglePerm = (p: string) =>
-    setPerms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
 
   const save = async () => {
     setSaving(true);
@@ -110,20 +124,19 @@ export default function PlatformRolesPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? 'Editar rol' : 'Nuevo rol'}</DialogTitle><DialogDescription>Selecciona los permisos de plataforma.</DialogDescription></DialogHeader>
+        <DialogContent className="sm:max-w-[660px]">
+          <DialogHeader><DialogTitle>{editing ? 'Editar rol' : 'Nuevo rol'}</DialogTitle><DialogDescription>Define el nombre y los permisos de plataforma por módulo.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1"><Label>Nombre</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div className="space-y-2">
-              <Label>Permisos</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {availablePlatformPermissions.map((p) => (
-                  <label key={p} className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={perms.includes(p)} onCheckedChange={() => togglePerm(p)} />
-                    <span className="font-mono text-xs">{p}</span>
-                  </label>
-                ))}
-              </div>
+              <Label>Permisos de plataforma</Label>
+              <PermissionMatrix
+                groups={platformPermissionGroups}
+                value={perms}
+                onChange={setPerms}
+                moduleLabels={PLATFORM_LABELS}
+                moduleIcons={PLATFORM_ICONS}
+              />
             </div>
           </div>
           <DialogFooter>
