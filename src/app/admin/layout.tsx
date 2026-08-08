@@ -4,10 +4,13 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, ScrollText, CircleDollarSign, Settings, LogOut } from 'lucide-react';
-import { useAuth, usePlatformClaims, useTenantResolution } from '@/firebase';
+import { useAuth, useCollection, useDefaultDb, useMemoFirebase, usePlatformClaims, useTenantResolution } from '@/firebase';
 import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { signOut } from 'firebase/auth';
+import { collection } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { isOverdue } from '@/lib/billing';
+import type { Tenant } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
 const NAV: { href: string; label: string; icon: typeof Building2; perm?: string }[] = [
@@ -32,6 +35,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   const visibleNav = NAV.filter((item) => !item.perm || hasPlatformPermission(item.perm));
+
+  // Aviso en el menú: nº de tenants vencidos (para "Facturación").
+  const defaultDb = useDefaultDb();
+  const tenantsRef = useMemoFirebase(
+    () => (defaultDb && claims?.platformAdmin ? collection(defaultDb, 'tenants') : null),
+    [defaultDb, claims?.platformAdmin]
+  );
+  const { data: allTenants } = useCollection<Tenant>(tenantsRef);
+  const overdueCount = (allTenants || []).filter((t) => t.billing && isOverdue(t.billing.paidThrough)).length;
 
   // The AuthGate already redirects non-operators, but guard defensively here too.
   const resolving = resolution.state === 'idle' || resolution.state === 'resolving';
@@ -69,6 +81,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Icon className="h-4 w-4" />
               {label}
+              {href === '/admin/billing' && overdueCount > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
+                  {overdueCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

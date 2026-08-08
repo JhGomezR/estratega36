@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { collection } from 'firebase/firestore';
-import { Loader2, ShieldAlert, RefreshCw, CircleDollarSign, Ban, Receipt, Settings2 } from 'lucide-react';
+import { Loader2, ShieldAlert, RefreshCw, CircleDollarSign, Ban, Receipt, Settings2, AlertTriangle } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
 import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { usePagedSearch } from '@/hooks/use-paged-search';
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { recordPayment, suspendTenantBilling, runBillingSweep, listPayments, configureBilling } from './actions';
+import { getBillingConfig } from '../settings/actions';
 import type { BillingCycle } from '@/lib/billing';
 
 function money(amount?: number, currency = 'COP') {
@@ -64,10 +65,37 @@ export default function BillingPage() {
     if (canView && !swept) { setSwept(true); sweep(); }
   }, [canView, swept, sweep]);
 
+  // Periodos de aviso (días antes del vencimiento) desde Configuración.
+  const [maxLead, setMaxLead] = React.useState(0);
+  React.useEffect(() => {
+    if (!canView) return;
+    (async () => {
+      try {
+        const res = await getBillingConfig({ idToken: await idToken() });
+        if (res.config?.notifyDaysBefore?.length) setMaxLead(Math.max(0, ...res.config.notifyDaysBefore));
+      } catch { /* usa 0 */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canView]);
+
   const rows = React.useMemo(
     () => [...(tenants || [])].sort((a, b) => (a.displayName || '').localeCompare(b.displayName || '')),
     [tenants]
   );
+
+  // Aviso al admin: cuántos están vencidos y cuántos "por vencer" (dentro del
+  // periodo de notificación configurado).
+  const summary = React.useMemo(() => {
+    let vencidos = 0, porVencer = 0;
+    rows.forEach((t) => {
+      const b = t.billing;
+      if (!b) return;
+      if (isOverdue(b.paidThrough)) { vencidos++; return; }
+      const d = daysUntilDue(b.paidThrough);
+      if (d !== null && d <= maxLead) porVencer++;
+    });
+    return { vencidos, porVencer };
+  }, [rows, maxLead]);
   const paged = usePagedSearch(
     rows,
     (t) => `${t.displayName} ${t.plan} ${t.billing?.status || ''}`,
@@ -139,6 +167,15 @@ export default function BillingPage() {
         <Button variant="outline" onClick={sweep}><RefreshCw className="mr-2 h-4 w-4" /> Revisar vencidos</Button>
       </div>
 
+      {(summary.vencidos > 0 || summary.porVencer > 0) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+          <span className="font-medium">Cobros por gestionar:</span>
+          {summary.vencidos > 0 && <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive">{summary.vencidos} vencido(s)</Badge>}
+          {summary.porVencer > 0 && <Badge variant="outline" className="border-amber-500 text-amber-600">{summary.porVencer} por vencer</Badge>}
+        </div>
+      )}
+
       <Card>
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div><CardTitle>Tenants</CardTitle><CardDescription>Ciclo, monto, próximo vencimiento y estado de cobro.</CardDescription></div>
@@ -171,6 +208,7 @@ export default function BillingPage() {
                     const b = t.billing;
                     const overdue = b ? isOverdue(b.paidThrough) : false;
                     const days = b ? daysUntilDue(b.paidThrough) : null;
+                    const porVencer = !!b && !overdue && days !== null && days <= maxLead;
                     return (
                       <TableRow key={t.id}>
                         <TableCell className="font-medium">{t.displayName}<div className="font-mono text-xs text-muted-foreground">{t.id}</div></TableCell>
@@ -187,6 +225,7 @@ export default function BillingPage() {
                         <TableCell>
                           {!b ? <Badge variant="outline">Sin facturación</Badge>
                             : overdue ? <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive">Vencido</Badge>
+                            : porVencer ? <Badge variant="outline" className="border-amber-500 text-amber-600">Por vencer{days !== null ? ` (${days}d)` : ''}</Badge>
                             : <Badge variant="secondary">Al día</Badge>}
                         </TableCell>
                         <TableCell>
