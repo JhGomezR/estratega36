@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { adminDb } from '@/firebase/admin';
 import { requirePlatformAdmin } from '@/firebase/claims';
 import { logPlatformAudit } from '@/lib/platform-audit';
+import { planPriceFor, type BillingCycle } from '@/lib/billing';
 import { slugify } from '@/lib/slug';
 import { APP_MODULES } from '@/lib/types';
 
@@ -80,7 +81,16 @@ export async function upsertPlan(
     const affected = await adminDb.collection('tenants').where('plan', '==', id).get();
     if (!affected.empty) {
       const batch = adminDb.batch();
-      affected.docs.forEach((d) => batch.update(d.ref, { planModules: modules, maxUsers, maxRoles, maxCampaigns }));
+      affected.docs.forEach((d) => {
+        const upd: Record<string, unknown> = { planModules: modules, maxUsers, maxRoles, maxCampaigns };
+        // Propagar el precio al monto de facturación del tenant según SU ciclo.
+        const cycle = (d.data() as { billing?: { cycle?: BillingCycle } })?.billing?.cycle;
+        if (cycle) {
+          upd['billing.amount'] = planPriceFor(prices, cycle);
+          upd['billing.currency'] = currency;
+        }
+        batch.update(d.ref, upd);
+      });
       await batch.commit();
     }
 

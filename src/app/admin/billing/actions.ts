@@ -9,7 +9,7 @@
 import { adminDb } from '@/firebase/admin';
 import { requirePlatformPermission } from '@/firebase/claims';
 import { logPlatformAudit } from '@/lib/platform-audit';
-import { addCycle } from '@/lib/billing';
+import { addCycle, planPriceFor, type BillingCycle } from '@/lib/billing';
 import type { TenantBilling, TenantPayment } from '@/lib/types';
 
 /**
@@ -65,6 +65,44 @@ export async function recordPayment(input: {
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || 'No se pudo registrar el pago.' };
+  }
+}
+
+/**
+ * Configura (o reconfigura) la facturación de un tenant que aún no la tiene
+ * (p. ej. creado antes de este módulo). Toma el precio del plan para el ciclo
+ * elegido y ancla la cobertura a HOY + un ciclo (nace "al día").
+ */
+export async function configureBilling(input: {
+  idToken: string;
+  tenantId: string;
+  cycle: BillingCycle;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const caller = await requirePlatformPermission(input.idToken, 'billing:read');
+    const ref = adminDb.collection('tenants').doc(input.tenantId);
+    const snap = await ref.get();
+    if (!snap.exists) return { success: false, error: 'Tenant no encontrado.' };
+    const t = snap.data() as { plan?: string };
+
+    const planSnap = t.plan ? await adminDb.collection('plans').doc(t.plan).get() : null;
+    const plan = planSnap?.exists
+      ? (planSnap.data() as { prices?: { monthly?: number; semiannual?: number; annual?: number }; currency?: string })
+      : undefined;
+
+    const nowIso = new Date().toISOString();
+    const billing: TenantBilling = {
+      cycle: input.cycle,
+      amount: planPriceFor(plan?.prices, input.cycle),
+      currency: (plan?.currency || 'COP').toUpperCase(),
+      paidThrough: addCycle(nowIso, input.cycle),
+      status: 'al_dia',
+    };
+    await ref.update({ billing });
+    await logPlatformAudit(caller, 'tenant:billing_configure', { tenantId: input.tenantId, cycle: input.cycle });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'No se pudo configurar la facturación.' };
   }
 }
 

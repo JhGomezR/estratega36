@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { collection } from 'firebase/firestore';
-import { Loader2, ShieldAlert, RefreshCw, CircleDollarSign, Ban, Receipt } from 'lucide-react';
+import { Loader2, ShieldAlert, RefreshCw, CircleDollarSign, Ban, Receipt, Settings2 } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
 import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { usePagedSearch } from '@/hooks/use-paged-search';
@@ -15,13 +15,15 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { recordPayment, suspendTenantBilling, runBillingSweep, listPayments } from './actions';
+import { recordPayment, suspendTenantBilling, runBillingSweep, listPayments, configureBilling } from './actions';
+import type { BillingCycle } from '@/lib/billing';
 
 function money(amount?: number, currency = 'COP') {
   if (!amount) return '—';
@@ -78,6 +80,19 @@ export default function BillingPage() {
   const [suspendTarget, setSuspendTarget] = React.useState<Tenant | null>(null);
   const [historyTarget, setHistoryTarget] = React.useState<Tenant | null>(null);
   const [history, setHistory] = React.useState<TenantPayment[] | null>(null);
+  const [configTarget, setConfigTarget] = React.useState<Tenant | null>(null);
+  const [configCycle, setConfigCycle] = React.useState<BillingCycle>('monthly');
+
+  const doConfigure = async () => {
+    if (!configTarget) return;
+    setSaving(true);
+    try {
+      const res = await configureBilling({ idToken: await idToken(), tenantId: configTarget.id, cycle: configCycle });
+      if (res.success) { toast({ title: 'Facturación configurada' }); setConfigTarget(null); }
+      else toast({ variant: 'destructive', title: 'Error', description: res.error });
+    } catch (e: any) { toast({ variant: 'destructive', title: 'Error', description: e.message }); }
+    finally { setSaving(false); }
+  };
 
   const doPay = async () => {
     if (!payTarget) return;
@@ -178,7 +193,11 @@ export default function BillingPage() {
                           <Badge variant={t.status === 'active' ? 'secondary' : 'outline'}>{t.status === 'active' ? 'Activo' : t.status}</Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-1">
-                          <Button variant="ghost" size="icon" title="Registrar pago" onClick={() => { setPayTarget(t); setNotes(''); }} disabled={!b}><CircleDollarSign className="h-4 w-4" /></Button>
+                          {b ? (
+                            <Button variant="ghost" size="icon" title="Registrar pago" onClick={() => { setPayTarget(t); setNotes(''); }}><CircleDollarSign className="h-4 w-4" /></Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" title="Configurar facturación" onClick={() => { setConfigTarget(t); setConfigCycle('monthly'); }}><Settings2 className="h-4 w-4" /></Button>
+                          )}
                           <Button variant="ghost" size="icon" title="Historial de pagos" onClick={() => openHistory(t)}><Receipt className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Suspender por impago" onClick={() => setSuspendTarget(t)} disabled={t.status !== 'active'}><Ban className="h-4 w-4" /></Button>
                         </TableCell>
@@ -244,6 +263,32 @@ export default function BillingPage() {
               </Table>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Configurar facturación */}
+      <Dialog open={configTarget !== null} onOpenChange={(o) => !o && setConfigTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar facturación</DialogTitle>
+            <DialogDescription>{configTarget?.displayName} · plan {configTarget?.plan}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">El monto se toma del plan según el ciclo. La cobertura arranca hoy + un ciclo (queda al día).</p>
+            <Label>Ciclo de facturación</Label>
+            <Select value={configCycle} onValueChange={(v) => setConfigCycle(v as BillingCycle)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Mensual</SelectItem>
+                <SelectItem value="semiannual">Semestral</SelectItem>
+                <SelectItem value="annual">Anual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigTarget(null)} disabled={saving}>Cancelar</Button>
+            <Button onClick={doConfigure} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Guardar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
