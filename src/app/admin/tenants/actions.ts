@@ -22,13 +22,16 @@ import {
 } from '@/firebase/gcp-firestore-admin';
 import { slugify } from '@/lib/slug';
 import { logPlatformAudit } from '@/lib/platform-audit';
-import type { TenantStatus } from '@/lib/types';
+import { addCycle, planPriceFor, type BillingCycle } from '@/lib/billing';
+import type { TenantStatus, TenantBilling } from '@/lib/types';
 
 const ProvisionInput = z.object({
   idToken: z.string().min(1),
   displayName: z.string().min(2),
   companyName: z.string().min(2),
   plan: z.string().min(1),
+  /** Ciclo de facturación elegido al crear el tenant. */
+  billingCycle: z.enum(['monthly', 'semiannual', 'annual']).default('monthly'),
   /** Firestore location for the new database (must match project constraints). */
   locationId: z.string().min(2),
   adminEmail: z.string().email(),
@@ -101,12 +104,31 @@ export async function provisionTenant(
   // vería todos los módulos hasta que se le asigne un plan con módulos.
   const planSnap = await adminDb.collection('plans').doc(parsed.plan).get();
   const planData = planSnap.exists
-    ? (planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number; maxCampaigns?: number } | undefined)
+    ? (planSnap.data() as {
+        modules?: string[];
+        maxUsers?: number;
+        maxRoles?: number;
+        maxCampaigns?: number;
+        prices?: { monthly?: number; semiannual?: number; annual?: number };
+        currency?: string;
+      } | undefined)
     : undefined;
   const planModules = planData?.modules;
   const maxUsers = planData?.maxUsers;
   const maxRoles = planData?.maxRoles;
   const maxCampaigns = planData?.maxCampaigns;
+
+  // Facturación: monto heredado del plan según el ciclo; el primer ciclo va
+  // incluido desde createdAt (paidThrough = createdAt + ciclo → nace "al día").
+  const createdAt = new Date().toISOString();
+  const cycle = parsed.billingCycle as BillingCycle;
+  const billing: TenantBilling = {
+    cycle,
+    amount: planPriceFor(planData?.prices, cycle),
+    currency: (planData?.currency || 'COP').toUpperCase(),
+    paidThrough: addCycle(createdAt, cycle),
+    status: 'al_dia',
+  };
 
   // 0) Register as provisioning so the UI can reflect progress.
   await tenantRef.set({
@@ -117,9 +139,10 @@ export async function provisionTenant(
     ...(typeof maxUsers === 'number' ? { maxUsers } : {}),
     ...(typeof maxRoles === 'number' ? { maxRoles } : {}),
     ...(typeof maxCampaigns === 'number' ? { maxCampaigns } : {}),
+    billing,
     databaseId,
     ownerUid: '',
-    createdAt: new Date().toISOString(),
+    createdAt,
     status: 'provisioning' as TenantStatus,
   });
 
@@ -225,15 +248,28 @@ export async function changeTenantPlan(input: {
     const caller = await requirePlatformAdmin(input.idToken);
     const planSnap = await adminDb.collection('plans').doc(input.plan).get();
     if (!planSnap.exists) return { success: false, error: 'El plan seleccionado no existe.' };
-    const planData = planSnap.data() as { modules?: string[]; maxUsers?: number; maxRoles?: number; maxCampaigns?: number } | undefined;
+    const planData = planSnap.data() as {
+      modules?: string[];
+      maxUsers?: number;
+      maxRoles?: number;
+      maxCampaigns?: number;
+      prices?: { monthly?: number; semiannual?: number; annual?: number };
+      currency?: string;
+    } | undefined;
     const modules = planData?.modules || [];
     const maxUsers = planData?.maxUsers ?? 0;
     const maxRoles = planData?.maxRoles ?? 0;
     const maxCampaigns = planData?.maxCampaigns ?? 0;
-    await adminDb
-      .collection('tenants')
-      .doc(input.tenantId)
-      .update({ plan: input.plan, planModules: modules, maxUsers, maxRoles, maxCampaigns });
+
+    // Recalcular el monto de facturación con el precio del nuevo plan para el
+    // ciclo ACTUAL del tenant (sin tocar paidThrough ni el estado).
+    const tenantRef = adminDb.collection('tenants').doc(input.tenantId);
+    const currentCycle = (tenantRef && (await tenantRef.get()).data() as { billing?: { cycle?: BillingCycle } } | undefined)?.billing?.cycle;
+    const billingUpdate = currentCycle
+      ? { 'billing.amount': planPriceFor(planData?.prices, currentCycle), 'billing.currency': (planData?.currency || 'COP').toUpperCase() }
+      : {};
+
+    await tenantRef.update({ plan: input.plan, planModules: modules, maxUsers, maxRoles, maxCampaigns, ...billingUpdate });
     await logPlatformAudit(caller, 'tenant:change_plan', { tenantId: input.tenantId, plan: input.plan });
     return { success: true };
   } catch (e: any) {

@@ -44,6 +44,10 @@ export default function PlansPage() {
   const [maxUsers, setMaxUsers] = React.useState('');
   const [maxRoles, setMaxRoles] = React.useState('');
   const [maxCampaigns, setMaxCampaigns] = React.useState('');
+  const [currency, setCurrency] = React.useState('COP');
+  const [priceMonthly, setPriceMonthly] = React.useState('');
+  const [priceSemiannual, setPriceSemiannual] = React.useState('');
+  const [priceAnnual, setPriceAnnual] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [seeding, setSeeding] = React.useState(false);
 
@@ -55,13 +59,19 @@ export default function PlansPage() {
 
   const openNew = () => {
     setEditing(null); setName(''); setModules([]);
-    setMaxUsers(''); setMaxRoles(''); setMaxCampaigns(''); setOpen(true);
+    setMaxUsers(''); setMaxRoles(''); setMaxCampaigns('');
+    setCurrency('COP'); setPriceMonthly(''); setPriceSemiannual(''); setPriceAnnual('');
+    setOpen(true);
   };
   const openEdit = (p: Plan) => {
     setEditing(p); setName(p.name); setModules(p.modules || []);
     setMaxUsers(p.maxUsers ? String(p.maxUsers) : '');
     setMaxRoles(p.maxRoles ? String(p.maxRoles) : '');
     setMaxCampaigns(p.maxCampaigns ? String(p.maxCampaigns) : '');
+    setCurrency(p.currency || 'COP');
+    setPriceMonthly(p.prices?.monthly ? String(p.prices.monthly) : '');
+    setPriceSemiannual(p.prices?.semiannual ? String(p.prices.semiannual) : '');
+    setPriceAnnual(p.prices?.annual ? String(p.prices.annual) : '');
     setOpen(true);
   };
   const toggle = (key: string) =>
@@ -82,6 +92,12 @@ export default function PlansPage() {
         maxUsers: toLimit(maxUsers),
         maxRoles: toLimit(maxRoles),
         maxCampaigns: toLimit(maxCampaigns),
+        currency: currency.trim() || 'COP',
+        prices: {
+          monthly: toLimit(priceMonthly),
+          semiannual: toLimit(priceSemiannual),
+          annual: toLimit(priceAnnual),
+        },
         status: 'activo',
       });
       if (res.success) { toast({ title: 'Plan guardado' }); setOpen(false); }
@@ -177,6 +193,30 @@ export default function PlansPage() {
                 <Input type="number" min={0} value={maxCampaigns} onChange={(e) => setMaxCampaigns(e.target.value)} placeholder="∞" />
               </div>
               <p className="col-span-3 -mt-1 text-xs text-muted-foreground">Vacío o 0 = ilimitado.</p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Precios por ciclo</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Moneda</span>
+                  <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} className="h-8 w-20" maxLength={3} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Mensual</Label>
+                  <Input type="number" min={0} value={priceMonthly} onChange={(e) => setPriceMonthly(e.target.value)} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Semestral</Label>
+                  <Input type="number" min={0} value={priceSemiannual} onChange={(e) => setPriceSemiannual(e.target.value)} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Anual</Label>
+                  <Input type="number" min={0} value={priceAnnual} onChange={(e) => setPriceAnnual(e.target.value)} placeholder="0" />
+                </div>
+              </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">

@@ -276,7 +276,37 @@ export type Plan = WithId<{
     maxRoles?: number;
     /** Máximo de campañas activas (no archivadas). 0/ausente = ilimitado. */
     maxCampaigns?: number;
+    /** Precio por ciclo de facturación (el tenant hereda el de su ciclo). */
+    prices?: { monthly?: number; semiannual?: number; annual?: number };
+    /** Moneda de los precios (ej. 'COP', 'USD'). */
+    currency?: string;
     status: 'activo' | 'inactivo';
+}>;
+
+/** Estado de facturación DENORMALIZADO en el tenant. */
+export type TenantBilling = {
+    cycle: import('@/lib/billing').BillingCycle;
+    /** Monto del ciclo (heredado del plan al crear/cambiar de plan). */
+    amount: number;
+    currency: string;
+    /** Fecha ISO hasta la que el tenant está cubierto. Si ya pasó → vencido. */
+    paidThrough: string;
+    status: 'al_dia' | 'vencido';
+    lastPaymentAt?: string;
+};
+
+/** Registro de un pago (trazabilidad). Vive en `(default)/tenants/{id}/payments`. */
+export type TenantPayment = WithId<{
+    amount: number;
+    currency: string;
+    cycle: import('@/lib/billing').BillingCycle;
+    /** Periodo cubierto por este pago. */
+    periodStart: string;
+    periodEnd: string;
+    paidAt: string;
+    recordedByUid: string;
+    recordedByEmail?: string;
+    notes?: string;
 }>;
 
 export type NotificationAudience = 'all' | 'tenant';
@@ -320,6 +350,8 @@ export type Tenant = WithId<{
     maxUsers?: number;
     maxRoles?: number;
     maxCampaigns?: number;
+    /** Facturación denormalizada (ciclo, monto, cobertura, estado). */
+    billing?: TenantBilling;
     /** Named Firestore database that holds this tenant's data, e.g. "tenant-acme". */
     databaseId: string;
     ownerUid: string;
@@ -340,6 +372,8 @@ export const platformPermissionGroups: Record<string, readonly string[]> = {
     stats: ["read"],
     /** Auditoría: ver los logs de acciones (plataforma y tenants). Solo plataforma. */
     audit: ["read"],
+    /** Facturación/cobros de tenants (ver estado, registrar pagos, suspender). */
+    billing: ["read"],
 };
 
 const generatePlatformPermissions = (): readonly string[] => {

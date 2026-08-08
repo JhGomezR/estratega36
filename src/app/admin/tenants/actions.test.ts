@@ -43,6 +43,7 @@ const VALID = {
   displayName: 'Acme Corp',
   companyName: 'Acme Inc',
   plan: 'estratega' as const,
+  billingCycle: 'monthly' as const,
   locationId: 'nam5',
   adminEmail: 'admin@acme.com',
   adminPassword: 'sup3rsecret',

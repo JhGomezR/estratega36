@@ -36,7 +36,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | '
 const DEFAULT_LOCATION_ID = 'us-central1';
 
 const EMPTY_CREATE = {
-  displayName: '', companyName: '', plan: 'estratega',
+  displayName: '', companyName: '', plan: 'estratega', billingCycle: 'monthly',
   locationId: DEFAULT_LOCATION_ID, adminEmail: '', adminPassword: '', adminFullName: '',
 };
 
@@ -72,7 +72,7 @@ export default function TenantsPage() {
   const handleCreate = async () => {
     setSubmitting(true);
     try {
-      const res = await provisionTenant({ idToken: await idToken(), ...form, plan: form.plan as any });
+      const res = await provisionTenant({ idToken: await idToken(), ...form, plan: form.plan as any, billingCycle: form.billingCycle as any });
       if (res.success) {
         toast({ title: 'Tenant creado', description: `Aprovisionado "${res.tenantId}".` });
         setCreateOpen(false);
@@ -252,6 +252,17 @@ export default function TenantsPage() {
                   <SelectItem value="basico">Básico</SelectItem>
                   <SelectItem value="estratega">Estratega</SelectItem>
                   <SelectItem value="360">360</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Ciclo de facturación</Label>
+              <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Mensual</SelectItem>
+                  <SelectItem value="semiannual">Semestral</SelectItem>
+                  <SelectItem value="annual">Anual</SelectItem>
                 </SelectContent>
               </Select>
             </div>

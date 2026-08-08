@@ -25,6 +25,15 @@ const PlanInput = z.object({
   maxUsers: z.number().int().min(0).optional(),
   maxRoles: z.number().int().min(0).optional(),
   maxCampaigns: z.number().int().min(0).optional(),
+  /** Precios por ciclo (0/ausente = sin precio definido). */
+  prices: z
+    .object({
+      monthly: z.number().min(0).optional(),
+      semiannual: z.number().min(0).optional(),
+      annual: z.number().min(0).optional(),
+    })
+    .optional(),
+  currency: z.string().optional(),
   status: z.enum(['activo', 'inactivo']).default('activo'),
 });
 
@@ -42,6 +51,13 @@ export async function upsertPlan(
     const id = data.planId || slugify(data.name);
     if (!id) return { success: false, error: 'Nombre de plan inválido.' };
 
+    const prices = {
+      monthly: data.prices?.monthly ?? 0,
+      semiannual: data.prices?.semiannual ?? 0,
+      annual: data.prices?.annual ?? 0,
+    };
+    const currency = (data.currency || 'COP').toUpperCase();
+
     await adminDb.collection('plans').doc(id).set(
       {
         name: data.name,
@@ -50,6 +66,8 @@ export async function upsertPlan(
         maxUsers,
         maxRoles,
         maxCampaigns,
+        prices,
+        currency,
         status: data.status,
       },
       { merge: true }
@@ -97,13 +115,15 @@ export async function seedDefaultPlans(input: {
   try {
     await requirePlatformAdmin(input.idToken);
     const ADMIN_BASE = ['admin_roles', 'admin_users', 'admin_settings'];
-    const defaults: Record<string, { name: string; modules: string[]; maxUsers: number; maxRoles: number; maxCampaigns: number }> = {
+    type Seed = { name: string; modules: string[]; maxUsers: number; maxRoles: number; maxCampaigns: number; prices: { monthly: number; semiannual: number; annual: number } };
+    const defaults: Record<string, Seed> = {
       basico: {
         name: 'Básico',
         modules: ['campaigns', 'voters', ...ADMIN_BASE],
         maxUsers: 5,
         maxRoles: 3,
         maxCampaigns: 1,
+        prices: { monthly: 50000, semiannual: 270000, annual: 480000 },
       },
       estratega: {
         name: 'Estratega',
@@ -115,15 +135,16 @@ export async function seedDefaultPlans(input: {
         maxUsers: 20,
         maxRoles: 8,
         maxCampaigns: 5,
+        prices: { monthly: 120000, semiannual: 650000, annual: 1200000 },
       },
       // El plan tope habilita TODO y sin límites (0 = ilimitado).
-      '360': { name: '360', modules: [...VALID_MODULES], maxUsers: 0, maxRoles: 0, maxCampaigns: 0 },
+      '360': { name: '360', modules: [...VALID_MODULES], maxUsers: 0, maxRoles: 0, maxCampaigns: 0, prices: { monthly: 250000, semiannual: 1400000, annual: 2600000 } },
     };
     const batch = adminDb.batch();
     for (const [id, p] of Object.entries(defaults)) {
       batch.set(
         adminDb.collection('plans').doc(id),
-        { name: p.name, description: '', modules: p.modules, maxUsers: p.maxUsers, maxRoles: p.maxRoles, maxCampaigns: p.maxCampaigns, status: 'activo' },
+        { name: p.name, description: '', modules: p.modules, maxUsers: p.maxUsers, maxRoles: p.maxRoles, maxCampaigns: p.maxCampaigns, prices: p.prices, currency: 'COP', status: 'activo' },
         { merge: true }
       );
     }

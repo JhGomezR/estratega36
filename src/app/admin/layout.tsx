@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, ScrollText, LogOut } from 'lucide-react';
+import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, ScrollText, CircleDollarSign, LogOut } from 'lucide-react';
 import { useAuth, usePlatformClaims, useTenantResolution } from '@/firebase';
 import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { signOut } from 'firebase/auth';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 const NAV: { href: string; label: string; icon: typeof Building2; perm?: string }[] = [
   { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
   { href: '/admin/plans', label: 'Planes', icon: Package },
+  { href: '/admin/billing', label: 'Facturación', icon: CircleDollarSign, perm: 'billing:read' },
   { href: '/admin/notifications', label: 'Notificaciones', icon: Bell },
   { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users },
   { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck },
