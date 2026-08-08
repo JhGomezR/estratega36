@@ -279,6 +279,34 @@ export async function changeTenantPlan(input: {
   }
 }
 
+/**
+ * Actualiza datos editables del tenant (nombre visible, empresa, ciudad). No
+ * toca id/base de datos/plan/estado. Útil para asignar la ciudad a tenants
+ * creados antes del campo. Solo operador de plataforma.
+ */
+export async function updateTenant(input: {
+  idToken: string;
+  tenantId: string;
+  displayName?: string;
+  companyName?: string;
+  city?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const caller = await requirePlatformAdmin(input.idToken);
+    const update: Record<string, unknown> = {};
+    if (typeof input.displayName === 'string' && input.displayName.trim().length >= 2) update.displayName = input.displayName.trim();
+    if (typeof input.companyName === 'string' && input.companyName.trim().length >= 2) update.companyName = input.companyName.trim();
+    if (typeof input.city === 'string') update.city = input.city; // permite fijar o limpiar
+    if (Object.keys(update).length === 0) return { success: true };
+
+    await adminDb.collection('tenants').doc(input.tenantId).update(update);
+    await logPlatformAudit(caller, 'tenant:update_info', { tenantId: input.tenantId, ...update });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'No se pudo actualizar el tenant.' };
+  }
+}
+
 /** Activates or deactivates a tenant. Deactivating blocks its users at login. */
 export async function setTenantStatus(input: {
   idToken: string;

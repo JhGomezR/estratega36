@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { collection } from 'firebase/firestore';
-import { Loader2, PlusCircle, LogIn, Power, PowerOff, Palette, Trash2, Package } from 'lucide-react';
+import { Loader2, PlusCircle, LogIn, Power, PowerOff, Palette, Trash2, Package, Pencil } from 'lucide-react';
 import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebase';
 import { setImpersonation } from '@/firebase/tenant-db';
 import type { Tenant, Plan } from '@/lib/types';
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { CO_CITY_NAMES } from '@/lib/co-cities';
-import { provisionTenant, setTenantStatus, updateTenantBranding, deleteTenant, changeTenantPlan } from './actions';
+import { provisionTenant, setTenantStatus, updateTenantBranding, deleteTenant, changeTenantPlan, updateTenant } from './actions';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   active: 'default',
@@ -63,6 +63,9 @@ export default function TenantsPage() {
   const [planTarget, setPlanTarget] = React.useState<Tenant | null>(null);
   const [selectedPlan, setSelectedPlan] = React.useState('');
   const [changingPlan, setChangingPlan] = React.useState(false);
+  const [editTarget, setEditTarget] = React.useState<Tenant | null>(null);
+  const [editForm, setEditForm] = React.useState({ displayName: '', companyName: '', city: '' });
+  const [savingEdit, setSavingEdit] = React.useState(false);
 
   const idToken = async () => {
     const t = await auth.currentUser?.getIdToken();
@@ -137,6 +140,24 @@ export default function TenantsPage() {
 
   const openPlan = (t: Tenant) => { setPlanTarget(t); setSelectedPlan(t.plan || ''); };
 
+  const openEdit = (t: Tenant) => {
+    setEditTarget(t);
+    setEditForm({ displayName: t.displayName || '', companyName: t.companyName || '', city: t.city || '' });
+  };
+  const handleEdit = async () => {
+    if (!editTarget) return;
+    setSavingEdit(true);
+    try {
+      const res = await updateTenant({ idToken: await idToken(), tenantId: editTarget.id, ...editForm });
+      if (res.success) { toast({ variant: 'success', title: 'Tenant actualizado' }); setEditTarget(null); }
+      else toast({ variant: 'destructive', title: 'Error', description: res.error });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleChangePlan = async () => {
     if (!planTarget || !selectedPlan) return;
     setChangingPlan(true);
@@ -196,6 +217,9 @@ export default function TenantsPage() {
                       <Badge variant={STATUS_VARIANT[t.status] || 'outline'} className="capitalize">{t.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-1">
+                      <Button variant="ghost" size="icon" title="Editar tenant" onClick={() => openEdit(t)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" title="Cambiar plan" onClick={() => openPlan(t)}>
                         <Package className="h-4 w-4" />
                       </Button>
@@ -308,6 +332,42 @@ export default function TenantsPage() {
         onClose={() => setBrandingTenant(null)}
         getIdToken={idToken}
       />
+
+      {/* Editar tenant */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar tenant</DialogTitle>
+            <DialogDescription>
+              {editTarget?.displayName} <span className="font-mono text-xs">({editTarget?.id})</span> · plan/base no editables.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Nombre visible</Label>
+              <Input value={editForm.displayName} onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Empresa</Label>
+              <Input value={editForm.companyName} onChange={(e) => setEditForm({ ...editForm, companyName: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Ciudad</Label>
+              <Select value={editForm.city || undefined} onValueChange={(v) => setEditForm({ ...editForm, city: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecciona la ciudad" /></SelectTrigger>
+                <SelectContent>
+                  {CO_CITY_NAMES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">La ciudad ubica al tenant en el mapa de Estadísticas.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={savingEdit}>Cancelar</Button>
+            <Button onClick={handleEdit} disabled={savingEdit}>{savingEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cambiar plan */}
       <Dialog open={!!planTarget} onOpenChange={(o) => { if (!o) setPlanTarget(null); }}>
