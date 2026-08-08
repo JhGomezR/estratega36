@@ -4,13 +4,13 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2, Building2, Users, ShieldCheck, BarChart3, Image as ImageIcon, Package, Bell, ScrollText, CircleDollarSign, Settings, LogOut } from 'lucide-react';
-import { useAuth, useCollection, useDefaultDb, useMemoFirebase, usePlatformClaims, useTenantResolution } from '@/firebase';
+import { useAuth, useCollection, useDefaultDb, useDoc, useMemoFirebase, usePlatformClaims, useTenantResolution } from '@/firebase';
 import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { signOut } from 'firebase/auth';
-import { collection } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { isOverdue } from '@/lib/billing';
-import type { Tenant } from '@/lib/types';
+import type { Tenant, BrandingSettings } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
 const NAV: { href: string; label: string; icon: typeof Building2; perm?: string }[] = [
@@ -45,6 +45,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { data: allTenants } = useCollection<Tenant>(tenantsRef);
   const overdueCount = (allTenants || []).filter((t) => t.billing && isOverdue(t.billing.paidThrough)).length;
 
+  // Logo de marca para la barra lateral del Control Plane (fallback: texto).
+  const brandingRef = useMemoFirebase(() => (defaultDb ? doc(defaultDb, 'settings/branding') : null), [defaultDb]);
+  const { data: branding } = useDoc<BrandingSettings>(brandingRef);
+
   // The AuthGate already redirects non-operators, but guard defensively here too.
   const resolving = resolution.state === 'idle' || resolution.state === 'resolving';
 
@@ -66,6 +70,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen">
       <aside className="w-64 shrink-0 border-r bg-muted/30 p-4">
         <div className="mb-6 px-2">
+          {branding?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={branding.logoUrl} alt="Logo" className="mb-2 max-h-12 w-auto object-contain" />
+          ) : null}
           <p className="text-lg font-bold">Control Plane</p>
           <p className="text-xs text-muted-foreground">Administración de plataforma</p>
         </div>

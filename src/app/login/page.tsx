@@ -163,10 +163,23 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center p-6 lg:p-8">
         <div className="mx-auto w-full max-w-sm space-y-6">
           <div className="text-center space-y-2">
-             <div className="flex justify-center items-center gap-2 mb-4">
-                <IconEstratega className="h-8 w-8 text-primary" />
-                <h1 className="text-3xl font-bold">EstrategaCRM</h1>
-             </div>
+             {brandingSettings?.logoUrl ? (
+                <div className="mb-4 flex justify-center">
+                  <Image
+                    src={brandingSettings.logoUrl}
+                    alt={brandingSettings.appName || 'Logo'}
+                    width={220}
+                    height={64}
+                    className="h-16 w-auto object-contain"
+                    unoptimized
+                  />
+                </div>
+             ) : (
+                <div className="flex justify-center items-center gap-2 mb-4">
+                   <IconEstratega className="h-8 w-8 text-primary" />
+                   <h1 className="text-3xl font-bold">{brandingSettings?.appName || 'EstrategaCRM'}</h1>
+                </div>
+             )}
             <p className="text-balance text-muted-foreground">
               Ingresa tus credenciales para acceder a la plataforma.
             </p>
