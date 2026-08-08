@@ -21,7 +21,7 @@ const NAV: { href: string; label: string; icon: typeof Building2; perm?: string 
   { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users },
   { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck },
   { href: '/admin/logs', label: 'Auditoría', icon: ScrollText, perm: 'audit:read' },
-  { href: '/admin/branding', label: 'Marca del login', icon: ImageIcon },
+  { href: '/admin/branding', label: 'Branding', icon: ImageIcon },
   { href: '/admin/stats', label: 'Estadísticas', icon: BarChart3 },
   { href: '/admin/settings', label: 'Configuración', icon: Settings },
 ];

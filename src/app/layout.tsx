@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from '@/components/layout/providers';
 import { FirebaseClientProvider } from '@/firebase';
+import { BrandingHead } from '@/components/layout/branding-head';
 
 export const metadata: Metadata = {
   title: 'EstrategaCRM',
@@ -30,7 +31,10 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <Providers>
-          <FirebaseClientProvider>{children}</FirebaseClientProvider>
+          <FirebaseClientProvider>
+            <BrandingHead />
+            {children}
+          </FirebaseClientProvider>
         </Providers>
       </body>
     </html>

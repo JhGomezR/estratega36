@@ -139,10 +139,16 @@ export const availablePermissions = generatePermissions();
 export type Permission = (typeof availablePermissions)[number];
 
 export type BrandingSettings = {
+  /** Nombre de marca de la plataforma (título del navegador, cabeceras). */
+  appName?: string;
   primaryColor?: string;
   accentColor?: string;
   sidebarColor?: string;
+  /** Logo de la aplicación (barra lateral / login), data URI o URL. */
   logoUrl?: string;
+  /** Favicon (icono de pestaña), data URI o URL. */
+  faviconUrl?: string;
+  /** Imagen de fondo del login. */
   loginImageUrl?: string;
 };
 
