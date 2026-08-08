@@ -9,6 +9,7 @@
 import { adminDb } from '@/firebase/admin';
 import { requirePlatformPermission } from '@/firebase/claims';
 import { logPlatformAudit } from '@/lib/platform-audit';
+import { sweepOverdueTenants } from '@/lib/billing-sweep';
 import { addCycle, planPriceFor, type BillingCycle } from '@/lib/billing';
 import type { TenantBilling, TenantPayment } from '@/lib/types';
 
@@ -134,25 +135,7 @@ export async function runBillingSweep(input: {
 }): Promise<{ success: boolean; suspended: number; error?: string }> {
   try {
     const caller = await requirePlatformPermission(input.idToken, 'billing:read');
-    const now = Date.now();
-    const snap = await adminDb.collection('tenants').get();
-    const batch = adminDb.batch();
-    let suspended = 0;
-    snap.docs.forEach((d) => {
-      const t = d.data() as { billing?: TenantBilling; status?: string };
-      if (
-        t.status === 'active' &&
-        t.billing?.paidThrough &&
-        new Date(t.billing.paidThrough).getTime() < now
-      ) {
-        batch.update(d.ref, { status: 'inactive', 'billing.status': 'vencido' });
-        suspended++;
-      }
-    });
-    if (suspended > 0) {
-      await batch.commit();
-      await logPlatformAudit(caller, 'tenant:billing_sweep', { suspended });
-    }
+    const suspended = await sweepOverdueTenants(caller.uid);
     return { success: true, suspended };
   } catch (e: any) {
     return { success: false, suspended: 0, error: e?.message || 'No se pudo ejecutar el barrido.' };
