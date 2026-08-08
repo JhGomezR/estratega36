@@ -12,11 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { getBillingConfig, saveBillingConfig, type BillingConfig } from './actions';
 
-const CRONTAB: Record<BillingConfig['frequency'], string> = {
-  daily: '0 3 * * *',
-  weekly: '0 3 * * 1',
-  monthly: '0 3 1 * *',
-};
 const FREQ_LABEL: Record<BillingConfig['frequency'], string> = {
   daily: 'Diaria (3:00)',
   weekly: 'Semanal (lunes 3:00)',
@@ -31,7 +26,6 @@ export default function SettingsPage() {
   const [daysText, setDaysText] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [origin, setOrigin] = React.useState('');
 
   const idToken = async () => {
     const t = await auth.currentUser?.getIdToken();
@@ -40,7 +34,6 @@ export default function SettingsPage() {
   };
 
   React.useEffect(() => {
-    setOrigin(window.location.origin);
     (async () => {
       try {
         const res = await getBillingConfig({ idToken: await idToken() });
@@ -72,8 +65,6 @@ export default function SettingsPage() {
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!config) return <p className="text-muted-foreground">No se pudo cargar la configuración.</p>;
-
-  const cronUrl = `${origin}/api/cron/billing?key=TU_CRON_SECRET`;
 
   return (
     <div className="space-y-6">
@@ -119,28 +110,6 @@ export default function SettingsPage() {
         <CardFooter>
           <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Guardar</Button>
         </CardFooter>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Tarea programada (cron)</CardTitle>
-          <CardDescription>El barrido corre desatendido llamando a este endpoint desde un cron externo.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <p className="mb-1 font-medium">1) Define un secreto en el servidor</p>
-            <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">CRON_SECRET=una-clave-larga-y-secreta</pre>
-          </div>
-          <div>
-            <p className="mb-1 font-medium">2) Endpoint a llamar</p>
-            <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">{cronUrl}</pre>
-          </div>
-          <div>
-            <p className="mb-1 font-medium">3) Línea de crontab ({FREQ_LABEL[config.frequency]})</p>
-            <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">{`${CRONTAB[config.frequency]} curl -fsS "${origin}/api/cron/billing?key=$CRON_SECRET" >/dev/null`}</pre>
-          </div>
-          <p className="text-xs text-muted-foreground">También puedes usar un servicio como cron-job.org apuntando al endpoint con el secreto.</p>
-        </CardContent>
       </Card>
     </div>
   );
