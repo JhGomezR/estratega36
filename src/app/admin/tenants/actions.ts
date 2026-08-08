@@ -22,7 +22,7 @@ import {
 } from '@/firebase/gcp-firestore-admin';
 import { slugify } from '@/lib/slug';
 import { logPlatformAudit } from '@/lib/platform-audit';
-import { addCycle, planPriceFor, type BillingCycle } from '@/lib/billing';
+import { addCycle, planPriceFor, isOverdue, type BillingCycle } from '@/lib/billing';
 import type { TenantStatus, TenantBilling } from '@/lib/types';
 
 const ProvisionInput = z.object({
@@ -285,6 +285,21 @@ export async function setTenantStatus(input: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const caller = await requirePlatformAdmin(input.idToken);
+
+    // No se puede ACTIVAR un tenant con facturación vencida: hay que registrar el
+    // pago (que lo reactiva). Evita el conflicto de activarlo aquí y que el
+    // barrido de cobros lo vuelva a suspender.
+    if (input.status === 'active') {
+      const snap = await adminDb.collection('tenants').doc(input.tenantId).get();
+      const billing = (snap.data() as { billing?: TenantBilling } | undefined)?.billing;
+      if (billing && isOverdue(billing.paidThrough)) {
+        return {
+          success: false,
+          error: 'No se puede activar: la facturación está vencida. Registra el pago en Facturación y el tenant se reactivará automáticamente.',
+        };
+      }
+    }
+
     await adminDb.collection('tenants').doc(input.tenantId).update({ status: input.status });
     await logPlatformAudit(caller, 'tenant:set_status', { tenantId: input.tenantId, status: input.status });
     return { success: true };
