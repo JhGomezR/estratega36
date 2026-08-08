@@ -29,6 +29,7 @@ const ProvisionInput = z.object({
   idToken: z.string().min(1),
   displayName: z.string().min(2),
   companyName: z.string().min(2),
+  city: z.string().optional(),
   plan: z.string().min(1),
   /** Ciclo de facturación elegido al crear el tenant. */
   billingCycle: z.enum(['monthly', 'semiannual', 'annual']).default('monthly'),
@@ -134,6 +135,7 @@ export async function provisionTenant(
   await tenantRef.set({
     displayName: parsed.displayName,
     companyName: parsed.companyName,
+    ...(parsed.city ? { city: parsed.city } : {}),
     plan: parsed.plan,
     ...(Array.isArray(planModules) ? { planModules } : {}),
     ...(typeof maxUsers === 'number' ? { maxUsers } : {}),

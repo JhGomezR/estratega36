@@ -9,22 +9,23 @@
 import { adminDb } from '@/firebase/admin';
 import { requirePlatformAdmin } from '@/firebase/claims';
 import { isOverdue } from '@/lib/billing';
+import { monthKeyTZ, nowYearMonthTZ } from '@/lib/tz';
 import type { TenantBilling } from '@/lib/types';
 
 const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function lastMonthKeys(n: number): { key: string; label: string }[] {
   const out: { key: string; label: string }[] = [];
-  const now = new Date();
+  const { year, month } = nowYearMonthTZ(); // mes 1-12 en zona de la app
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(year, month - 1 - i, 1); // JS normaliza índices negativos
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     out.push({ key, label: `${MONTHS_ES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` });
   }
   return out;
 }
 
-const monthKey = (iso?: string) => (iso ? iso.slice(0, 7) : ''); // 'YYYY-MM'
+const monthKey = (iso?: string) => monthKeyTZ(iso); // 'YYYY-MM' en zona de la app
 
 export interface PlatformStats {
   currency: string;
@@ -38,6 +39,8 @@ export interface PlatformStats {
   byPlan: { name: string; value: number }[];
   revenueByMonth: { label: string; ingresos: number }[];
   tenantsByMonth: { label: string; nuevos: number }[];
+  /** Serie mensual de pagos por cliente (tenant), ordenada por total desc. */
+  clients: { id: string; name: string; total: number; monthly: number[] }[];
 }
 
 export async function getPlatformStats(input: { idToken: string }): Promise<{ stats?: PlatformStats; error?: string }> {
@@ -104,7 +107,32 @@ export async function getPlatformStats(input: { idToken: string }): Promise<{ st
     const revenueByMonth = months.map((m) => ({ label: m.label, ingresos: revByKey.get(m.key) || 0 }));
     const tenantsByMonth = months.map((m) => ({ label: m.label, nuevos: tenByKey.get(m.key) || 0 }));
 
-    return { stats: { currency, totals, byStatus, byBilling, byPlan, revenueByMonth, tenantsByMonth } };
+    // Serie de pagos por CLIENTE (tenant). El id del tenant viene del padre del
+    // pago (collectionGroup): payments está en `tenants/{id}/payments`.
+    const tenantNameById = new Map(
+      tenantsSnap.docs.map((d) => [d.id, (d.data() as { displayName?: string }).displayName || d.id])
+    );
+    const perTenant = new Map<string, { total: number; byMonth: Map<string, number> }>();
+    paymentsSnap.docs.forEach((d) => {
+      const tid = d.ref.parent.parent?.id;
+      if (!tid) return;
+      const p = d.data() as { amount?: number; paidAt?: string };
+      const k = monthKey(p.paidAt);
+      const rec = perTenant.get(tid) || { total: 0, byMonth: new Map<string, number>() };
+      rec.total += p.amount || 0;
+      if (k) rec.byMonth.set(k, (rec.byMonth.get(k) || 0) + (p.amount || 0));
+      perTenant.set(tid, rec);
+    });
+    const clients = [...perTenant.entries()]
+      .map(([id, rec]) => ({
+        id,
+        name: tenantNameById.get(id) || id,
+        total: rec.total,
+        monthly: months.map((m) => rec.byMonth.get(m.key) || 0),
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    return { stats: { currency, totals, byStatus, byBilling, byPlan, revenueByMonth, tenantsByMonth, clients } };
   } catch (e: any) {
     return { error: e?.message || 'No se pudieron cargar las estadísticas.' };
   }

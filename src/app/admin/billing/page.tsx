@@ -8,6 +8,7 @@ import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { usePagedSearch } from '@/hooks/use-paged-search';
 import { TableSearch, TablePagination } from '@/components/table-tools';
 import { isOverdue, daysUntilDue, CYCLE_LABEL } from '@/lib/billing';
+import { formatDate } from '@/lib/tz';
 import type { Tenant, TenantPayment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -217,7 +218,7 @@ export default function BillingPage() {
                         <TableCell className="text-sm">
                           {b?.paidThrough ? (
                             <span className={overdue ? 'font-medium text-destructive' : ''}>
-                              {new Date(b.paidThrough).toLocaleDateString()}
+                              {formatDate(b.paidThrough)}
                               {days !== null && <span className="ml-1 text-xs text-muted-foreground">({days < 0 ? `${-days}d vencido` : `en ${days}d`})</span>}
                             </span>
                           ) : '—'}
@@ -292,9 +293,9 @@ export default function BillingPage() {
                 <TableBody>
                   {history.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="text-sm">{new Date(p.paidAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-sm">{formatDate(p.paidAt)}</TableCell>
                       <TableCell className="text-sm">{money(p.amount, p.currency)}</TableCell>
-                      <TableCell className="text-sm">{new Date(p.periodEnd).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-sm">{formatDate(p.periodEnd)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{p.recordedByEmail || p.recordedByUid}</TableCell>
                     </TableRow>
                   ))}

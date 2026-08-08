@@ -13,17 +13,30 @@ import { isOverdue } from '@/lib/billing';
 import type { Tenant, BrandingSettings } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
-const NAV: { href: string; label: string; icon: typeof Building2; perm?: string }[] = [
-  { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
-  { href: '/admin/plans', label: 'Planes', icon: Package },
-  { href: '/admin/billing', label: 'Facturación', icon: CircleDollarSign, perm: 'billing:read' },
-  { href: '/admin/notifications', label: 'Notificaciones', icon: Bell },
-  { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users },
-  { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck },
-  { href: '/admin/logs', label: 'Auditoría', icon: ScrollText, perm: 'audit:read' },
-  { href: '/admin/branding', label: 'Branding', icon: ImageIcon },
-  { href: '/admin/stats', label: 'Estadísticas', icon: BarChart3 },
-  { href: '/admin/settings', label: 'Configuración', icon: Settings },
+type NavItem = { href: string; label: string; icon: typeof Building2; perm?: string };
+
+// Secciones del menú, cada una ordenada alfabéticamente por etiqueta.
+const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Plataforma',
+    items: [
+      { href: '/admin/stats', label: 'Estadísticas', icon: BarChart3 },
+      { href: '/admin/billing', label: 'Facturación', icon: CircleDollarSign, perm: 'billing:read' },
+      { href: '/admin/notifications', label: 'Notificaciones', icon: Bell },
+      { href: '/admin/plans', label: 'Planes', icon: Package },
+      { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
+    ],
+  },
+  {
+    title: 'Gestión',
+    items: [
+      { href: '/admin/logs', label: 'Auditoría', icon: ScrollText, perm: 'audit:read' },
+      { href: '/admin/branding', label: 'Branding', icon: ImageIcon },
+      { href: '/admin/settings', label: 'Configuración', icon: Settings },
+      { href: '/admin/roles', label: 'Roles de plataforma', icon: ShieldCheck },
+      { href: '/admin/users', label: 'Usuarios de plataforma', icon: Users },
+    ],
+  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -33,8 +46,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-
-  const visibleNav = NAV.filter((item) => !item.perm || hasPlatformPermission(item.perm));
 
   // Aviso en el menú: nº de tenants vencidos (para "Facturación").
   const defaultDb = useDefaultDb();
@@ -89,27 +100,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Navegación */}
-        <nav className="custom-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto pb-4 pt-2">
-          <h3 className="mb-2 px-3 text-theme-xs font-semibold uppercase leading-5 tracking-wider text-sidebar-muted">
-            Plataforma
-          </h3>
-          {visibleNav.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || pathname.startsWith(`${href}/`);
+        <nav className="custom-scrollbar flex flex-1 flex-col gap-6 overflow-y-auto pb-4 pt-2">
+          {NAV_SECTIONS.map((section) => {
+            const items = section.items.filter((item) => !item.perm || hasPlatformPermission(item.perm));
+            if (items.length === 0) return null;
             return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(menuItem, isActive ? active : inactive)}
-              >
-                <Icon className={cn('h-5 w-5 shrink-0 transition-colors', isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-muted')} />
-                <span className="truncate">{label}</span>
-                {href === '/admin/billing' && overdueCount > 0 && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
-                    {overdueCount}
-                  </span>
-                )}
-              </Link>
+              <div key={section.title} className="flex flex-col gap-1">
+                <h3 className="mb-1 px-3 text-theme-xs font-semibold uppercase leading-5 tracking-wider text-sidebar-muted">
+                  {section.title}
+                </h3>
+                {items.map(({ href, label, icon: Icon }) => {
+                  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(menuItem, isActive ? active : inactive)}
+                    >
+                      <Icon className={cn('h-5 w-5 shrink-0 transition-colors', isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-muted')} />
+                      <span className="truncate">{label}</span>
+                      {href === '/admin/billing' && overdueCount > 0 && (
+                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
+                          {overdueCount}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>

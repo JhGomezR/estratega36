@@ -7,6 +7,7 @@ import { useAuth, useCollection, useDefaultDb, useMemoFirebase } from '@/firebas
 import { usePlatformPermissions } from '@/hooks/usePlatformPermissions';
 import { usePagedSearch } from '@/hooks/use-paged-search';
 import { TableSearch, TablePagination } from '@/components/table-tools';
+import { formatDateTime } from '@/lib/tz';
 import type { Tenant } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -128,7 +129,7 @@ export default function LogsPage() {
                   )}
                   {paged.pageItems.map((l) => (
                     <TableRow key={l.id}>
-                      <TableCell className="whitespace-nowrap text-sm">{l.timestamp ? new Date(l.timestamp).toLocaleString() : '—'}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">{formatDateTime(l.timestamp)}</TableCell>
                       <TableCell className="text-sm">
                         {l.tenantId === 'platform'
                           ? <Badge variant="secondary">Plataforma</Badge>
@@ -157,7 +158,7 @@ export default function LogsPage() {
           <DialogHeader>
             <DialogTitle className="font-mono text-base">{detail?.action}</DialogTitle>
             <DialogDescription>
-              {(detail?.tenantId === 'platform' ? 'Plataforma' : tenantName[detail?.tenantId || ''] || detail?.tenantId)} · {detail?.userEmail || detail?.userId} · {detail?.timestamp ? new Date(detail.timestamp).toLocaleString() : ''}
+              {(detail?.tenantId === 'platform' ? 'Plataforma' : tenantName[detail?.tenantId || ''] || detail?.tenantId)} · {detail?.userEmail || detail?.userId} · {formatDateTime(detail?.timestamp)}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">

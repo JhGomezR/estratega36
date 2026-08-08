@@ -36,7 +36,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | '
 const DEFAULT_LOCATION_ID = 'us-central1';
 
 const EMPTY_CREATE = {
-  displayName: '', companyName: '', plan: 'estratega', billingCycle: 'monthly',
+  displayName: '', companyName: '', city: '', plan: 'estratega', billingCycle: 'monthly',
   locationId: DEFAULT_LOCATION_ID, adminEmail: '', adminPassword: '', adminFullName: '',
 };
 
@@ -243,6 +243,10 @@ export default function TenantsPage() {
             <div className="space-y-1">
               <Label>Empresa</Label>
               <Input value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Ciudad</Label>
+              <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ej: Bogotá" />
             </div>
             <div className="space-y-1">
               <Label>Plan</Label>

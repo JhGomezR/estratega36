@@ -340,6 +340,8 @@ export type Notification = WithId<{
 export type Tenant = WithId<{
     displayName: string;
     companyName: string;
+    /** Ciudad del tenant (para el mapa de ubicaciones). */
+    city?: string;
     /** Id del plan asignado (referencia a `(default)/plans/{plan}`). */
     plan: string;
     /**
